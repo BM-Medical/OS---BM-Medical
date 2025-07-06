@@ -7,280 +7,58 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Adicionando a biblioteca jsPDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="auth-guard.js" type="module"></script>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            background-color: #f4f7f6;
-            color: #333;
-        }
-        .board-container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-        .board-header {
-            padding: 15px 20px;
-            background-color: #fff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-        .board-header img {
-            height: 40px;
-        }
-        .board-header h1 {
-            font-size: 1.5rem;
-            margin: 0;
-        }
-        .board {
-            display: flex;
-            gap: 15px;
-            padding: 20px;
-            overflow-x: auto;
-            flex-grow: 1;
-            align-items: flex-start;
-        }
-        .list {
-            background-color: #e9ecef;
-            border-radius: 8px;
-            width: 300px;
-            min-width: 300px;
-            max-height: 100%;
-            display: flex;
-            flex-direction: column;
-        }
-        .list[data-status="arquivada"] {
-            background-color: #d6e9d6; /* Cor verde para a coluna de arquivamento */
-        }
-        .list-header {
-            padding: 12px 15px;
-            font-weight: 700;
-            font-size: 1rem;
-            border-bottom: 1px solid #ced4da;
-            position: sticky;
-            top: 0;
-            background-color: inherit; /* Herda a cor da lista */
-        }
-        .cards {
-            padding: 10px;
-            flex-grow: 1;
-            min-height: 100px;
-            overflow-y: auto;
-        }
-        .card {
-            background-color: #fff;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 10px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            cursor: pointer;
-            position: relative; /* Essencial para posicionar o ícone */
-        }
-        .card:active {
-            cursor: grabbing;
-        }
-        .card strong {
-            display: block;
-            margin-bottom: 5px;
-            color: #007bff;
-        }
-        .card p {
-            margin: 0;
-            font-size: 0.9rem;
-            color: #6c757d;
-        }
-        .dragging {
-            opacity: 0.5;
-        }
-        
-        /* --- ÍCONE DE STATUS DA ASSINATURA --- */
-        .card-status-icon {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 22px;
-            height: 22px;
-        }
-        .card-status-icon .icon-signed,
-        .card-status-icon .icon-unsigned {
-            display: none; /* Esconde ambos por padrão */
-            width: 100%;
-            height: 100%;
-        }
-        .card.is-signed .icon-signed {
-            display: block; /* Mostra o ícone de assinado */
-        }
-        .card.is-unsigned .icon-unsigned {
-            display: block; /* Mostra o ícone de não assinado */
-        }
-        .icon-signed .checkmark__circle {
-            stroke-dasharray: 166;
-            stroke-dashoffset: 166;
-            stroke-width: 3;
-            stroke-miterlimit: 10;
-            stroke: #2ecc71;
-            fill: none;
-            animation: stroke .6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
-        }
-        .icon-signed .checkmark__check {
-            transform-origin: 50% 50%;
-            stroke-dasharray: 48;
-            stroke-dashoffset: 48;
-            stroke-width: 4;
-            stroke: #2ecc71;
-            animation: stroke .3s cubic-bezier(0.65, 0, 0.45, 1) .8s forwards;
-        }
-        @keyframes stroke {
-            100% { stroke-dashoffset: 0; }
-        }
-
-        /* --- Estilos do Modal de Detalhes --- */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .modal-content {
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 10px;
-            width: 90%;
-            max-width: 800px;
-            max-height: 90vh;
-            overflow-y: auto;
-            position: relative;
-        }
-        .modal-close {
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            font-size: 2rem;
-            font-weight: bold;
-            cursor: pointer;
-            border: none;
-            background: none;
-        }
-        .modal-body .form-section {
-            border: 1px solid #e0e0e0;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .modal-body h2 {
-            font-size: 1.2rem;
-            color: #3498db;
-            margin-top: 0;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
-        }
-        .modal-body .prefilled-data p {
-            margin: 5px 0;
-            font-size: 1rem;
-        }
-        .modal-footer {
-            display: flex;
-            justify-content: flex-end;
-            gap: 15px;
-            margin-top: 20px;
-        }
-        .btn-action {
-            text-decoration: none;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: background-color 0.2s ease;
-        }
+        body { font-family: 'Inter', sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
+        .board-container { display: flex; flex-direction: column; height: 100vh; }
+        .board-header { padding: 15px 20px; background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 20px; position: sticky; top: 0; z-index: 10; }
+        .board-header img { height: 40px; }
+        .board-header h1 { font-size: 1.5rem; margin: 0; flex-grow: 1; }
+        .board-header .logout-button { background-color: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: 500; }
+        .board { display: flex; gap: 15px; padding: 20px; overflow-x: auto; flex-grow: 1; align-items: flex-start; }
+        .list { background-color: #e9ecef; border-radius: 8px; width: 300px; min-width: 300px; max-height: 100%; display: flex; flex-direction: column; }
+        .list[data-status="arquivada"] { background-color: #d6e9d6; }
+        .list-header { padding: 12px 15px; font-weight: 700; font-size: 1rem; border-bottom: 1px solid #ced4da; position: sticky; top: 0; background-color: inherit; }
+        .cards { padding: 10px; flex-grow: 1; min-height: 100px; overflow-y: auto; }
+        .card { background-color: #fff; border-radius: 6px; padding: 15px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; position: relative; }
+        .card:active { cursor: grabbing; }
+        .card strong { display: block; margin-bottom: 5px; color: #007bff; }
+        .card p { margin: 0; font-size: 0.9rem; color: #6c757d; }
+        .dragging { opacity: 0.5; }
+        .card-icons { position: absolute; top: 8px; right: 8px; display: flex; gap: 8px; }
+        .card-icon { width: 22px; height: 22px; cursor: pointer; }
+        .card-status-icon .icon-signed, .card-status-icon .icon-unsigned { display: none; width: 100%; height: 100%; }
+        .card.is-signed .icon-signed { display: block; }
+        .card.is-unsigned .icon-unsigned { display: block; }
+        .icon-signed .checkmark__circle { stroke-dasharray: 166; stroke-dashoffset: 166; stroke-width: 3; stroke-miterlimit: 10; stroke: #2ecc71; fill: none; animation: stroke .6s cubic-bezier(0.65, 0, 0.45, 1) forwards; }
+        .icon-signed .checkmark__check { transform-origin: 50% 50%; stroke-dasharray: 48; stroke-dashoffset: 48; stroke-width: 4; stroke: #2ecc71; animation: stroke .3s cubic-bezier(0.65, 0, 0.45, 1) .8s forwards; }
+        @keyframes stroke { 100% { stroke-dashoffset: 0; } }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background-color: #fff; padding: 30px; border-radius: 10px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; position: relative; }
+        .modal-close { position: absolute; top: 15px; right: 20px; font-size: 2rem; font-weight: bold; cursor: pointer; border: none; background: none; }
+        .modal-body .form-section { border: 1px solid #e0e0e0; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .modal-body h2 { font-size: 1.2rem; color: #3498db; margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .modal-body p, .modal-body .details-grid p { font-size: 1rem; margin: 5px 0; white-space: pre-wrap; }
+        .modal-body .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+        .modal-body .form-group { margin-bottom: 15px; }
+        .modal-body .form-group label { display: block; font-weight: 500; margin-bottom: 5px; }
+        .modal-body .form-group input, .modal-body .form-group textarea, .modal-body .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        .modal-footer { display: flex; justify-content: space-between; gap: 15px; margin-top: 20px; align-items: center; }
+        .btn-action { text-decoration: none; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: 500; transition: background-color 0.2s ease; }
+        .btn-edit { background-color: #f39c12; }
         .btn-pdf { background-color: #3498db; }
         .btn-pdf:disabled { background-color: #bdc3c7; cursor: not-allowed; }
-        .btn-save-sig { background-color: #2ecc71; }
-        
-        /* Estilos do Modal de Assinatura */
-        .signature-modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-        }
-        .signature-modal-content {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 10px;
-            width: 95%;
-            max-width: 600px;
-            text-align: center;
-        }
-        .signature-modal-content canvas {
-            border: 2px dashed #ccc;
-            border-radius: 6px;
-            cursor: crosshair;
-            width: 100%;
-            height: 250px;
-        }
-        .signature-modal-buttons {
-            margin-top: 15px;
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-        }
-        .signature-modal-buttons button {
-            padding: 10px 20px;
-            border-radius: 5px;
-            border: none;
-            cursor: pointer;
-            font-size: 1rem;
-        }
-        #signature-save-button-details {
-            background-color: #2ecc71;
-            color: white;
-        }
-        #signature-clear-button-details {
-            background-color: #e74c3c;
-            color: white;
-        }
-        #signature-cancel-button-details {
-            background-color: #95a5a6;
-            color: white;
-        }
-        .signature-placeholder {
-            border: 2px dashed #ccc;
-            border-radius: 6px;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            color: #7f8c8d;
-        }
-        .signature-thumbnail {
-            max-width: 200px;
-            max-height: 100px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
+        .btn-save { background-color: #2ecc71; }
+        .signature-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: center; z-index: 2000; }
+        .signature-modal-content { background-color: #fff; padding: 20px; border-radius: 10px; width: 95%; max-width: 600px; text-align: center; }
+        .signature-modal-content canvas { border: 2px dashed #ccc; border-radius: 6px; cursor: crosshair; width: 100%; height: 250px; }
+        .signature-modal-buttons { margin-top: 15px; display: flex; justify-content: center; gap: 15px; }
+        #signature-save-button-details { background-color: #2ecc71; color: white; }
+        #signature-clear-button-details { background-color: #e74c3c; color: white; }
+        #signature-cancel-button-details { background-color: #95a5a6; color: white; }
+        .signature-placeholder { border: 2px dashed #ccc; border-radius: 6px; padding: 20px; text-align: center; cursor: pointer; color: #7f8c8d; }
+        .signature-thumbnail { max-width: 200px; max-height: 100px; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -288,6 +66,7 @@
         <header class="board-header">
             <a href="index.html"><img src="./images/logo.png" alt="Logo BM Medical"></a>
             <h1>Quadro de Ordens de Serviço</h1>
+            <button id="logout-button" class="logout-button">Sair</button>
         </header>
 
         <main class="board">
@@ -300,7 +79,7 @@
         </main>
     </div>
 
-    <!-- Modal de Detalhes da OS -->
+    <!-- Modal de Detalhes/Edição da OS -->
     <div id="details-modal" class="modal-overlay">
         <div class="modal-content">
             <button id="modal-close-button" class="modal-close">&times;</button>
@@ -308,7 +87,7 @@
         </div>
     </div>
 
-    <!-- Modal de Assinatura (para o modal de detalhes) -->
+    <!-- Modal de Assinatura -->
     <div id="signature-modal-details" class="signature-modal-overlay">
         <div class="signature-modal-content">
             <h3>Assine no campo abaixo:</h3>
@@ -321,10 +100,9 @@
         </div>
     </div>
 
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getFirestore, collection, doc, getDoc, updateDoc, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getFirestore, collection, doc, getDoc, updateDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
@@ -356,7 +134,7 @@
                     ctx.drawImage(img, 0, 0);
                     resolve(canvas.toDataURL('image/png'));
                 };
-                img.onerror = (err) => reject(new Error(`Falha ao carregar a imagem: ${url}`));
+                img.onerror = () => reject(new Error(`Falha ao carregar a imagem: ${url}`));
                 img.src = url;
             });
         }
@@ -384,13 +162,15 @@
             card.className = isSigned ? 'card is-signed' : 'card is-unsigned';
 
             card.innerHTML = `
-                <div class="card-status-icon">
-                    <div class="icon-signed"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/><path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/></svg></div>
-                    <div class="icon-unsigned"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" stroke="#7f8c8d" stroke-width="1.5"></path><path d="M16 5l4 4" stroke="#7f8c8d" stroke-width="1.5"></path><path d="M20 6L14 12" stroke="#e74c3c" stroke-width="2"></path><path d="M14 6L20 12" stroke="#e74c3c" stroke-width="2"></path></svg></div>
+                <div class="card-icons">
+                    <div class="card-icon card-status-icon">
+                        <div class="icon-signed"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/><path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/></svg></div>
+                        <div class="icon-unsigned"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" stroke="#7f8c8d" stroke-width="1.5"></path><path d="M16 5l4 4" stroke="#7f8c8d" stroke-width="1.5"></path><path d="M20 6L14 12" stroke="#e74c3c" stroke-width="2"></path><path d="M14 6L20 12" stroke="#e74c3c" stroke-width="2"></path></svg></div>
+                    </div>
                 </div>
                 <strong>${order.os_numero}</strong>
                 <p>${order.equipamento}</p>
-                <p>Data: ${order.data_servico}</p>
+                <p>Data: ${order.data_servico || order.data_retirada}</p>
             `;
             
             const listContainer = document.querySelector(`.list[data-status="${order.status || 'novas'}"] .cards`);
@@ -404,36 +184,187 @@
                 if (!docSnap.exists()) throw new Error('OS não encontrada');
                 const order = { id: docSnap.id, ...docSnap.data() };
 
-                let signatureSectionHtml;
-                if (order.signature_data && order.signature_data.length > 100) {
-                    signatureSectionHtml = `<img src="${order.signature_data}" class="signature-thumbnail" alt="Assinatura" onclick="window.openSignatureModal('${order.id}')">`;
-                } else {
-                    signatureSectionHtml = `<div id="signature-placeholder-details" class="signature-placeholder" onclick="window.openSignatureModal('${order.id}')">Adicionar Assinatura</div>`;
-                }
+                modalBody.innerHTML = generateDetailsView(order);
+                modalOverlay.style.display = 'flex';
+            } catch (error) {
+                console.error("Erro ao abrir detalhes:", error);
+                alert(`Erro ao buscar detalhes: ${error.message}`);
+            }
+        }
 
-                modalBody.innerHTML = `
-                    <h1>Detalhes da OS: ${order.os_numero}</h1>
-                    <div class="form-section">
-                        <h2>Dados do Cliente</h2>
-                        <div class="prefilled-data">
-                             <p><strong>Contrato:</strong> ${order.contrato || 'N/A'}</p>
-                             <p><strong>Cliente:</strong> ${order.cliente || 'N/A'}</p>
-                        </div>
+        function generateDetailsView(order) {
+            let signatureSectionHtml = (order.signature_data && order.signature_data.length > 100)
+                ? `<img src="${order.signature_data}" class="signature-thumbnail" alt="Assinatura">`
+                : `<div class="signature-placeholder">Sem Assinatura</div>`;
+
+            return `
+                <h1>Detalhes da OS: ${order.os_numero}</h1>
+                <div class="form-section">
+                    <h2>Dados do Cliente</h2>
+                    <p><strong>Contrato:</strong> ${order.contrato || 'N/A'}</p>
+                    <p><strong>Cliente:</strong> ${order.cliente || 'N/A'}</p>
+                    <p><strong>Endereço:</strong> ${order.endereco || 'N/A'}</p>
+                </div>
+                <div class="form-section">
+                    <h2>Dados do Equipamento</h2>
+                    <p><strong>Equipamento:</strong> ${order.equipamento || 'N/A'}</p>
+                    <p><strong>Marca:</strong> ${order.marca || 'N/A'}</p>
+                    <p><strong>Modelo:</strong> ${order.modelo || 'N/A'}</p>
+                    <p><strong>Serial:</strong> ${order.serial || 'N/A'}</p>
+                </div>
+                <div class="form-section">
+                    <h2>Atendimento</h2>
+                    <p><strong>Data da Retirada / Serviço:</strong> ${order.data_retirada || order.data_servico || 'N/A'}</p>
+                    <p><strong>Data da Devolução:</strong> ${order.data_devolucao || 'N/A'}</p>
+                    <p><strong>Hora de Chegada:</strong> ${order.hora_chegada || 'N/A'}</p>
+                    <p><strong>Hora de Saída:</strong> ${order.hora_saida || 'N/A'}</p>
+                    <p><strong>Local do Atendimento:</strong> ${order.local_atendimento || 'N/A'}</p>
+                </div>
+                <div class="form-section">
+                    <h2>Serviços e Peças</h2>
+                    <p><strong>Serviços Realizados:</strong><br>${order.servicos_realizados.replace(/\n/g, '<br>')}</p>
+                    <p><strong>Peças Utilizadas:</strong><br>${order.pecas_utilizadas || 'Nenhuma'}</p>
+                </div>
+                <div class="form-section">
+                    <h2>Assinaturas</h2>
+                    <div class="signature-grid">
+                        <div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div>
+                        <div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width: 200px;"></div>
                     </div>
-                    <div class="form-section">
-                        <h2>Dados do Equipamento</h2>
-                        <div class="prefilled-data">
-                            <p><strong>Equipamento:</strong> ${order.equipamento}</p>
-                            <p><strong>Modelo:</strong> ${order.modelo}</p>
-                            <p><strong>Serial:</strong> ${order.serial}</p>
-                        </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-action btn-edit" onclick="window.switchToEditMode('${order.id}')">Editar OS</button>
+                    <button class="btn-action btn-pdf" onclick="window.generatePdfFromModal('${order.id}', this)">Gerar PDF</button>
+                </div>`;
+        }
+        
+        window.switchToEditMode = async function(orderId) {
+            const docRef = doc(db, "orders", orderId);
+            const docSnap = await getDoc(docRef);
+            if(docSnap.exists()){
+                const order = { id: docSnap.id, ...docSnap.data() };
+                modalBody.innerHTML = generateEditForm(order);
+                
+                const editForm = document.getElementById('edit-os-form');
+                editForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    saveOrderChanges(orderId);
+                });
+
+                const equipamentoSelect = editForm.querySelector('#edit_equipamento_select');
+                if (equipamentoSelect) {
+                    equipamentoSelect.addEventListener('change', () => {
+                        const outroGroup = editForm.querySelector('#edit_outro_equipamento_group');
+                        outroGroup.style.display = equipamentoSelect.value === 'Outro' ? 'block' : 'none';
+                    });
+                     // Trigger a change event in case a custom value is already set
+                    if (equipamentoSelect.value === 'Outro') {
+                        equipamentoSelect.dispatchEvent(new Event('change'));
+                    }
+                }
+            }
+        }
+
+        function generateEditForm(order) {
+            let signatureSectionHtml = (order.signature_data && order.signature_data.length > 100)
+                ? `<img src="${order.signature_data}" class="signature-thumbnail" alt="Assinatura">`
+                : `<div id="signature-placeholder-details" class="signature-placeholder" onclick="window.openSignatureModal('${order.id}')">Adicionar Assinatura</div>`;
+            
+            let equipmentFields = '';
+            let attendanceFields = '';
+
+            const ufpelContract = 'Contrato N° 03/2024';
+            const capaoContract = 'Contrato Nº 138/2024';
+            const exercitoContract = 'Contrato Nº 10/2025';
+
+            if (order.contrato === capaoContract || order.contrato === exercitoContract) {
+                const isCapao = order.contrato === capaoContract;
+                const equipmentOptionsList = isCapao 
+                    ? ['Micromotor Odontológico', 'Caneta de Alta Rotação', 'Autoclave de Bancada', 'Contra-Ângulo', 'Ultrassom Tipo Borden', 'Ultrassom Com Jato De Bicarbonato', 'Esfigmomanômetro', 'Compressor Odontológico', 'Cadeira Odontológica', 'Balança Antropométrica', 'Balança Neonatal']
+                    : ['Micromotor Odontológico', 'Caneta de Alta Rotação', 'Autoclave de Bancada', 'Contra-Ângulo', 'Ultrassom Com Jato De Bicarbonato', 'Compressor Odontológico', 'Cadeira Odontológica', 'Raio-X Odontológico', 'Mocho Odontológico'];
+                
+                const isCustomEquipment = !equipmentOptionsList.includes(order.equipamento);
+                const optionsHtml = equipmentOptionsList.map(opt => `<option value="${opt}" ${order.equipamento === opt ? 'selected' : ''}>${opt}</option>`).join('');
+                
+                equipmentFields = `
+                    <div class="form-group">
+                        <label for="edit_equipamento_select">Equipamento:</label>
+                        <select id="edit_equipamento_select" name="equipamento_select">${optionsHtml}<option value="Outro" ${isCustomEquipment ? 'selected' : ''}>Outro</option></select>
                     </div>
+                    <div class="form-group" id="edit_outro_equipamento_group" style="display: ${isCustomEquipment ? 'block' : 'none'};">
+                        <label for="edit_outro_equipamento">Qual equipamento?</label>
+                        <input type="text" id="edit_outro_equipamento" name="outro_equipamento" value="${isCustomEquipment ? order.equipamento : ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_marca">Marca:</label>
+                        <input type="text" id="edit_marca" name="marca" value="${order.marca || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_modelo">Modelo:</label>
+                        <input type="text" id="edit_modelo" name="modelo" value="${order.modelo || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_serial">Serial:</label>
+                        <input type="text" id="edit_serial" name="serial" value="${order.serial || ''}">
+                    </div>
+                `;
+            }
+
+            if (order.contrato === ufpelContract) {
+                 attendanceFields = `
+                    <div class="form-group">
+                        <label for="edit_data_servico">Data do Serviço:</label>
+                        <input type="date" id="edit_data_servico" name="data_servico" value="${order.data_servico || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_hora_chegada">Hora de Chegada:</label>
+                        <input type="time" id="edit_hora_chegada" name="hora_chegada" value="${order.hora_chegada || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_hora_saida">Hora de Saída:</label>
+                        <input type="time" id="edit_hora_saida" name="hora_saida" value="${order.hora_saida || ''}">
+                    </div>
+                 `;
+            } else {
+                 attendanceFields = `
+                    <div class="form-group">
+                        <label for="edit_data_retirada">Data da Retirada:</label>
+                        <input type="date" id="edit_data_retirada" name="data_retirada" value="${order.data_retirada || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_data_devolucao">Data da Devolução:</label>
+                        <input type="date" id="edit_data_devolucao" name="data_devolucao" value="${order.data_devolucao || ''}">
+                    </div>
+                 `;
+                 if (order.contrato === capaoContract) {
+                     const locationOptions = ['Pronto Atendimento Municipal', 'UBS Central', 'UBS Casabom', 'UBS I - Parque Fragata', 'UBS II - Jardim América', 'UBS III - Jardim América', 'UBS Campus UFPEL', 'CAPS - Casa Vida'];
+                     const locationHtml = locationOptions.map(opt => `<option value="${opt}" ${order.local_atendimento === opt ? 'selected' : ''}>${opt}</option>`).join('');
+                     attendanceFields += `
+                        <div class="form-group">
+                            <label for="edit_local_atendimento">Local:</label>
+                            <select id="edit_local_atendimento" name="local_atendimento">${locationHtml}</select>
+                        </div>
+                     `;
+                 }
+            }
+
+            return `
+                <form id="edit-os-form">
+                    <h1>Editar OS: ${order.os_numero}</h1>
+                    ${equipmentFields ? `<div class="form-section"><h2>Dados do Equipamento</h2>${equipmentFields}</div>` : ''}
+                    <div class="form-section"><h2>Atendimento</h2>${attendanceFields}</div>
                     <div class="form-section">
                         <h2>Serviços e Peças</h2>
-                        <p><strong>Serviços Realizados:</strong><br>${order.servicos_realizados.replace(/\n/g, '<br>')}</p>
-                        <p><strong>Peças Utilizadas:</strong><br>${order.pecas_utilizadas || 'Nenhuma'}</p>
+                        <div class="form-group">
+                            <label for="edit_servicos_realizados">Serviços Realizados:</label>
+                            <textarea id="edit_servicos_realizados" name="servicos_realizados" rows="4">${order.servicos_realizados || ''}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_pecas_utilizadas">Peças Utilizadas:</label>
+                            <textarea id="edit_pecas_utilizadas" name="pecas_utilizadas" rows="3">${order.pecas_utilizadas || ''}</textarea>
+                        </div>
                     </div>
-                    <div class="form-section">
+                     <div class="form-section">
                         <h2>Assinaturas</h2>
                         <div class="signature-grid">
                             <div class="signature-box">
@@ -447,15 +378,35 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button class="btn-action btn-pdf" onclick="window.generatePdfFromModal('${order.id}', this)">Gerar PDF</button>
+                        <button type="submit" class="btn-action btn-save">Salvar Alterações</button>
                     </div>
-                `;
+                </form>`;
+        }
+        
+        async function saveOrderChanges(orderId) {
+            const form = document.getElementById('edit-os-form');
+            const updatedData = {};
 
-                modalOverlay.style.display = 'flex';
-            } catch (error) {
-                console.error("Erro ao abrir detalhes:", error);
-                alert(`Erro ao buscar detalhes: ${error.message}`);
+            if (form.equipamento_select) {
+                updatedData.equipamento = form.equipamento_select.value === 'Outro' ? form.outro_equipamento.value : form.equipamento_select.value;
             }
+            if(form.marca) updatedData.marca = form.marca.value;
+            if(form.modelo) updatedData.modelo = form.modelo.value;
+            if(form.serial) updatedData.serial = form.serial.value;
+            if(form.data_servico) updatedData.data_servico = form.data_servico.value;
+            if(form.hora_chegada) updatedData.hora_chegada = form.hora_chegada.value;
+            if(form.hora_saida) updatedData.hora_saida = form.hora_saida.value;
+            if(form.data_retirada) updatedData.data_retirada = form.data_retirada.value;
+            if(form.data_devolucao) updatedData.data_devolucao = form.data_devolucao.value;
+            if(form.local_atendimento) updatedData.local_atendimento = form.local_atendimento.value;
+            if(form.servicos_realizados) updatedData.servicos_realizados = form.servicos_realizados.value;
+            if(form.pecas_utilizadas) updatedData.pecas_utilizadas = form.pecas_utilizadas.value;
+            
+            const orderRef = doc(db, "orders", orderId);
+            await updateDoc(orderRef, updatedData);
+            
+            alert('OS atualizada com sucesso!');
+            modalOverlay.style.display = 'none';
         }
 
         async function updateOrderStatus(orderId, newStatus) {
@@ -464,10 +415,9 @@
         }
         
         function addDragAndDropListeners() {
-            const cards = document.querySelectorAll('.card');
-            const lists = document.querySelectorAll('.list');
-            
-            cards.forEach(card => card.replaceWith(card.cloneNode(true)));
+            document.querySelectorAll('.card').forEach(card => {
+                card.replaceWith(card.cloneNode(true));
+            });
 
             document.querySelectorAll('.card').forEach(card => {
                 card.addEventListener('click', () => openDetailsModal(card.dataset.id));
@@ -481,7 +431,7 @@
                 });
             });
 
-            lists.forEach(list => {
+            document.querySelectorAll('.list').forEach(list => {
                 list.addEventListener('dragover', e => e.preventDefault());
                 list.addEventListener('drop', e => {
                     e.preventDefault();
@@ -552,7 +502,6 @@
             signatureModalDetails.style.display = 'none';
             ctxDetails.clearRect(0, 0, signaturePadDetails.width, signaturePadDetails.height);
         });
-
 
         window.generatePdfFromModal = async function(orderId, buttonElement) {
             buttonElement.disabled = true;
