@@ -7,181 +7,60 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Adicionando a biblioteca jsPDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="auth-guard.js" type="module"></script>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f7f6;
-            color: #333;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-        .container {
-            width: 90%;
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 20px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .header {
-            padding: 20px 0;
-            width: 100%;
-            text-align: center;
-        }
-        .main-content {
-            width: 100%;
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-        }
-        h1 {
-            font-size: 2.2rem;
-            color: #333;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        #search-box {
-            width: 100%;
-            padding: 15px;
-            font-size: 1.1rem;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            margin-bottom: 30px;
-            box-sizing: border-box;
-        }
-        #os-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        #os-list li {
-            background-color: #f9f9f9;
-            border: 1px solid #eee;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: background-color 0.2s ease;
-        }
-        #os-list li.archived {
-            background-color: #e9ecef;
-            opacity: 0.7;
-        }
-        #os-list li:hover {
-            background-color: #f0f0f0;
-        }
-        .os-info {
-            /* O display:flex foi removido para que o título e os detalhes fiquem em linhas separadas */
-        }
-        .archive-icon {
-            width: 24px;
-            height: 24px;
-            fill: #7f8c8d;
-        }
-        #os-list .os-info strong {
-            font-size: 1.1rem;
-            color: #3498db;
-            display: block; /* Garante que o título ocupe a sua própria linha */
-            margin-bottom: 4px;
-        }
-        #os-list li.archived .os-info strong {
-            color: #6c757d;
-        }
-        #os-list .os-details {
-            font-size: 0.9rem;
-            color: #777;
-        }
-        .os-actions {
-            display: flex;
-            gap: 10px;
-            align-items: center; /* Alinha o ícone e os botões verticalmente */
-        }
-        .btn-action {
-            text-decoration: none;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: background-color 0.2s ease;
-            font-size: 0.9rem;
-        }
-        .btn-details {
-            background-color: #7f8c8d;
-        }
-        .btn-details:hover {
-            background-color: #6c7a7b;
-        }
-        .btn-pdf {
-            background-color: #3498db;
-        }
-        .btn-pdf:hover {
-            background-color: #2980b9;
-        }
-        .btn-pdf:disabled {
-            background-color: #bdc3c7;
-            cursor: not-allowed;
-        }
-        .back-link {
-            display: inline-block;
-            margin-top: 30px;
-            color: #3498db;
-            text-decoration: none;
-            font-weight: 500;
-        }
-        .footer {
-            background-color: #34495e;
-            color: #ecf0f1;
-            padding: 20px 0;
-            width: 100%;
-            text-align: center;
-            margin-top: 40px;
-        }
+        body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
+        .container { width: 90%; max-width: 1100px; margin: 0 auto; padding: 20px; flex: 1; display: flex; flex-direction: column; align-items: center; }
+        .header { padding: 20px 0; width: 100%; text-align: center; position: relative; }
+        .logout-button { position: absolute; top: 20px; right: 0; background-color: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: 500; }
+        .main-content { width: 100%; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        h1 { font-size: 2.2rem; color: #333; margin-bottom: 20px; text-align: center; }
+        #search-box { width: 100%; padding: 15px; font-size: 1.1rem; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 30px; box-sizing: border-box; }
+        #os-list { list-style: none; padding: 0; margin: 0; }
+        #os-list li { background-color: #f9f9f9; border: 1px solid #eee; padding: 15px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; transition: background-color 0.2s ease; }
+        #os-list li.archived { background-color: #e9ecef; opacity: 0.7; }
+        #os-list li:hover { background-color: #f0f0f0; }
+        .os-info { }
+        .archive-icon { width: 24px; height: 24px; fill: #7f8c8d; }
+        #os-list .os-info strong { font-size: 1.1rem; color: #3498db; display: block; margin-bottom: 4px; }
+        #os-list li.archived .os-info strong { color: #6c757d; }
+        #os-list .os-details { font-size: 0.9rem; color: #777; }
+        .os-actions { display: flex; gap: 10px; align-items: center; }
+        .btn-action { text-decoration: none; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-weight: 500; transition: background-color 0.2s ease; font-size: 0.9rem; }
+        .btn-details { background-color: #7f8c8d; }
+        .btn-details:hover { background-color: #6c7a7b; }
+        .btn-pdf { background-color: #3498db; }
+        .btn-pdf:hover { background-color: #2980b9; }
+        .btn-pdf:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        .back-link { display: inline-block; margin-top: 30px; color: #3498db; text-decoration: none; font-weight: 500; }
+        .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; margin-top: 40px; }
     </style>
 </head>
 <body>
     <div class="container">
         <header class="header">
             <a href="index.html"><img src="./images/logo.png" alt="Logo da Empresa" style="max-width: 350px; height: auto;"></a>
+            <button id="logout-button" class="logout-button">Sair</button>
         </header>
-
         <main class="main-content">
             <h1>Consultar Ordens de Serviço</h1>
             <input type="text" id="search-box" placeholder="Digite o número da OS, cliente ou equipamento para buscar...">
-            
-            <ul id="os-list">
-                <!-- A lista de OS será inserida aqui pelo JavaScript -->
-            </ul>
-            
+            <ul id="os-list"></ul>
             <div style="text-align: center;">
                  <a href="index.html" class="back-link">❮ Voltar para a Página Inicial</a>
             </div>
         </main>
     </div>
-
     <footer class="footer">
         <p><strong>BM Medical</strong></p>
         <p>CNPJ: 48.673.158/0001-59</p>
         <p>Endereço: Av. Duque de Caxias, 915-B403, Pelotas-RS</p>
         <p>Telefone: (51) 99377-5933 | Email: contato@nomedaempresa.com.br</p>
     </footer>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getFirestore, collection, getDocs, doc, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
-
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
             authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
@@ -190,58 +69,30 @@
             messagingSenderId: "92355637827",
             appId: "1:92355637827:web:850b89afa5054781475af6"
         };
-
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-
-        function imageToDataUrl(url) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.crossOrigin = 'Anonymous';
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-                    resolve(canvas.toDataURL('image/png'));
-                };
-                img.onerror = () => reject(new Error(`Falha ao carregar a imagem: ${url}`));
-                img.src = url;
-            });
-        }
-
         async function generatePdfForOrder(orderId, buttonElement) {
             buttonElement.disabled = true;
             buttonElement.textContent = 'Gerando...';
-
             try {
                 const logoDataUrl = await imageToDataUrl('./images/logo.png');
                 const techSigDataUrl = await imageToDataUrl('./images/assinatura-tecnico.png');
-
                 const docRef = doc(db, "orders", orderId);
                 const docSnap = await getDoc(docRef);
-
-                if (!docSnap.exists()) {
-                    throw new Error('OS não encontrada no banco de dados.');
-                }
+                if (!docSnap.exists()) { throw new Error('OS não encontrada no banco de dados.'); }
                 const order = docSnap.data();
-
                 const { jsPDF } = window.jspdf;
                 const docPDF = new jsPDF();
                 const pageHeight = docPDF.internal.pageSize.height;
                 const pageWidth = docPDF.internal.pageSize.width;
                 const margin = 15;
-
                 const signatureDataUrl = order.signature_data;
-
                 function drawSection(title, yPos) {
                     docPDF.setFontSize(11).setFont(undefined, 'bold');
                     docPDF.text(title, margin, yPos);
                     docPDF.setLineWidth(0.2).line(margin, yPos + 2, pageWidth - margin, yPos + 2);
                     return yPos + 8;
                 }
-
                 docPDF.addImage(logoDataUrl, 'PNG', margin, 12, 80, 32);
                 docPDF.setFontSize(10).setFont(undefined, 'bold');
                 docPDF.text('BM MEDICAL', pageWidth - margin, 15, { align: 'right' });
@@ -250,10 +101,8 @@
                 docPDF.text('CNPJ: 48.673.158/0001-59', pageWidth - margin, 25, { align: 'right' });
                 docPDF.text('Av. Duque de Caxias, 915-B403, Pelotas-RS', pageWidth - margin, 30, { align: 'right' });
                 docPDF.text('Fone: (51) 99377-5933', pageWidth - margin, 35, { align: 'right' });
-                
                 docPDF.setFontSize(16).setFont(undefined, 'bold');
                 docPDF.text(`Ordem de Serviço: ${order.os_numero}`, pageWidth / 2, 55, { align: 'center' });
-
                 let yPosition = 65;
                 yPosition = drawSection('Dados do Cliente', yPosition);
                 docPDF.setFontSize(10).setFont(undefined, 'normal');
@@ -261,7 +110,6 @@
                 yPosition += 5;
                 docPDF.text(`Cliente: ${order.cliente || 'N/A'}`, margin, yPosition);
                 yPosition += 10;
-
                 yPosition = drawSection('Dados do Equipamento', yPosition);
                 docPDF.text(`Equipamento: ${order.equipamento}`, margin, yPosition);
                 yPosition += 7;
@@ -269,7 +117,6 @@
                 yPosition += 7;
                 docPDF.text(`Serial: ${order.serial}`, margin, yPosition);
                 yPosition += 10;
-
                 yPosition = drawSection('Dados do Atendimento', yPosition);
                 docPDF.text(`Data do Serviço: ${order.data_servico}`, margin, yPosition);
                 yPosition += 7;
@@ -277,22 +124,18 @@
                 yPosition += 7;
                 docPDF.text(`Hora de Saída: ${order.hora_saida || 'N/A'}`, margin, yPosition);
                 yPosition += 10;
-                
                 yPosition = drawSection('Serviços Realizados', yPosition);
                 const servicosLines = docPDF.splitTextToSize(order.servicos_realizados, pageWidth - (margin * 2));
                 docPDF.text(servicosLines, margin, yPosition);
                 yPosition += (servicosLines.length * 5) + 10;
-
                 yPosition = drawSection('Peças Utilizadas', yPosition);
                 const pecasLines = docPDF.splitTextToSize(order.pecas_utilizadas || 'Nenhuma', pageWidth - (margin * 2));
                 docPDF.text(pecasLines, margin, yPosition);
-                
                 const signatureY = pageHeight - 70;
                 const signatureHeight = 30;
                 const signatureWidth = 70;
                 const roleY = signatureY + signatureHeight + 10;
                 const lineY = roleY - 5;
-
                 if (signatureDataUrl && signatureDataUrl.length > 100) {
                     docPDF.addImage(signatureDataUrl, 'PNG', 20, signatureY, signatureWidth, signatureHeight);
                 }
@@ -300,16 +143,13 @@
                 docPDF.line(20, lineY, 20 + signatureWidth, lineY);
                 docPDF.setFontSize(10).setFont(undefined, 'normal');
                 docPDF.text('Responsável do Setor', 55, roleY, { align: 'center' });
-
                 const techSignatureX = pageWidth - 20 - signatureWidth;
                 docPDF.addImage(techSigDataUrl, 'PNG', techSignatureX, signatureY, signatureWidth, signatureHeight);
                 docPDF.setLineWidth(0.3);
                 docPDF.line(techSignatureX, lineY, techSignatureX + signatureWidth, lineY);
                 docPDF.setFontSize(10).setFont(undefined, 'normal');
                 docPDF.text('Responsável Técnico da Empresa', pageWidth - 55, roleY, { align: 'center' });
-
                 docPDF.save(`OS-${order.os_numero.split(' ')[0]}.pdf`);
-
             } catch (error) {
                 console.error("Erro ao gerar PDF:", error);
                 alert("Ocorreu um erro ao gerar o PDF.");
@@ -318,35 +158,26 @@
                 buttonElement.textContent = 'Gerar PDF';
             }
         }
-
         async function loadOrders() {
             try {
                 const osList = document.getElementById('os-list');
                 osList.innerHTML = '<li>Carregando Ordens de Serviço...</li>';
-
                 const ordersRef = collection(db, "orders");
                 const q = query(ordersRef, orderBy("createdAt", "desc"));
                 const querySnapshot = await getDocs(q);
-                
                 osList.innerHTML = '';
-
                 if (querySnapshot.empty) {
                     osList.innerHTML = '<li>Nenhuma Ordem de Serviço encontrada.</li>';
                     return;
                 }
-
                 querySnapshot.forEach((doc) => {
                     const order = { id: doc.id, ...doc.data() };
                     const listItem = document.createElement('li');
-                    
                     let archiveIconHtml = '';
                     if (order.status === 'arquivada') {
                         listItem.classList.add('archived');
-                        archiveIconHtml = `
-                            <svg class="archive-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 7H4V5H20V7ZM21 3H3C1.9 3 1 3.9 1 5V7C1 8.1 1.9 9 3 9H21C22.1 9 23 8.1 23 7V5C23 3.9 22.1 3 21 3ZM4 12H20V21H4V12ZM3 10C1.9 10 1 10.9 1 12V21C1 22.1 1.9 23 3 23H21C22.1 23 23 22.1 23 21V12C23 10.9 22.1 10 21 10H3Z"></path></svg>
-                        `;
+                        archiveIconHtml = `<svg class="archive-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 7H4V5H20V7ZM21 3H3C1.9 3 1 3.9 1 5V7C1 8.1 1.9 9 3 9H21C22.1 9 23 8.1 23 7V5C23 3.9 22.1 3 21 3ZM4 12H20V21H4V12ZM3 10C1.9 10 1 10.9 1 12V21C1 22.1 1.9 23 3 23H21C22.1 23 23 22.1 23 21V12C23 10.9 22.1 10 21 10H3Z"></path></svg>`;
                     }
-
                     listItem.innerHTML = `
                         <div class="os-info">
                             <strong>OS: ${order.os_numero || 'N/A'}</strong>
@@ -371,11 +202,9 @@
                 document.getElementById('os-list').innerHTML = '<li>Erro ao carregar dados.</li>';
             }
         }
-        
         function filterOrders() {
             const searchTerm = document.getElementById('search-box').value.toLowerCase();
             const osItems = document.querySelectorAll('#os-list li');
-
             osItems.forEach(item => {
                 const text = item.textContent.toLowerCase();
                 if (text.includes(searchTerm)) {
@@ -385,7 +214,6 @@
                 }
             });
         }
-
         document.getElementById('search-box').addEventListener('keyup', filterOrders);
         window.onload = loadOrders;
     </script>

@@ -257,8 +257,7 @@
                         const outroGroup = editForm.querySelector('#edit_outro_equipamento_group');
                         outroGroup.style.display = equipamentoSelect.value === 'Outro' ? 'block' : 'none';
                     });
-                     // Trigger a change event in case a custom value is already set
-                    if (equipamentoSelect.value === 'Outro') {
+                     if (equipamentoSelect.value === 'Outro') {
                         equipamentoSelect.dispatchEvent(new Event('change'));
                     }
                 }
@@ -277,7 +276,22 @@
             const capaoContract = 'Contrato Nº 138/2024';
             const exercitoContract = 'Contrato Nº 10/2025';
 
-            if (order.contrato === capaoContract || order.contrato === exercitoContract) {
+            if (order.contrato === ufpelContract) {
+                 attendanceFields = `
+                    <div class="form-group">
+                        <label for="edit_data_servico">Data do Serviço:</label>
+                        <input type="date" id="edit_data_servico" name="data_servico" value="${order.data_servico || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_hora_chegada">Hora de Chegada:</label>
+                        <input type="time" id="edit_hora_chegada" name="hora_chegada" value="${order.hora_chegada || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_hora_saida">Hora de Saída:</label>
+                        <input type="time" id="edit_hora_saida" name="hora_saida" value="${order.hora_saida || ''}">
+                    </div>
+                 `;
+            } else {
                 const isCapao = order.contrato === capaoContract;
                 const equipmentOptionsList = isCapao 
                     ? ['Micromotor Odontológico', 'Caneta de Alta Rotação', 'Autoclave de Bancada', 'Contra-Ângulo', 'Ultrassom Tipo Borden', 'Ultrassom Com Jato De Bicarbonato', 'Esfigmomanômetro', 'Compressor Odontológico', 'Cadeira Odontológica', 'Balança Antropométrica', 'Balança Neonatal']
@@ -308,24 +322,7 @@
                         <input type="text" id="edit_serial" name="serial" value="${order.serial || ''}">
                     </div>
                 `;
-            }
 
-            if (order.contrato === ufpelContract) {
-                 attendanceFields = `
-                    <div class="form-group">
-                        <label for="edit_data_servico">Data do Serviço:</label>
-                        <input type="date" id="edit_data_servico" name="data_servico" value="${order.data_servico || ''}">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit_hora_chegada">Hora de Chegada:</label>
-                        <input type="time" id="edit_hora_chegada" name="hora_chegada" value="${order.hora_chegada || ''}">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit_hora_saida">Hora de Saída:</label>
-                        <input type="time" id="edit_hora_saida" name="hora_saida" value="${order.hora_saida || ''}">
-                    </div>
-                 `;
-            } else {
                  attendanceFields = `
                     <div class="form-group">
                         <label for="edit_data_retirada">Data da Retirada:</label>
@@ -336,7 +333,7 @@
                         <input type="date" id="edit_data_devolucao" name="data_devolucao" value="${order.data_devolucao || ''}">
                     </div>
                  `;
-                 if (order.contrato === capaoContract) {
+                 if (isCapao) {
                      const locationOptions = ['Pronto Atendimento Municipal', 'UBS Central', 'UBS Casabom', 'UBS I - Parque Fragata', 'UBS II - Jardim América', 'UBS III - Jardim América', 'UBS Campus UFPEL', 'CAPS - Casa Vida'];
                      const locationHtml = locationOptions.map(opt => `<option value="${opt}" ${order.local_atendimento === opt ? 'selected' : ''}>${opt}</option>`).join('');
                      attendanceFields += `
