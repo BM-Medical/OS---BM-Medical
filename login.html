@@ -95,9 +95,11 @@
     </div>
 
     <script type="module">
+        // Importa as funções necessárias do Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 
+        // Configuração do seu projeto Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
             authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
@@ -107,30 +109,39 @@
             appId: "1:92355637827:web:850b89afa5054781475af6"
         };
 
+        // Inicializa o Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
 
+        // Pega os elementos do formulário e da mensagem de erro
         const loginForm = document.getElementById('login-form');
         const errorMessage = document.getElementById('error-message');
 
+        // Adiciona um "escutador" para o evento de submissão do formulário
         loginForm.addEventListener('submit', (e) => {
-            e.preventDefault();s
+            // Previne o comportamento padrão do formulário (que é recarregar a página)
+            // CORREÇÃO: Removido o 's' extra que causava o erro de sintaxe.
+            e.preventDefault(); 
+            
+            // Pega os valores de email e senha digitados pelo usuário
             const email = loginForm.email.value;
             const password = loginForm.password.value;
 
+            // Tenta fazer o login com o Firebase
             signInWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
-                    // Login bem-sucedido, redireciona para a página principal
+                    // Se o login for bem-sucedido, redireciona para a página principal
                     window.location.href = 'index.html';
                 })
                 .catch((error) => {
-                    // Exibe uma mensagem de erro amigável
+                    // Se ocorrer um erro, exibe uma mensagem amigável para o usuário
                     errorMessage.style.display = 'block';
-                    if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                    if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
                         errorMessage.textContent = 'Email ou senha inválidos.';
                     } else {
                         errorMessage.textContent = 'Ocorreu um erro. Tente novamente.';
                     }
+                    // Também registra o erro detalhado no console para depuração
                     console.error("Erro de login:", error);
                 });
         });
