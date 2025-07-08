@@ -54,24 +54,30 @@
             align-items: center;
             z-index: 2000;
         }
+        body.modal-open {
+            overflow: hidden;
+        }
         .signature-modal-content {
             background-color: #fff;
-            padding: 20px;
+            padding: 15px;
             border-radius: 10px;
-            width: 90%;
-            height: 80%;
+            width: 95%;
+            height: 85%;
             display: flex;
             flex-direction: column;
+            box-sizing: border-box;
         }
         .signature-modal-content h3 {
             margin-top: 0;
+            text-align: center;
+            color: #333;
         }
         .signature-modal-content canvas {
             border: 2px dashed #ccc;
             border-radius: 6px;
             cursor: crosshair;
-            flex-grow: 1; /* Faz o canvas ocupar o espaço disponível */
-            touch-action: none; /* Impede a rolagem enquanto desenha */
+            flex-grow: 1;
+            touch-action: none; 
         }
         .signature-modal-buttons {
             margin-top: 15px;
@@ -268,31 +274,31 @@
         }
 
         function startDrawing(e) {
+            e.preventDefault();
             drawing = true;
             const pos = getPos(signaturePad, e);
             ctx.beginPath();
             ctx.moveTo(pos.x, pos.y);
-            e.preventDefault();
         }
 
         function stopDrawing(e) {
+            e.preventDefault();
             if (!drawing) return;
             drawing = false;
             ctx.beginPath();
-            e.preventDefault();
         }
 
         function draw(e) {
+            e.preventDefault();
             if (!drawing) return;
             const pos = getPos(signaturePad, e);
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 2; // Linha mais fina
             ctx.lineCap = 'round';
             ctx.strokeStyle = '#000';
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
             ctx.beginPath();
             ctx.moveTo(pos.x, pos.y);
-            e.preventDefault();
         }
         
         signaturePad.addEventListener('mousedown', startDrawing);
@@ -303,11 +309,13 @@
         signaturePad.addEventListener('touchmove', draw, { passive: false });
 
         signatureContainer.addEventListener('click', () => {
+            document.body.classList.add('modal-open');
             signatureModal.style.display = 'flex';
             resizeCanvas();
         });
 
         document.getElementById('signature-cancel-button').addEventListener('click', () => {
+            document.body.classList.remove('modal-open');
             signatureModal.style.display = 'none';
         });
 
@@ -319,6 +327,7 @@
             const dataUrl = signaturePad.toDataURL();
             signatureDataInput.value = dataUrl;
             signatureContainer.innerHTML = `<img src="${dataUrl}" class="signature-thumbnail" alt="Assinatura">`;
+            document.body.classList.remove('modal-open');
             signatureModal.style.display = 'none';
         });
 
