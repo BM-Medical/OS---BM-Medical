@@ -37,7 +37,7 @@
             position: relative;
         }
         .header img {
-            max-width: 450px; /* Tamanho padrão para desktop */
+            max-width: 450px;
             height: auto;
         }
         .logout-button {
@@ -78,24 +78,18 @@
             border-radius: 8px;
             transition: background-color 0.3s ease, transform 0.2s ease;
             min-width: 220px;
-            box-sizing: border-box; /* Garante que o padding não quebre o layout */
+            box-sizing: border-box;
         }
         .btn:hover {
             background-color: #2980b9;
             transform: translateY(-3px);
         }
-        .btn.secondary {
-            background-color: #2ecc71;
-        }
-        .btn.secondary:hover {
-            background-color: #27ae60;
-        }
-        .btn.tertiary {
-            background-color: #95a5a6;
-        }
-        .btn.tertiary:hover {
-            background-color: #7f8c8d;
-        }
+        .btn.secondary { background-color: #2ecc71; }
+        .btn.secondary:hover { background-color: #27ae60; }
+        .btn.tertiary { background-color: #95a5a6; }
+        .btn.tertiary:hover { background-color: #7f8c8d; }
+        .btn.quaternary { background-color: #e67e22; } /* Nova cor para o botão de relatórios */
+        .btn.quaternary:hover { background-color: #d35400; }
         .footer {
             background-color: #34495e;
             color: #ecf0f1;
@@ -105,42 +99,17 @@
             margin-top: 40px;
         }
         .footer p {
-            margin: 5px 10px; /* Adiciona margem para não colar nas bordas */
+            margin: 5px 10px;
         }
 
-        /* --- ESTILOS RESPONSIVOS PARA TELEMÓVEIS --- */
         @media (max-width: 768px) {
-            .header img {
-                max-width: 80%; /* Reduz o logo em ecrãs menores */
-            }
-            .main-content {
-                margin-top: 30px;
-            }
-            .main-content h1 {
-                font-size: 1.5rem; /* Reduz o título */
-                margin-bottom: 30px;
-            }
-            .action-buttons {
-                flex-direction: column; /* Empilha os botões verticalmente */
-                align-items: center; /* Centraliza os botões empilhados */
-                width: 100%;
-            }
-            .btn {
-                width: 100%; /* Faz os botões ocuparem a largura total */
-                padding: 15px;
-                font-size: 1rem;
-                min-width: unset; /* Remove a largura mínima */
-            }
-            .logout-button {
-                position: static; /* Remove o posicionamento absoluto */
-                margin-top: 20px;
-                width: 100%;
-            }
-            .header {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-            }
+            .header img { max-width: 80%; }
+            .main-content { margin-top: 30px; }
+            .main-content h1 { font-size: 1.5rem; margin-bottom: 30px; }
+            .action-buttons { flex-direction: column; align-items: center; width: 100%; }
+            .btn { width: 100%; padding: 15px; font-size: 1rem; min-width: unset; }
+            .logout-button { position: static; margin-top: 20px; width: 100%; }
+            .header { display: flex; flex-direction: column; align-items: center; }
         }
     </style>
 </head>
@@ -156,14 +125,12 @@
                 <a href="nova-os.html" class="btn">Nova OS</a>
                 <a href="quadro-os.html" class="btn secondary">Quadro de OS</a>
                 <a href="consultar-os.html" class="btn tertiary">Consultar OS</a>
+                <a href="relatorios.html" class="btn quaternary">Relatórios</a>
             </div>
         </main>
     </div>
     <footer class="footer">
         <p><strong>BM Medical</strong></p>
-        <p>CNPJ: 48.673.158/0001-59</p>
-        <p>Endereço: Av. Duque de Caxias, 915-B403, Pelotas-RS</p>
-        <p>Telefone: (51) 99377-5933 | Email: contato@nomedaempresa.com.br</p>
     </footer>
 </body>
 </html>
