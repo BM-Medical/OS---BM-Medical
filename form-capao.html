@@ -40,7 +40,6 @@
         .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; margin-top: 40px; }
         .footer p { margin: 5px 10px; }
         
-        /* --- CSS DA ASSINATURA ATUALIZADO --- */
         .signature-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: center; z-index: 2000; }
         .signature-modal-content { background-color: #fff; padding: 20px; border-radius: 10px; width: 95%; max-width: 600px; text-align: center; display: flex; flex-direction: column; }
         .signature-modal-content canvas { border: 2px dashed #ccc; border-radius: 6px; cursor: crosshair; width: 100%; height: 250px; }
@@ -49,23 +48,13 @@
         #signature-save-button { background-color: #2ecc71; color: white; }
         #signature-clear-button { background-color: #e74c3c; color: white; }
         #signature-cancel-button { background-color: #95a5a6; color: white; }
+        #signature-error-message { color: #e74c3c; font-weight: 500; margin-top: 10px; display: none; }
         .signature-placeholder { border: 2px dashed #ccc; border-radius: 6px; padding: 20px; text-align: center; cursor: pointer; color: #7f8c8d; }
         .signature-thumbnail { max-width: 200px; max-height: 100px; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; }
 
-        /* Estilos para quando o modal de assinatura estiver em tela cheia (celular) */
         .signature-modal-overlay:fullscreen { background-color: #fff; }
-        .signature-modal-overlay:fullscreen .signature-modal-content {
-            height: 100%;
-            width: 100%;
-            max-width: none;
-            border-radius: 0;
-            padding: 15px;
-            box-sizing: border-box;
-        }
-        .signature-modal-overlay:fullscreen .signature-modal-content canvas {
-            flex-grow: 1; /* Faz o canvas ocupar o espaço disponível */
-            height: auto;
-        }
+        .signature-modal-overlay:fullscreen .signature-modal-content { height: 100%; width: 100%; max-width: none; border-radius: 0; padding: 15px; box-sizing: border-box; }
+        .signature-modal-overlay:fullscreen .signature-modal-content canvas { flex-grow: 1; height: auto; }
 
         @media (max-width: 768px) {
             .main-content { padding: 15px; }
@@ -218,6 +207,7 @@
         <div class="signature-modal-content">
             <h3>Assine no campo abaixo:</h3>
             <canvas id="signature-pad"></canvas>
+            <p id="signature-error-message">Por favor, desenhe uma assinatura para salvar.</p>
             <div class="signature-modal-buttons">
                 <button type="button" id="signature-save-button">Salvar</button>
                 <button type="button" id="signature-clear-button">Limpar</button>
@@ -245,34 +235,33 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         
-        // --- JAVASCRIPT DA ASSINATURA (MODIFICADO PARA MODO PAISAGEM) ---
         const signatureModal = document.getElementById('signature-modal');
         const signatureContainer = document.getElementById('signature-container');
         const signatureDataInput = document.getElementById('signature-data');
         const signaturePad = document.getElementById('signature-pad');
+        const signatureErrorMessage = document.getElementById('signature-error-message');
         const ctx = signaturePad.getContext('2d');
         let drawing = false;
+        let isSignatureDrawn = false;
 
         function resizeCanvas() {
             const ratio = Math.max(window.devicePixelRatio || 1, 1);
             signaturePad.width = signaturePad.offsetWidth * ratio;
             signaturePad.height = signaturePad.offsetHeight * ratio;
             signaturePad.getContext("2d").scale(ratio, ratio);
-            ctx.clearRect(0, 0, signaturePad.width, signaturePad.height); // Limpa o canvas ao redimensionar
+            ctx.clearRect(0, 0, signaturePad.width, signaturePad.height);
         }
         window.addEventListener("resize", resizeCanvas);
 
         function getPos(canvas, event) {
             const rect = canvas.getBoundingClientRect();
             const touch = event.touches ? event.touches[0] : event;
-            return {
-                x: (touch.clientX - rect.left),
-                y: (touch.clientY - rect.top)
-            };
+            return { x: (touch.clientX - rect.left), y: (touch.clientY - rect.top) };
         }
 
         function startDrawing(e) {
             drawing = true;
+            signatureErrorMessage.style.display = 'none';
             const pos = getPos(signaturePad, e);
             ctx.beginPath();
             ctx.moveTo(pos.x, pos.y);
@@ -288,6 +277,7 @@
 
         function draw(e) {
             if (!drawing) return;
+            isSignatureDrawn = true;
             const pos = getPos(signaturePad, e);
             ctx.lineWidth = 3;
             ctx.lineCap = 'round';
@@ -300,8 +290,9 @@
         }
         
         async function openSignaturePadInLandscape() {
-            const modal = document.getElementById('signature-modal');
             const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            isSignatureDrawn = false;
+            signatureErrorMessage.style.display = 'none';
 
             try {
                 if (isMobile && typeof screen.orientation.lock === 'function') {
@@ -309,24 +300,22 @@
                     await screen.orientation.lock('landscape-primary');
                 }
             } catch (err) {
-                console.warn("Não foi possível ativar o modo paisagem/tela cheia, abrindo no modo padrão.", err);
+                console.warn("Não foi possível ativar o modo paisagem/tela cheia.", err);
             } finally {
-                modal.style.display = 'flex';
+                signatureModal.style.display = 'flex';
                 resizeCanvas();
             }
         }
 
         async function closeSignaturePad() {
-            const modal = document.getElementById('signature-modal');
-            modal.style.display = 'none';
-
+            signatureModal.style.display = 'none';
             try {
                 if (document.fullscreenElement) {
                     await screen.orientation.unlock();
                     await document.exitFullscreen();
                 }
             } catch (err) {
-                console.error("Erro ao tentar sair do modo tela cheia/paisagem.", err);
+                console.error("Erro ao sair do modo tela cheia/paisagem.", err);
             }
         }
 
@@ -337,26 +326,39 @@
         signaturePad.addEventListener('touchend', stopDrawing, { passive: false });
         signaturePad.addEventListener('touchmove', draw, { passive: false });
 
-        signatureContainer.addEventListener('click', () => {
-            openSignaturePadInLandscape();
-        });
+        signatureContainer.addEventListener('click', openSignaturePadInLandscape);
 
         document.getElementById('signature-cancel-button').addEventListener('click', () => {
-            ctx.clearRect(0, 0, signaturePad.width, signaturePad.height);
             closeSignaturePad();
         });
 
         document.getElementById('signature-clear-button').addEventListener('click', () => {
             ctx.clearRect(0, 0, signaturePad.width, signaturePad.height);
+            isSignatureDrawn = false;
         });
 
         document.getElementById('signature-save-button').addEventListener('click', () => {
-            const dataUrl = signaturePad.toDataURL();
+            if (!isSignatureDrawn) {
+                signatureErrorMessage.style.display = 'block';
+                return;
+            }
+            
+            const data = ctx.getImageData(0, 0, signaturePad.width, signaturePad.height);
+            const compositeOperation = ctx.globalCompositeOperation;
+            ctx.globalCompositeOperation = "destination-over";
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0,0,signaturePad.width,signaturePad.height);
+
+            const dataUrl = signaturePad.toDataURL('image/jpeg', 0.5);
+            
+            ctx.clearRect(0,0,signaturePad.width,signaturePad.height);
+            ctx.putImageData(data, 0,0);
+            ctx.globalCompositeOperation = compositeOperation;
+
             signatureDataInput.value = dataUrl;
             signatureContainer.innerHTML = `<img src="${dataUrl}" class="signature-thumbnail" alt="Assinatura">`;
             closeSignaturePad();
         });
-        // --- FIM DO JAVASCRIPT DA ASSINATURA ---
         
         const equipamentoSelect = document.getElementById('equipamento_select');
         const outroEquipamentoGroup = document.getElementById('outro_equipamento_group');
