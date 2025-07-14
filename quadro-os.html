@@ -296,9 +296,7 @@
         }
 
         function handleDragEnd(e) {
-            if (!isDragging) {
-                openDetailsModal(draggedCard.dataset.id);
-            } else {
+            if (isDragging) {
                 const pageX = e.type === 'touchend' ? e.changedTouches[0].clientX : e.clientX;
                 const pageY = e.type === 'touchend' ? e.changedTouches[0].clientY : e.clientY;
 
@@ -315,6 +313,8 @@
 
                 draggedCard.classList.remove('dragging');
                 document.body.removeChild(ghostCard);
+            } else {
+                openDetailsModal(draggedCard.dataset.id);
             }
 
             stopAutoScroll();
