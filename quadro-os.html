@@ -68,7 +68,7 @@
         .signature-modal-overlay:fullscreen .signature-modal-content { height: 100%; width: 100%; max-width: none; border-radius: 0; padding: 15px; box-sizing: border-box; }
         .signature-modal-overlay:fullscreen .signature-modal-content canvas { flex-grow: 1; height: auto; }
 
-        .ghost { position: absolute; pointer-events: none; opacity: 0.7; border: 2px dashed #007bff; background-color: rgba(200, 220, 255, 0.5); z-index: 100; transform: rotate(3deg); }
+        .ghost { position: absolute; pointer-events: none; opacity: 0.9; box-shadow: 0 10px 20px rgba(0,0,0,0.2); z-index: 100; transform: rotate(3deg); transition: transform 0.1s; }
 
         @media (max-width: 768px) {
             .board {
@@ -175,12 +175,25 @@
             const q = query(ordersRef, where("status", "!=", "arquivada"));
 
             onSnapshot(q, (querySnapshot) => {
+                const scrollTopValues = {};
+                cardsContainers.forEach(c => {
+                    const status = c.parentElement.dataset.status;
+                    scrollTopValues[status] = c.scrollTop;
+                });
+
                 cardsContainers.forEach(container => container.innerHTML = '');
                 querySnapshot.forEach((doc) => {
                     const order = { id: doc.id, ...doc.data() };
                     createCard(order);
                 });
                 addDragAndDropListeners();
+
+                cardsContainers.forEach(c => {
+                    const status = c.parentElement.dataset.status;
+                    if (scrollTopValues[status]) {
+                        c.scrollTop = scrollTopValues[status];
+                    }
+                });
             }, (error) => {
                 console.error("Erro ao buscar Ordens de Serviço: ", error);
                 alert("Não foi possível carregar as Ordens de Serviço. Verifique o console para mais detalhes.");
@@ -225,65 +238,22 @@
         }
         
         function addDragAndDropListeners() {
-            const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-
             document.querySelectorAll('.card').forEach(card => {
-                if (isTouchDevice) {
-                    card.addEventListener('touchstart', handleTouchStart, { passive: false });
-                } else {
-                    card.addEventListener('dragstart', handleDesktopDragStart);
-                    card.addEventListener('dragend', handleDesktopDragEnd);
-                }
-                card.addEventListener('click', handleCardClick);
-            });
-
-             document.querySelectorAll('.list').forEach(list => {
-                list.addEventListener('dragover', handleDragOver);
-                list.addEventListener('drop', handleDesktopDrop);
+                card.addEventListener('mousedown', handleDragStart);
+                card.addEventListener('touchstart', handleDragStart, { passive: false });
             });
         }
 
-        function handleCardClick(e) {
-            if (isDragging) {
-                e.preventDefault();
-                return;
-            }
-            openDetailsModal(this.dataset.id);
-        }
-
-        // --- LÓGICA PARA DESKTOP (MOUSE) ---
-        function handleDesktopDragStart(e) {
-            draggedCard = this;
-            setTimeout(() => this.classList.add('dragging'), 0);
-        }
-
-        function handleDesktopDragEnd(e) {
-            this.classList.remove('dragging');
-        }
-
-        function handleDragOver(e) {
-            e.preventDefault();
-        }
-
-        function handleDesktopDrop(e) {
-            e.preventDefault();
-            const targetList = this.closest('.list');
-            if (targetList && draggedCard) {
-                targetList.querySelector('.cards').appendChild(draggedCard);
-                updateOrderStatus(draggedCard.dataset.id, targetList.dataset.status);
-            }
-        }
-
-        // --- LÓGICA PARA MOBILE (TOQUE) ---
-        function handleTouchStart(e) {
+        function handleDragStart(e) {
             if (e.target.closest('.card-icons')) return;
             
             isDragging = false;
             draggedCard = this;
             const rect = draggedCard.getBoundingClientRect();
             
-            const pageX = e.touches[0].pageX;
-            const pageY = e.touches[0].pageY;
+            const isTouchEvent = e.type === 'touchstart';
+            const pageX = isTouchEvent ? e.touches[0].pageX : e.pageX;
+            const pageY = isTouchEvent ? e.touches[0].pageY : e.pageY;
             
             startX = pageX;
             startY = pageY;
@@ -291,17 +261,22 @@
             offsetX = pageX - rect.left;
             offsetY = pageY - rect.top;
 
-            document.addEventListener('touchmove', handleTouchMove, { passive: false });
-            document.addEventListener('touchend', handleTouchEnd);
-            e.preventDefault();
+            if (isTouchEvent) {
+                document.addEventListener('touchmove', handleDragMove, { passive: false });
+                document.addEventListener('touchend', handleDragEnd);
+            } else {
+                document.addEventListener('mousemove', handleDragMove);
+                document.addEventListener('mouseup', handleDragEnd);
+            }
         }
 
-        function handleTouchMove(e) {
+        function handleDragMove(e) {
             if (!draggedCard) return;
             e.preventDefault();
 
-            const pageX = e.touches[0].pageX;
-            const pageY = e.touches[0].pageY;
+            const isTouchEvent = e.type === 'touchmove';
+            const pageX = isTouchEvent ? e.touches[0].pageX : e.pageX;
+            const pageY = isTouchEvent ? e.touches[0].pageY : e.pageY;
             
             if (!isDragging && (Math.abs(pageX - startX) > 10 || Math.abs(pageY - startY) > 10)) {
                 isDragging = true;
@@ -320,10 +295,12 @@
             }
         }
 
-        function handleTouchEnd(e) {
-            if (isDragging) {
-                const pageX = e.changedTouches[0].clientX;
-                const pageY = e.changedTouches[0].clientY;
+        function handleDragEnd(e) {
+            if (!isDragging) {
+                openDetailsModal(draggedCard.dataset.id);
+            } else {
+                const pageX = e.type === 'touchend' ? e.changedTouches[0].clientX : e.clientX;
+                const pageY = e.type === 'touchend' ? e.changedTouches[0].clientY : e.clientY;
 
                 ghostCard.style.display = 'none';
                 const dropTarget = document.elementFromPoint(pageX, pageY);
@@ -346,8 +323,10 @@
             
             setTimeout(() => { isDragging = false; }, 50);
 
-            document.removeEventListener('touchmove', handleTouchMove);
-            document.removeEventListener('touchend', handleTouchEnd);
+            document.removeEventListener('mousemove', handleDragMove);
+            document.removeEventListener('mouseup', handleDragEnd);
+            document.removeEventListener('touchmove', handleDragMove);
+            document.removeEventListener('touchend', handleDragEnd);
         }
         
         function moveGhost(pageX, pageY) {
@@ -391,14 +370,14 @@
             }
         }
 
-        board.addEventListener('click', (e) => {
+        document.addEventListener('click', (e) => {
             if (isDragging) {
                 e.stopPropagation();
                 e.preventDefault();
                 return;
             }
             const card = e.target.closest('.card');
-            if (card) {
+            if (card && !isDragging) {
                 openDetailsModal(card.dataset.id);
             }
         });
