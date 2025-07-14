@@ -344,7 +344,6 @@
             ghostCard = null;
             draggedCard = null;
             
-            // Reset isDragging after a short delay to prevent immediate click
             setTimeout(() => { isDragging = false; }, 50);
 
             document.removeEventListener('touchmove', handleTouchMove);
@@ -392,7 +391,6 @@
             }
         }
 
-        // Adiciona um listener de clique a nível do documento para abrir o modal
         board.addEventListener('click', (e) => {
             if (isDragging) {
                 e.stopPropagation();
