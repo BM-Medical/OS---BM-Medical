@@ -68,7 +68,7 @@
         .signature-modal-overlay:fullscreen .signature-modal-content { height: 100%; width: 100%; max-width: none; border-radius: 0; padding: 15px; box-sizing: border-box; }
         .signature-modal-overlay:fullscreen .signature-modal-content canvas { flex-grow: 1; height: auto; }
 
-        .ghost { position: absolute; pointer-events: none; opacity: 0.7; border: 2px dashed #007bff; background-color: rgba(200, 220, 255, 0.5); z-index: 100; }
+        .ghost { position: absolute; pointer-events: none; opacity: 0.7; border: 2px dashed #007bff; background-color: rgba(200, 220, 255, 0.5); z-index: 100; transform: rotate(3deg); }
 
         @media (max-width: 768px) {
             .board {
@@ -148,9 +148,8 @@
         let offsetX = 0;
         let offsetY = 0;
         let autoScrollInterval = null;
-        let isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-        let longPressTimer;
         let isDragging = false;
+        let startX, startY;
 
         function imageToDataUrl(url, quality = 0.7) {
             return new Promise((resolve, reject) => {
@@ -226,21 +225,21 @@
         }
         
         function addDragAndDropListeners() {
+            const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
             document.querySelectorAll('.card').forEach(card => {
-                card.addEventListener('click', handleCardClick);
-                
-                // Lógica de arraste separada para Desktop e Mobile
                 if (isTouchDevice) {
                     card.addEventListener('touchstart', handleTouchStart, { passive: false });
                 } else {
-                    card.addEventListener('dragstart', handleDragStart);
-                    card.addEventListener('dragend', handleDragEnd);
+                    card.addEventListener('dragstart', handleDesktopDragStart);
+                    card.addEventListener('dragend', handleDesktopDragEnd);
                 }
+                card.addEventListener('click', handleCardClick);
             });
 
              document.querySelectorAll('.list').forEach(list => {
                 list.addEventListener('dragover', handleDragOver);
-                list.addEventListener('drop', handleDrop);
+                list.addEventListener('drop', handleDesktopDrop);
             });
         }
 
@@ -253,12 +252,12 @@
         }
 
         // --- LÓGICA PARA DESKTOP (MOUSE) ---
-        function handleDragStart(e) {
+        function handleDesktopDragStart(e) {
             draggedCard = this;
             setTimeout(() => this.classList.add('dragging'), 0);
         }
 
-        function handleDragEnd(e) {
+        function handleDesktopDragEnd(e) {
             this.classList.remove('dragging');
         }
 
@@ -266,7 +265,7 @@
             e.preventDefault();
         }
 
-        function handleDrop(e) {
+        function handleDesktopDrop(e) {
             e.preventDefault();
             const targetList = this.closest('.list');
             if (targetList && draggedCard) {
@@ -277,77 +276,81 @@
 
         // --- LÓGICA PARA MOBILE (TOQUE) ---
         function handleTouchStart(e) {
-            isDragging = false;
-            const card = this;
+            if (e.target.closest('.card-icons')) return;
             
-            longPressTimer = setTimeout(() => {
-                isDragging = true;
-                draggedCard = card;
-                const rect = draggedCard.getBoundingClientRect();
-                
-                const pageX = e.touches[0].pageX;
-                const pageY = e.touches[0].pageY;
+            isDragging = false;
+            draggedCard = this;
+            const rect = draggedCard.getBoundingClientRect();
+            
+            const pageX = e.touches[0].pageX;
+            const pageY = e.touches[0].pageY;
+            
+            startX = pageX;
+            startY = pageY;
 
-                offsetX = pageX - rect.left;
-                offsetY = pageY - rect.top;
+            offsetX = pageX - rect.left;
+            offsetY = pageY - rect.top;
 
-                ghostCard = draggedCard.cloneNode(true);
-                ghostCard.classList.add('ghost');
-                ghostCard.style.width = `${rect.width}px`;
-                ghostCard.style.height = `${rect.height}px`;
-                document.body.appendChild(ghostCard);
-                
-                moveGhost(pageX, pageY);
-                draggedCard.classList.add('dragging');
-
-                document.addEventListener('touchmove', handleTouchMove, { passive: false });
-                document.addEventListener('touchend', handleTouchEnd);
-            }, 200); // Atraso de 200ms para iniciar o arraste
-
+            document.addEventListener('touchmove', handleTouchMove, { passive: false });
+            document.addEventListener('touchend', handleTouchEnd);
             e.preventDefault();
         }
 
         function handleTouchMove(e) {
-            clearTimeout(longPressTimer); // Cancela o clique se o dedo se mover
-            if (!isDragging || !draggedCard) return;
+            if (!draggedCard) return;
+            e.preventDefault();
 
             const pageX = e.touches[0].pageX;
             const pageY = e.touches[0].pageY;
-
-            moveGhost(pageX, pageY);
-            handleAutoScroll(pageX);
             
-            e.preventDefault();
+            if (!isDragging && (Math.abs(pageX - startX) > 10 || Math.abs(pageY - startY) > 10)) {
+                isDragging = true;
+                ghostCard = draggedCard.cloneNode(true);
+                ghostCard.classList.add('ghost');
+                const rect = draggedCard.getBoundingClientRect();
+                ghostCard.style.width = `${rect.width}px`;
+                ghostCard.style.height = `${rect.height}px`;
+                document.body.appendChild(ghostCard);
+                draggedCard.classList.add('dragging');
+            }
+            
+            if (isDragging) {
+                moveGhost(pageX, pageY);
+                handleAutoScroll(pageX);
+            }
         }
 
         function handleTouchEnd(e) {
-            clearTimeout(longPressTimer);
-            if (!isDragging || !draggedCard) {
-                isDragging = false;
-                return;
+            if (isDragging) {
+                const pageX = e.changedTouches[0].clientX;
+                const pageY = e.changedTouches[0].clientY;
+
+                ghostCard.style.display = 'none';
+                const dropTarget = document.elementFromPoint(pageX, pageY);
+                ghostCard.style.display = '';
+
+                const targetList = dropTarget ? dropTarget.closest('.list') : null;
+
+                if (targetList) {
+                    targetList.querySelector('.cards').appendChild(draggedCard);
+                    updateOrderStatus(draggedCard.dataset.id, targetList.dataset.status);
+                }
+
+                draggedCard.classList.remove('dragging');
+                document.body.removeChild(ghostCard);
             }
 
-            const dropTarget = document.elementFromPoint(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
-            const targetList = dropTarget ? dropTarget.closest('.list') : null;
-
-            if (targetList) {
-                targetList.querySelector('.cards').appendChild(draggedCard);
-                updateOrderStatus(draggedCard.dataset.id, targetList.dataset.status);
-            }
-
-            draggedCard.classList.remove('dragging');
-            document.body.removeChild(ghostCard);
+            stopAutoScroll();
             ghostCard = null;
             draggedCard = null;
             
-            stopAutoScroll();
-            
+            // Reset isDragging after a short delay to prevent immediate click
+            setTimeout(() => { isDragging = false; }, 50);
+
             document.removeEventListener('touchmove', handleTouchMove);
             document.removeEventListener('touchend', handleTouchEnd);
-
-            setTimeout(() => { isDragging = false; }, 100);
         }
-
+        
         function moveGhost(pageX, pageY) {
             if (ghostCard) {
                 ghostCard.style.left = `${pageX - offsetX}px`;
@@ -388,6 +391,20 @@
                 alert(`Erro ao buscar detalhes: ${error.message}`);
             }
         }
+
+        // Adiciona um listener de clique a nível do documento para abrir o modal
+        board.addEventListener('click', (e) => {
+            if (isDragging) {
+                e.stopPropagation();
+                e.preventDefault();
+                return;
+            }
+            const card = e.target.closest('.card');
+            if (card) {
+                openDetailsModal(card.dataset.id);
+            }
+        });
+
 
         function generateDetailsView(order) {
             const isSigned = order.signature_data && order.signature_data.length > 200;
