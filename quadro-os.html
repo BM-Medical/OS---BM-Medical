@@ -29,8 +29,8 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
             cursor: grab; 
             position: relative; 
-            user-select: none; /* Impede a seleção de texto */
-            touch-action: pan-y; /* ALTERAÇÃO PRINCIPAL: Permite o scroll vertical nativo */
+            user-select: none;
+            touch-action: pan-y;
         }
         .card:active { cursor: grabbing; }
         .card strong { display: block; margin-bottom: 5px; color: #007bff; }
@@ -46,6 +46,14 @@
         .icon-signed .checkmark__check { transform-origin: 50% 50%; stroke-dasharray: 48; stroke-dashoffset: 48; stroke-width: 4; stroke: #2ecc71; animation: stroke .3s cubic-bezier(0.65, 0, 0.45, 1) .8s forwards; }
         @keyframes stroke { 100% { stroke-dashoffset: 0; } }
         
+        .placeholder {
+            background: rgba(0,0,0,0.08);
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border: 2px dashed #999;
+            box-sizing: border-box;
+        }
+
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background-color: #fff; padding: 30px; border-radius: 10px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; position: relative; }
         .modal-close { position: absolute; top: 15px; right: 20px; font-size: 2rem; font-weight: bold; cursor: pointer; border: none; background: none; }
@@ -133,7 +141,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getFirestore, collection, doc, getDoc, updateDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getFirestore, collection, doc, getDoc, updateDoc, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
         // --- Configuração do Firebase ---
         const firebaseConfig = {
@@ -149,7 +157,6 @@
 
         // --- Elementos do DOM ---
         const board = document.getElementById('board');
-        const cardsContainers = document.querySelectorAll('.cards');
         const modalOverlay = document.getElementById('details-modal');
         const modalBody = document.getElementById('modal-body');
         const modalCloseButton = document.getElementById('modal-close-button');
@@ -157,6 +164,7 @@
         // --- Variáveis de Estado do Drag & Drop ---
         let draggedCard = null;
         let ghostCard = null;
+        let placeholder = null;
         let offsetX = 0;
         let offsetY = 0;
         let startX = 0;
@@ -167,38 +175,50 @@
 
         // --- Lógica Principal ---
         function listenToOrders() {
-            const ordersRef = collection(db, "orders");
-            const q = query(ordersRef, where("status", "!=", "arquivada"));
+            const q = query(collection(db, "orders"), where("status", "!=", "arquivada"));
 
-            onSnapshot(q, (querySnapshot) => {
-                const scrollTopValues = {};
-                cardsContainers.forEach(c => {
-                    const status = c.parentElement.dataset.status;
-                    scrollTopValues[status] = c.scrollTop;
-                });
+            onSnapshot(q, (snapshot) => {
+                const ordersByStatus = {
+                    novas: [],
+                    aguardando_orcamento: [],
+                    aguardando_pecas: [],
+                    emissao_nota: [],
+                    pronto_entrega: []
+                };
 
-                cardsContainers.forEach(container => container.innerHTML = '');
-                querySnapshot.forEach((doc) => {
+                snapshot.forEach(doc => {
                     const order = { id: doc.id, ...doc.data() };
-                    createCard(order);
-                });
-                addDragAndDropListeners();
-
-                cardsContainers.forEach(c => {
-                    const status = c.parentElement.dataset.status;
-                    if (scrollTopValues[status]) {
-                        c.scrollTop = scrollTopValues[status];
+                    if (typeof order.position === 'undefined') {
+                        order.position = order.createdAt?.toMillis() || Date.now();
+                    }
+                    if (ordersByStatus[order.status]) {
+                        ordersByStatus[order.status].push(order);
                     }
                 });
-            }, (error) => {
-                console.error("Erro ao buscar Ordens de Serviço: ", error);
-                alert("Não foi possível carregar as Ordens de Serviço.");
+
+                for (const status in ordersByStatus) {
+                    const listContainer = document.querySelector(`.list[data-status="${status}"] .cards`);
+                    const scrollTop = listContainer.scrollTop;
+                    
+                    listContainer.innerHTML = '';
+                    
+                    ordersByStatus[status]
+                        .sort((a, b) => a.position - b.position)
+                        .forEach(order => {
+                            const card = createCard(order);
+                            listContainer.appendChild(card);
+                        });
+
+                    addDragAndDropListenersToContainer(listContainer);
+                    listContainer.scrollTop = scrollTop;
+                }
             });
         }
 
         function createCard(order) {
             const card = document.createElement('div');
             card.dataset.id = order.id;
+            card.dataset.position = order.position;
             const isSigned = order.signature_data && typeof order.signature_data === 'string' && order.signature_data.length > 200;
             card.className = isSigned ? 'card is-signed' : 'card is-unsigned';
             card.innerHTML = `
@@ -210,20 +230,20 @@
                 <p>${order.equipamento || 'N/A'}</p>
                 <p>Data: ${order.data_servico || order.data_retirada || 'N/A'}</p>
             `;
-            const listContainer = document.querySelector(`.list[data-status="${order.status || 'novas'}"] .cards`);
-            if (listContainer) listContainer.appendChild(card);
+            return card;
         }
 
-        function addDragAndDropListeners() {
-            document.querySelectorAll('.card').forEach(card => {
+        function addDragAndDropListenersToContainer(container) {
+            container.querySelectorAll('.card').forEach(card => {
+                if (card.dataset.listenersAttached) return;
+                card.dataset.listenersAttached = 'true';
                 card.addEventListener('mousedown', handleMouseDown);
                 card.addEventListener('touchstart', handleTouchStart, { passive: false });
             });
         }
 
-        // --- LÓGICA DE DRAG & DROP REFINADA ---
+        // --- LÓGICA DE DRAG & DROP ---
 
-        // 1. Funções de Manipulação de MOUSE
         function handleMouseDown(e) {
             if (e.target.closest('.card-icons')) return;
             startDrag(this, e.pageX, e.pageY);
@@ -254,7 +274,6 @@
             document.removeEventListener('mouseup', handleMouseUp);
         }
 
-        // 2. Funções de Manipulação de TOQUE
         function handleTouchStart(e) {
             if (e.target.closest('.card-icons')) return;
             const touch = e.touches[0];
@@ -297,7 +316,6 @@
             document.removeEventListener('touchend', handleTouchEnd);
         }
 
-        // 3. Funções Auxiliares
         function startDrag(element, pageX, pageY) {
             draggedCard = element;
             const rect = draggedCard.getBoundingClientRect();
@@ -308,12 +326,21 @@
         function initiateDragVisuals() {
             if (!draggedCard) return;
             isDragging = true;
+            
+            // Desativa o snap para um scroll suave
+            board.style.scrollSnapType = 'none';
+
             ghostCard = draggedCard.cloneNode(true);
             ghostCard.classList.add('ghost');
             const rect = draggedCard.getBoundingClientRect();
             ghostCard.style.width = `${rect.width}px`;
             ghostCard.style.height = `${rect.height}px`;
             document.body.appendChild(ghostCard);
+            
+            placeholder = document.createElement('div');
+            placeholder.classList.add('placeholder');
+            placeholder.style.height = `${rect.height}px`;
+            
             draggedCard.classList.add('dragging');
             moveDrag(startX, startY);
         }
@@ -323,36 +350,71 @@
                 ghostCard.style.left = `${pageX - offsetX}px`;
                 ghostCard.style.top = `${pageY - offsetY}px`;
                 handleAutoScroll(pageX);
+                const targetListContainer = document.elementFromPoint(pageX, pageY)?.closest('.cards');
+                if (targetListContainer) {
+                    const afterElement = getDragAfterElement(targetListContainer, pageY);
+                    if (afterElement) {
+                        targetListContainer.insertBefore(placeholder, afterElement);
+                    } else {
+                        targetListContainer.appendChild(placeholder);
+                    }
+                }
             }
+        }
+        
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.card:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
         }
 
         function dropCard(finalX, finalY) {
-            if (!ghostCard) return;
-            ghostCard.style.display = 'none';
-            const dropTarget = document.elementFromPoint(finalX, finalY);
-            const targetList = dropTarget ? dropTarget.closest('.list') : null;
-            if (targetList) {
-                targetList.querySelector('.cards').appendChild(draggedCard);
-                updateOrderStatus(draggedCard.dataset.id, targetList.dataset.status);
+            if (!placeholder || !placeholder.parentElement) {
+                cleanupAfterDrag();
+                return;
             }
+            const parentList = placeholder.parentElement;
+            const newStatus = parentList.parentElement.dataset.status;
+            const prevElement = placeholder.previousElementSibling;
+            const nextElement = placeholder.nextElementSibling;
+            const prevPosition = prevElement ? parseFloat(prevElement.dataset.position) : 0;
+            const nextPosition = nextElement ? parseFloat(nextElement.dataset.position) : (prevPosition + 200000);
+            const newPosition = (prevPosition + nextPosition) / 2;
+            updateOrder(draggedCard.dataset.id, newStatus, newPosition);
         }
 
         function cleanupAfterDrag() {
+            // Reativa o snap para a navegação normal
+            board.style.scrollSnapType = 'x mandatory';
+
             stopAutoScroll();
-            if (ghostCard) document.body.removeChild(ghostCard);
+            if (ghostCard) ghostCard.remove();
+            if (placeholder) placeholder.remove();
             if (draggedCard) draggedCard.classList.remove('dragging');
+            
             ghostCard = null;
+            placeholder = null;
             draggedCard = null;
             isDragging = false;
         }
 
-        async function updateOrderStatus(orderId, newStatus) {
+        async function updateOrder(orderId, newStatus, newPosition) {
             const orderRef = doc(db, "orders", orderId);
             try {
-                await updateDoc(orderRef, { status: newStatus });
+                await updateDoc(orderRef, { 
+                    status: newStatus,
+                    position: newPosition 
+                });
             } catch (error) {
-                console.error("Erro ao atualizar status da OS:", error);
-                alert("Não foi possível atualizar o status da OS.");
+                console.error("Erro ao atualizar a OS:", error);
+                alert("Não foi possível atualizar a Ordem de Serviço.");
             }
         }
 
@@ -372,7 +434,7 @@
             autoScrollInterval = null;
         }
 
-        // --- CÓDIGO RESTANTE PARA MODAIS E PDFS (sem alterações) ---
+        // --- CÓDIGO RESTANTE PARA MODAIS E PDFS ---
         
         async function openDetailsModal(orderId) {
             try {
@@ -380,7 +442,6 @@
                 const docSnap = await getDoc(docRef);
                 if (!docSnap.exists()) throw new Error('OS não encontrada');
                 const order = { id: docSnap.id, ...docSnap.data() };
-
                 modalBody.innerHTML = generateDetailsView(order);
                 modalOverlay.style.display = 'flex';
             } catch (error) {
@@ -394,46 +455,14 @@
             let signatureSectionHtml = isSigned
                 ? `<img src="${order.signature_data}" class="signature-thumbnail" alt="Assinatura">`
                 : `<div class="signature-placeholder">Sem Assinatura</div>`;
-
             return `
                 <h1>Detalhes da OS: ${order.os_numero}</h1>
-                <div class="form-section">
-                    <h2>Dados do Cliente</h2>
-                    <p><strong>Contrato:</strong> ${order.contrato || 'N/A'}</p>
-                    <p><strong>Cliente:</strong> ${order.cliente || 'N/A'}</p>
-                    <p><strong>Endereço:</strong> ${order.endereco || 'N/A'}</p>
-                </div>
-                <div class="form-section">
-                    <h2>Dados do Equipamento</h2>
-                    <p><strong>Equipamento:</strong> ${order.equipamento || 'N/A'}</p>
-                    <p><strong>Marca:</strong> ${order.marca || 'N/A'}</p>
-                    <p><strong>Modelo:</strong> ${order.modelo || 'N/A'}</p>
-                    <p><strong>Serial:</strong> ${order.serial || 'N/A'}</p>
-                </div>
-                <div class="form-section">
-                    <h2>Atendimento</h2>
-                    <p><strong>Data da Retirada / Serviço:</strong> ${order.data_retirada || order.data_servico || 'N/A'}</p>
-                    <p><strong>Data da Devolução:</strong> ${order.data_devolucao || 'N/A'}</p>
-                    <p><strong>Hora de Chegada:</strong> ${order.hora_chegada || 'N/A'}</p>
-                    <p><strong>Hora de Saída:</strong> ${order.hora_saida || 'N/A'}</p>
-                    <p><strong>Local do Atendimento:</strong> ${order.local_atendimento || 'N/A'}</p>
-                </div>
-                <div class="form-section">
-                    <h2>Serviços e Peças</h2>
-                    <p><strong>Serviços Realizados:</strong><br>${(order.servicos_realizados || '').replace(/\n/g, '<br>')}</p>
-                    <p><strong>Peças Utilizadas:</strong><br>${order.pecas_utilizadas || 'Nenhuma'}</p>
-                </div>
-                <div class="form-section">
-                    <h2>Assinaturas</h2>
-                    <div class="signature-grid">
-                        <div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div>
-                        <div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width: 200px;"></div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn-action btn-edit" onclick="window.switchToEditMode('${order.id}')">Editar OS</button>
-                    <button class="btn-action btn-pdf" onclick="window.generatePdfFromModal('${order.id}', this)">Gerar PDF</button>
-                </div>`;
+                <div class="form-section"><h2>Dados do Cliente</h2><p><strong>Contrato:</strong> ${order.contrato||'N/A'}</p><p><strong>Cliente:</strong> ${order.cliente||'N/A'}</p><p><strong>Endereço:</strong> ${order.endereco||'N/A'}</p></div>
+                <div class="form-section"><h2>Dados do Equipamento</h2><p><strong>Equipamento:</strong> ${order.equipamento||'N/A'}</p><p><strong>Marca:</strong> ${order.marca||'N/A'}</p><p><strong>Modelo:</strong> ${order.modelo||'N/A'}</p><p><strong>Serial:</strong> ${order.serial||'N/A'}</p></div>
+                <div class="form-section"><h2>Atendimento</h2><p><strong>Data da Retirada / Serviço:</strong> ${order.data_retirada||order.data_servico||'N/A'}</p><p><strong>Data da Devolução:</strong> ${order.data_devolucao||'N/A'}</p><p><strong>Hora de Chegada:</strong> ${order.hora_chegada||'N/A'}</p><p><strong>Hora de Saída:</strong> ${order.hora_saida||'N/A'}</p><p><strong>Local do Atendimento:</strong> ${order.local_atendimento||'N/A'}</p></div>
+                <div class="form-section"><h2>Serviços e Peças</h2><p><strong>Serviços Realizados:</strong><br>${(order.servicos_realizados||'').replace(/\n/g,'<br>')}</p><p><strong>Peças Utilizadas:</strong><br>${order.pecas_utilizadas||'Nenhuma'}</p></div>
+                <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div><div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width:200px;"></div></div></div>
+                <div class="modal-footer"><button class="btn-action btn-edit" onclick="window.switchToEditMode('${order.id}')">Editar OS</button><button class="btn-action btn-pdf" onclick="window.generatePdfFromModal('${order.id}', this)">Gerar PDF</button></div>`;
         }
         
         window.switchToEditMode = async function(orderId) {
@@ -442,20 +471,18 @@
             if(docSnap.exists()){
                 const order = { id: docSnap.id, ...docSnap.data() };
                 modalBody.innerHTML = generateEditForm(order);
-                
                 const editForm = document.getElementById('edit-os-form');
                 editForm.addEventListener('submit', (e) => {
                     e.preventDefault();
                     saveOrderChanges(orderId);
                 });
-
                 const equipamentoSelect = editForm.querySelector('#edit_equipamento_select');
                 if (equipamentoSelect) {
                     equipamentoSelect.addEventListener('change', () => {
                         const outroGroup = editForm.querySelector('#edit_outro_equipamento_group');
                         outroGroup.style.display = equipamentoSelect.value === 'Outro' ? 'block' : 'none';
                     });
-                     if (equipamentoSelect.value === 'Outro') {
+                    if (equipamentoSelect.value === 'Outro') {
                         equipamentoSelect.dispatchEvent(new Event('change'));
                     }
                 }
@@ -464,143 +491,40 @@
 
         function generateEditForm(order) {
             const isSigned = order.signature_data && order.signature_data.length > 200;
-            let signatureSectionHtml = isSigned
-                ? `<img src="${order.signature_data}" class="signature-thumbnail" alt="Assinatura" onclick="window.openSignatureModalDetails('${order.id}')">`
-                : `<div id="signature-placeholder-details" class="signature-placeholder" onclick="window.openSignatureModalDetails('${order.id}')">Adicionar Assinatura</div>`;
-            
+            let signatureSectionHtml = isSigned ? `<img src="${order.signature_data}" class="signature-thumbnail" alt="Assinatura" onclick="window.openSignatureModalDetails('${order.id}')">` : `<div id="signature-placeholder-details" class="signature-placeholder" onclick="window.openSignatureModalDetails('${order.id}')">Adicionar Assinatura</div>`;
             let equipmentFields = '';
             let attendanceFields = '';
-
             const ufpelContract = 'Contrato N° 03/2024';
             const capaoContract = 'Contrato Nº 138/2024';
-            const exercitoContract = 'Contrato Nº 10/2025';
-
             if (order.contrato === ufpelContract) {
-                 attendanceFields = `
-                    <div class="form-group">
-                        <label for="edit_data_servico">Data do Serviço:</label>
-                        <input type="date" id="edit_data_servico" name="data_servico" value="${order.data_servico || ''}">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit_hora_chegada">Hora de Chegada:</label>
-                        <input type="time" id="edit_hora_chegada" name="hora_chegada" value="${order.hora_chegada || ''}">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit_hora_saida">Hora de Saída:</label>
-                        <input type="time" id="edit_hora_saida" name="hora_saida" value="${order.hora_saida || ''}">
-                    </div>
-                 `;
+                 attendanceFields = `<div class="form-group"><label for="edit_data_servico">Data do Serviço:</label><input type="date" id="edit_data_servico" name="data_servico" value="${order.data_servico||''}"></div><div class="form-group"><label for="edit_hora_chegada">Hora de Chegada:</label><input type="time" id="edit_hora_chegada" name="hora_chegada" value="${order.hora_chegada||''}"></div><div class="form-group"><label for="edit_hora_saida">Hora de Saída:</label><input type="time" id="edit_hora_saida" name="hora_saida" value="${order.hora_saida||''}"></div>`;
             } else {
                 const isCapao = order.contrato === capaoContract;
-                const equipmentOptionsList = isCapao 
-                    ? ['Micromotor Odontológico', 'Caneta de Alta Rotação', 'Autoclave de Bancada', 'Contra-Ângulo', 'Ultrassom Tipo Borden', 'Ultrassom Com Jato De Bicarbonato', 'Esfigmomanômetro', 'Compressor Odontológico', 'Cadeira Odontológica', 'Balança Antropométrica', 'Balança Neonatal']
-                    : ['Micromotor Odontológico', 'Caneta de Alta Rotação', 'Autoclave de Bancada', 'Contra-Ângulo', 'Ultrassom Com Jato De Bicarbonato', 'Compressor Odontológico', 'Cadeira Odontológica', 'Raio-X Odontológico', 'Mocho Odontológico'];
-                
+                const equipmentOptionsList = isCapao ? ['Micromotor Odontológico','Caneta de Alta Rotação','Autoclave de Bancada','Contra-Ângulo','Ultrassom Tipo Borden','Ultrassom Com Jato De Bicarbonato','Esfigmomanômetro','Compressor Odontológico','Cadeira Odontológica','Balança Antropométrica','Balança Neonatal'] : ['Micromotor Odontológico','Caneta de Alta Rotação','Autoclave de Bancada','Contra-Ângulo','Ultrassom Com Jato De Bicarbonato','Compressor Odontológico','Cadeira Odontológica','Raio-X Odontológico','Mocho Odontológico'];
                 const isCustomEquipment = !equipmentOptionsList.includes(order.equipamento);
-                const optionsHtml = equipmentOptionsList.map(opt => `<option value="${opt}" ${order.equipamento === opt ? 'selected' : ''}>${opt}</option>`).join('');
-                
-                equipmentFields = `
-                    <div class="form-group">
-                        <label for="edit_equipamento_select">Equipamento:</label>
-                        <select id="edit_equipamento_select" name="equipamento_select">${optionsHtml}<option value="Outro" ${isCustomEquipment ? 'selected' : ''}>Outro</option></select>
-                    </div>
-                    <div class="form-group" id="edit_outro_equipamento_group" style="display: ${isCustomEquipment ? 'block' : 'none'};">
-                        <label for="edit_outro_equipamento">Qual equipamento?</label>
-                        <input type="text" id="edit_outro_equipamento" name="outro_equipamento" value="${isCustomEquipment ? order.equipamento : ''}">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit_marca">Marca:</label>
-                        <input type="text" id="edit_marca" name="marca" value="${order.marca || ''}">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit_modelo">Modelo:</label>
-                        <input type="text" id="edit_modelo" name="modelo" value="${order.modelo || ''}">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit_serial">Serial:</label>
-                        <input type="text" id="edit_serial" name="serial" value="${order.serial || ''}">
-                    </div>
-                `;
-
-                 attendanceFields = `
-                    <div class="form-group">
-                        <label for="edit_data_retirada">Data da Retirada:</label>
-                        <input type="date" id="edit_data_retirada" name="data_retirada" value="${order.data_retirada || ''}">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit_data_devolucao">Data da Devolução:</label>
-                        <input type="date" id="edit_data_devolucao" name="data_devolucao" value="${order.data_devolucao || ''}">
-                    </div>
-                 `;
-                 if (isCapao) {
-                     const locationOptions = ['Pronto Atendimento Municipal', 'UBS Central', 'UBS Casabom', 'UBS I - Parque Fragata', 'UBS II - Jardim América', 'UBS III - Jardim América', 'UBS Campus UFPEL', 'CAPS - Casa Vida'];
-                     const locationHtml = locationOptions.map(opt => `<option value="${opt}" ${order.local_atendimento === opt ? 'selected' : ''}>${opt}</option>`).join('');
-                     attendanceFields += `
-                        <div class="form-group">
-                            <label for="edit_local_atendimento">Local:</label>
-                            <select id="edit_local_atendimento" name="local_atendimento">${locationHtml}</select>
-                        </div>
-                     `;
-                 }
+                const optionsHtml = equipmentOptionsList.map(opt => `<option value="${opt}" ${order.equipamento===opt?'selected':''}>${opt}</option>`).join('');
+                equipmentFields = `<div class="form-group"><label for="edit_equipamento_select">Equipamento:</label><select id="edit_equipamento_select" name="equipamento_select">${optionsHtml}<option value="Outro" ${isCustomEquipment?'selected':''}>Outro</option></select></div><div class="form-group" id="edit_outro_equipamento_group" style="display:${isCustomEquipment?'block':'none'};"><label for="edit_outro_equipamento">Qual equipamento?</label><input type="text" id="edit_outro_equipamento" name="outro_equipamento" value="${isCustomEquipment?order.equipamento:''}"></div><div class="form-group"><label for="edit_marca">Marca:</label><input type="text" id="edit_marca" name="marca" value="${order.marca||''}"></div><div class="form-group"><label for="edit_modelo">Modelo:</label><input type="text" id="edit_modelo" name="modelo" value="${order.modelo||''}"></div><div class="form-group"><label for="edit_serial">Serial:</label><input type="text" id="edit_serial" name="serial" value="${order.serial||''}"></div>`;
+                attendanceFields = `<div class="form-group"><label for="edit_data_retirada">Data da Retirada:</label><input type="date" id="edit_data_retirada" name="data_retirada" value="${order.data_retirada||''}"></div><div class="form-group"><label for="edit_data_devolucao">Data da Devolução:</label><input type="date" id="edit_data_devolucao" name="data_devolucao" value="${order.data_devolucao||''}"></div>`;
+                if (isCapao) {
+                    const locationOptions = ['Pronto Atendimento Municipal','UBS Central','UBS Casabom','UBS I - Parque Fragata','UBS II - Jardim América','UBS III - Jardim América','UBS Campus UFPEL','CAPS - Casa Vida'];
+                    const locationHtml = locationOptions.map(opt => `<option value="${opt}" ${order.local_atendimento===opt?'selected':''}>${opt}</option>`).join('');
+                    attendanceFields += `<div class="form-group"><label for="edit_local_atendimento">Local:</label><select id="edit_local_atendimento" name="local_atendimento">${locationHtml}</select></div>`;
+                }
             }
-
-            return `
-                <form id="edit-os-form">
-                    <h1>Editar OS: ${order.os_numero}</h1>
-                    ${equipmentFields ? `<div class="form-section"><h2>Dados do Equipamento</h2>${equipmentFields}</div>` : ''}
-                    <div class="form-section"><h2>Atendimento</h2>${attendanceFields}</div>
-                    <div class="form-section">
-                        <h2>Serviços e Peças</h2>
-                        <div class="form-group">
-                            <label for="edit_servicos_realizados">Serviços Realizados:</label>
-                            <textarea id="edit_servicos_realizados" name="servicos_realizados" rows="4">${order.servicos_realizados || ''}</textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit_pecas_utilizadas">Peças Utilizadas:</label>
-                            <textarea id="edit_pecas_utilizadas" name="pecas_utilizadas" rows="3">${order.pecas_utilizadas || ''}</textarea>
-                        </div>
-                    </div>
-                     <div class="form-section">
-                        <h2>Assinaturas</h2>
-                        <div class="signature-grid">
-                            <div class="signature-box">
-                                <label>Responsável do Setor:</label>
-                                <div id="signature-container-details">${signatureSectionHtml}</div>
-                            </div>
-                            <div class="signature-box">
-                                <label>Responsável Técnico:</label>
-                                <img src="./images/assinatura-tecnico.png" style="max-width: 200px;">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn-action btn-save">Salvar Alterações</button>
-                    </div>
-                </form>`;
+            return `<form id="edit-os-form"><h1>Editar OS: ${order.os_numero}</h1>${equipmentFields?`<div class="form-section"><h2>Dados do Equipamento</h2>${equipmentFields}</div>`:''}
+                <div class="form-section"><h2>Atendimento</h2>${attendanceFields}</div>
+                <div class="form-section"><h2>Serviços e Peças</h2><div class="form-group"><label for="edit_servicos_realizados">Serviços Realizados:</label><textarea id="edit_servicos_realizados" name="servicos_realizados" rows="4">${order.servicos_realizados||''}</textarea></div><div class="form-group"><label for="edit_pecas_utilizadas">Peças Utilizadas:</label><textarea id="edit_pecas_utilizadas" name="pecas_utilizadas" rows="3">${order.pecas_utilizadas||''}</textarea></div></div>
+                <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div><div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width:200px;"></div></div></div>
+                <div class="modal-footer"><button type="submit" class="btn-action btn-save">Salvar Alterações</button></div></form>`;
         }
         
         async function saveOrderChanges(orderId) {
             const form = document.getElementById('edit-os-form');
             const updatedData = {};
-
-            if (form.equipamento_select) {
-                updatedData.equipamento = form.equipamento_select.value === 'Outro' ? form.outro_equipamento.value : form.equipamento_select.value;
-            }
-            if(form.marca) updatedData.marca = form.marca.value;
-            if(form.modelo) updatedData.modelo = form.modelo.value;
-            if(form.serial) updatedData.serial = form.serial.value;
-            if(form.data_servico) updatedData.data_servico = form.data_servico.value;
-            if(form.hora_chegada) updatedData.hora_chegada = form.hora_chegada.value;
-            if(form.hora_saida) updatedData.hora_saida = form.hora_saida.value;
-            if(form.data_retirada) updatedData.data_retirada = form.data_retirada.value;
-            if(form.data_devolucao) updatedData.data_devolucao = form.data_devolucao.value;
-            if(form.local_atendimento) updatedData.local_atendimento = form.local_atendimento.value;
-            if(form.servicos_realizados) updatedData.servicos_realizados = form.servicos_realizados.value;
-            if(form.pecas_utilizadas) updatedData.pecas_utilizadas = form.pecas_utilizadas.value;
-            
+            if(form.equipamento_select){updatedData.equipamento=form.equipamento_select.value==='Outro'?form.outro_equipamento.value:form.equipamento_select.value}
+            if(form.marca)updatedData.marca=form.marca.value;if(form.modelo)updatedData.modelo=form.modelo.value;if(form.serial)updatedData.serial=form.serial.value;if(form.data_servico)updatedData.data_servico=form.data_servico.value;if(form.hora_chegada)updatedData.hora_chegada=form.hora_chegada.value;if(form.hora_saida)updatedData.hora_saida=form.hora_saida.value;if(form.data_retirada)updatedData.data_retirada=form.data_retirada.value;if(form.data_devolucao)updatedData.data_devolucao=form.data_devolucao.value;if(form.local_atendimento)updatedData.local_atendimento=form.local_atendimento.value;if(form.servicos_realizados)updatedData.servicos_realizados=form.servicos_realizados.value;if(form.pecas_utilizadas)updatedData.pecas_utilizadas=form.pecas_utilizadas.value;
             const orderRef = doc(db, "orders", orderId);
             await updateDoc(orderRef, updatedData);
-            
             alert('OS atualizada com sucesso!');
             modalOverlay.style.display = 'none';
         }
@@ -662,7 +586,6 @@
             const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
             isSignatureDrawnDetails = false;
             signatureErrorMessageDetails.style.display = 'none';
-
             try {
                 if (isMobile && typeof screen.orientation.lock === 'function') {
                     await document.documentElement.requestFullscreen();
@@ -714,27 +637,21 @@
                 signatureErrorMessageDetails.style.display = 'block';
                 return;
             }
-            
             const data = ctxDetails.getImageData(0, 0, signaturePadDetails.width, signaturePadDetails.height);
             const compositeOperation = ctxDetails.globalCompositeOperation;
             ctxDetails.globalCompositeOperation = "destination-over";
             ctxDetails.fillStyle = '#FFFFFF';
             ctxDetails.fillRect(0,0,signaturePadDetails.width,signaturePadDetails.height);
-
             const signatureData = signaturePadDetails.toDataURL('image/jpeg', 0.5);
-
             ctxDetails.clearRect(0,0,signaturePadDetails.width,signaturePadDetails.height);
             ctxDetails.putImageData(data, 0,0);
             ctxDetails.globalCompositeOperation = compositeOperation;
-
             const orderRef = doc(db, "orders", currentOrderId);
             await updateDoc(orderRef, { signature_data: signatureData });
-            
             const signatureContainer = document.getElementById('signature-container-details');
             if(signatureContainer) {
                 signatureContainer.innerHTML = `<img src="${signatureData}" class="signature-thumbnail" alt="Assinatura" onclick="window.openSignatureModalDetails('${currentOrderId}')">`;
             }
-
             closeSignaturePadDetails();
         });
         
@@ -760,31 +677,25 @@
         window.generatePdfFromModal = async function(orderId, buttonElement) {
             buttonElement.disabled = true;
             buttonElement.textContent = 'Gerando...';
-
             try {
                 const logoDataUrl = await imageToDataUrl('./images/logo.png', 0.9);
                 const techSigDataUrl = await imageToDataUrl('./images/assinatura-tecnico.png', 0.7);
-
                 const docRef = doc(db, "orders", orderId);
                 const docSnap = await getDoc(docRef);
                 if (!docSnap.exists()) throw new Error('OS não encontrada.');
                 const order = docSnap.data();
-
                 const { jsPDF } = window.jspdf;
                 const docPDF = new jsPDF();
                 const pageHeight = docPDF.internal.pageSize.height;
                 const pageWidth = docPDF.internal.pageSize.width;
                 const margin = 15;
-
                 const signatureDataUrl = order.signature_data;
-
                 function drawSection(title, yPos) {
                     docPDF.setFontSize(11).setFont(undefined, 'bold');
                     docPDF.text(title, margin, yPos);
                     docPDF.setLineWidth(0.2).line(margin, yPos + 2, pageWidth - margin, yPos + 2);
                     return yPos + 8;
                 }
-
                 docPDF.addImage(logoDataUrl, 'JPEG', margin, 12, 80, 32);
                 docPDF.setFontSize(10).setFont(undefined, 'bold');
                 docPDF.text('BM MEDICAL', pageWidth - margin, 15, { align: 'right' });
@@ -793,10 +704,8 @@
                 docPDF.text('CNPJ: 48.673.158/0001-59', pageWidth - margin, 25, { align: 'right' });
                 docPDF.text('Av. Duque de Caxias, 915-B403, Pelotas-RS', pageWidth - margin, 30, { align: 'right' });
                 docPDF.text('Fone: (51) 99377-5933', pageWidth - margin, 35, { align: 'right' });
-                
                 docPDF.setFontSize(16).setFont(undefined, 'bold');
                 docPDF.text(`Ordem de Serviço: ${order.os_numero || 'N/A'}`, pageWidth / 2, 55, { align: 'center' });
-
                 let yPosition = 65;
                 yPosition = drawSection('Dados do Cliente', yPosition);
                 docPDF.setFontSize(10).setFont(undefined, 'normal');
@@ -804,7 +713,6 @@
                 yPosition += 5;
                 docPDF.text(`Cliente: ${order.cliente || 'N/A'}`, margin, yPosition);
                 yPosition += 10;
-
                 yPosition = drawSection('Dados do Equipamento', yPosition);
                 docPDF.text(`Equipamento: ${order.equipamento || 'N/A'}`, margin, yPosition);
                 yPosition += 7;
@@ -812,7 +720,6 @@
                 yPosition += 7;
                 docPDF.text(`Serial: ${order.serial || 'N/A'}`, margin, yPosition);
                 yPosition += 10;
-
                 yPosition = drawSection('Dados do Atendimento', yPosition);
                 docPDF.text(`Data do Serviço: ${order.data_servico || 'N/A'}`, margin, yPosition);
                 yPosition += 7;
@@ -820,22 +727,18 @@
                 yPosition += 7;
                 docPDF.text(`Hora de Saída: ${order.hora_saida || 'N/A'}`, margin, yPosition);
                 yPosition += 10;
-                
                 yPosition = drawSection('Serviços Realizados', yPosition);
                 const servicosLines = docPDF.splitTextToSize(order.servicos_realizados || '', pageWidth - (margin * 2));
                 docPDF.text(servicosLines, margin, yPosition);
                 yPosition += (servicosLines.length * 5) + 10;
-
                 yPosition = drawSection('Peças Utilizadas', yPosition);
                 const pecasLines = docPDF.splitTextToSize(order.pecas_utilizadas || 'Nenhuma', pageWidth - (margin * 2));
                 docPDF.text(pecasLines, margin, yPosition);
-                
                 const signatureY = pageHeight - 70;
                 const signatureHeight = 30;
                 const signatureWidth = 70;
                 const roleY = signatureY + signatureHeight + 10;
                 const lineY = roleY - 5;
-
                 if (signatureDataUrl && signatureDataUrl.length > 200) {
                     docPDF.addImage(signatureDataUrl, 'JPEG', 20, signatureY, signatureWidth, signatureHeight);
                 }
@@ -843,16 +746,13 @@
                 docPDF.line(20, lineY, 20 + signatureWidth, lineY);
                 docPDF.setFontSize(10).setFont(undefined, 'normal');
                 docPDF.text('Responsável do Setor', 55, roleY, { align: 'center' });
-
                 const techSignatureX = pageWidth - 20 - signatureWidth;
                 docPDF.addImage(techSigDataUrl, 'JPEG', techSignatureX, signatureY, signatureWidth, signatureHeight);
                 docPDF.setLineWidth(0.3);
                 docPDF.line(techSignatureX, lineY, techSignatureX + signatureWidth, lineY);
                 docPDF.setFontSize(10).setFont(undefined, 'normal');
                 docPDF.text('Responsável Técnico da Empresa', pageWidth - 55, roleY, { align: 'center' });
-
                 docPDF.save(`OS-${order.os_numero.split(' ')[0]}.pdf`);
-
             } catch (error) {
                 console.error("Erro ao gerar PDF:", error);
                 alert("Ocorreu um erro ao gerar o PDF.");
