@@ -152,7 +152,7 @@
         let startX = 0;
         let startY = 0;
         let isDragging = false;
-        let clickTimeout = null;
+        let longPressTimer = null; // NOVO: Timer para o toque longo
         let autoScrollInterval = null;
 
         // --- Lógica Principal ---
@@ -211,121 +211,148 @@
             });
         }
 
-        // --- LÓGICA DE DRAG & DROP REATORADA ---
+        // --- LÓGICA DE DRAG & DROP ATUALIZADA ---
 
-        // 1. Funções de Manipulação de Eventos (Separadas para Mouse e Toque)
-
+        // 1. Funções de Manipulação de MOUSE (sem alterações)
         function handleMouseDown(e) {
-            // Ignora o clique se for nos ícones
             if (e.target.closest('.card-icons')) return;
-            
-            // Prepara o estado para o arraste
             startDrag(this, e.pageX, e.pageY);
-
-            // Adiciona os listeners para o movimento e o fim do arraste
             document.addEventListener('mousemove', handleMouseMove);
             document.addEventListener('mouseup', handleMouseUp);
         }
 
         function handleMouseMove(e) {
-            // Previne comportamentos padrão como a seleção de texto
             e.preventDefault();
             moveDrag(e.pageX, e.pageY);
         }
 
         function handleMouseUp(e) {
             endDrag(e.clientX, e.clientY);
-            // Remove os listeners para não serem acionados desnecessariamente
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
         }
 
+        // 2. Funções de Manipulação de TOQUE (com lógica de Toque Longo)
         function handleTouchStart(e) {
             if (e.target.closest('.card-icons')) return;
             
-            // Usa o primeiro ponto de toque
             const touch = e.touches[0];
-            startDrag(this, touch.pageX, touch.pageY);
+            draggedCard = this;
+            startX = touch.pageX;
+            startY = touch.pageY;
+            isDragging = false; // Reseta o estado de arraste
+
+            // Inicia um timer. Se o usuário segurar por 300ms sem mover, o arraste começa.
+            longPressTimer = setTimeout(() => {
+                startDrag(draggedCard, startX, startY); // Prepara o arraste
+                initiateDragVisuals(); // Inicia o arraste visualmente
+            }, 300); // 300ms para considerar um toque longo
 
             document.addEventListener('touchmove', handleTouchMove, { passive: false });
             document.addEventListener('touchend', handleTouchEnd);
         }
 
         function handleTouchMove(e) {
-            e.preventDefault();
+            if (!draggedCard) return;
+
             const touch = e.touches[0];
-            moveDrag(touch.pageX, touch.pageY);
+            
+            // Se o dedo se mover mais de 10px, cancela o toque longo (será um scroll)
+            if (Math.abs(touch.pageX - startX) > 10 || Math.abs(touch.pageY - startY) > 10) {
+                clearTimeout(longPressTimer);
+            }
+            
+            // Só move o cartão se o arraste já foi iniciado (pelo toque longo)
+            if (isDragging) {
+                e.preventDefault(); // Previne o scroll da página APENAS se estiver arrastando
+                moveDrag(touch.pageX, touch.pageY);
+            }
         }
 
         function handleTouchEnd(e) {
+            // Sempre limpa o timer ao soltar o dedo
+            clearTimeout(longPressTimer);
+
             const touch = e.changedTouches[0];
-            endDrag(touch.clientX, touch.clientY);
+            
+            if (isDragging) {
+                // Se estava arrastando, finaliza o arraste
+                endDrag(touch.clientX, touch.clientY);
+            } else {
+                // Se não estava arrastando e o dedo não se moveu muito, é um clique
+                if (Math.abs(touch.pageX - startX) < 10 && Math.abs(touch.pageY - startY) < 10) {
+                    openDetailsModal(draggedCard.dataset.id);
+                }
+                // Se o dedo se moveu, foi um scroll e não fazemos nada.
+            }
+
+            // Limpa os listeners
             document.removeEventListener('touchmove', handleTouchMove);
             document.removeEventListener('touchend', handleTouchEnd);
+            
+            // Reseta as variáveis de estado
+            draggedCard = null;
+            isDragging = false;
         }
 
-        // 2. Funções Auxiliares (Lógica Comum)
-
+        // 3. Funções Auxiliares (Lógica Comum)
         function startDrag(element, pageX, pageY) {
-            isDragging = false;
             draggedCard = element;
-            
-            // Guarda a posição inicial para diferenciar clique de arraste
-            startX = pageX;
-            startY = pageY;
-
-            // Calcula o deslocamento do cursor dentro do cartão
             const rect = draggedCard.getBoundingClientRect();
             offsetX = pageX - rect.left;
             offsetY = pageY - rect.top;
         }
+        
+        // NOVO: Função para iniciar os visuais do arraste
+        function initiateDragVisuals() {
+            if (!draggedCard) return;
+            isDragging = true;
+            ghostCard = draggedCard.cloneNode(true);
+            ghostCard.classList.add('ghost');
+            const rect = draggedCard.getBoundingClientRect();
+            ghostCard.style.width = `${rect.width}px`;
+            ghostCard.style.height = `${rect.height}px`;
+            document.body.appendChild(ghostCard);
+            draggedCard.classList.add('dragging');
+
+            // Move o fantasma para a posição inicial do toque
+            moveDrag(startX, startY);
+        }
+
 
         function moveDrag(pageX, pageY) {
-            if (!draggedCard) return;
-
-            // Inicia o arraste apenas se o mouse/dedo se mover mais de 10 pixels
-            if (!isDragging && (Math.abs(pageX - startX) > 10 || Math.abs(pageY - startY) > 10)) {
-                isDragging = true;
-                
-                // Cria o "fantasma" para feedback visual
-                ghostCard = draggedCard.cloneNode(true);
-                ghostCard.classList.add('ghost');
-                const rect = draggedCard.getBoundingClientRect();
-                ghostCard.style.width = `${rect.width}px`;
-                ghostCard.style.height = `${rect.height}px`;
-                document.body.appendChild(ghostCard);
-                draggedCard.classList.add('dragging');
+            // A lógica de iniciar o arraste visual foi movida para `initiateDragVisuals`
+            // e para o `handleMouseMove` do mouse para manter a resposta imediata no desktop.
+            if (!isDragging && event.type === 'mousemove') {
+                 if (Math.abs(pageX - startX) > 10 || Math.abs(pageY - startY) > 10) {
+                    initiateDragVisuals();
+                 }
             }
             
             if (isDragging) {
-                // Move o fantasma
                 ghostCard.style.left = `${pageX - offsetX}px`;
                 ghostCard.style.top = `${pageY - offsetY}px`;
-                // Ativa a rolagem automática se perto das bordas
                 handleAutoScroll(pageX);
             }
         }
 
         function endDrag(finalX, finalY) {
             if (isDragging) {
-                // Esconde o fantasma para detectar o elemento alvo por baixo
                 ghostCard.style.display = 'none';
                 const dropTarget = document.elementFromPoint(finalX, finalY);
-                
                 const targetList = dropTarget ? dropTarget.closest('.list') : null;
 
                 if (targetList) {
-                    // Move o cartão real para a nova lista
                     targetList.querySelector('.cards').appendChild(draggedCard);
-                    // Atualiza o status no Firebase
                     updateOrderStatus(draggedCard.dataset.id, targetList.dataset.status);
                 }
             } else {
-                // Se não foi um arraste (movimento < 10px), considera um clique e abre o modal
-                openDetailsModal(draggedCard.dataset.id);
+                // A lógica de clique agora é tratada no `handleTouchEnd` e `handleMouseUp`
+                 if (event.type === 'mouseup') {
+                    openDetailsModal(draggedCard.dataset.id);
+                 }
             }
 
-            // Limpa tudo
             stopAutoScroll();
             if (ghostCard) document.body.removeChild(ghostCard);
             if (draggedCard) draggedCard.classList.remove('dragging');
@@ -345,7 +372,7 @@
             }
         }
 
-        // 3. Funções de Rolagem Automática (sem alterações)
+        // 4. Funções de Rolagem Automática (sem alterações)
         function handleAutoScroll(x) {
             const scrollZone = 50;
             const scrollSpeed = 10;
