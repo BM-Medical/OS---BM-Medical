@@ -172,7 +172,7 @@
         let isDragging = false;
         let longPressTimer = null;
         let animationFrameId = null;
-        let scrollDirection = 0;
+        let currentClientX = 0; // NOVO: Armazena a posição X atual do toque/mouse
 
         // --- Lógica Principal ---
         function listenToOrders() {
@@ -254,13 +254,14 @@
 
         function handleMouseMove(e) {
             e.preventDefault();
+            currentClientX = e.clientX; // Atualiza a posição do mouse
             if (!isDragging) {
                 if (Math.abs(e.pageX - startX) > 10 || Math.abs(e.pageY - startY) > 10) {
                     initiateDragVisuals();
                 }
             }
             if (isDragging) {
-                moveDrag(e.pageX, e.pageY, e.clientX);
+                moveDrag(e.pageX, e.pageY);
             }
         }
 
@@ -281,6 +282,7 @@
             draggedCard = this;
             startX = touch.pageX;
             startY = touch.pageY;
+            currentClientX = touch.clientX;
             isDragging = false;
             longPressTimer = setTimeout(() => {
                 startDrag(draggedCard, startX, startY);
@@ -293,12 +295,13 @@
         function handleTouchMove(e) {
             if (!draggedCard) return;
             const touch = e.touches[0];
+            currentClientX = touch.clientX; // Atualiza a posição do toque
             if (Math.abs(touch.pageX - startX) > 10 || Math.abs(touch.pageY - startY) > 10) {
                 clearTimeout(longPressTimer);
             }
             if (isDragging) {
                 e.preventDefault();
-                moveDrag(touch.pageX, touch.pageY, touch.clientX);
+                moveDrag(touch.pageX, touch.pageY);
             }
         }
 
@@ -338,15 +341,14 @@
             placeholder.classList.add('placeholder');
             placeholder.style.height = `${rect.height}px`;
             draggedCard.classList.add('dragging');
-            moveDrag(startX, startY, startX);
-            startAutoScrollLoop();
+            moveDrag(startX, startY);
+            startAutoScrollLoop(); // Inicia o loop de scroll
         }
 
-        function moveDrag(pageX, pageY, clientX) {
+        function moveDrag(pageX, pageY) {
             if (isDragging) {
                 ghostCard.style.left = `${pageX - offsetX}px`;
                 ghostCard.style.top = `${pageY - offsetY}px`;
-                setAutoScrollDirection(clientX);
                 const targetListContainer = document.elementFromPoint(pageX, pageY)?.closest('.cards');
                 if (targetListContainer) {
                     const afterElement = getDragAfterElement(targetListContainer, pageY);
@@ -412,33 +414,33 @@
             }
         }
 
-        // --- Lógica de Auto-Scroll com requestAnimationFrame ---
-        function setAutoScrollDirection(x) {
-            const scrollZone = 70; // Zona de ativação aumentada para mobile
-            if (x < scrollZone) {
-                scrollDirection = -1; // Rolar para a esquerda
-            } else if (x > window.innerWidth - scrollZone) {
-                scrollDirection = 1; // Rolar para a direita
-            } else {
-                scrollDirection = 0; // Parar de rolar
-            }
-        }
-
+        // --- Lógica de Auto-Scroll com requestAnimationFrame (Refatorada) ---
         function scrollLoop() {
             if (!isDragging) {
                 stopAutoScrollLoop();
                 return;
             }
+
+            const scrollZone = 80; // Zona de ativação aumentada para mobile
+            const scrollSpeed = 10;
+            let scrollDirection = 0;
+
+            if (currentClientX < scrollZone) {
+                scrollDirection = -1; // Rolar para a esquerda
+            } else if (currentClientX > window.innerWidth - scrollZone) {
+                scrollDirection = 1; // Rolar para a direita
+            }
+
             if (scrollDirection !== 0) {
-                const scrollSpeed = 10;
                 board.scrollLeft += scrollSpeed * scrollDirection;
             }
+
             animationFrameId = requestAnimationFrame(scrollLoop);
         }
 
         function startAutoScrollLoop() {
             if (!animationFrameId) {
-                scrollLoop();
+                animationFrameId = requestAnimationFrame(scrollLoop);
             }
         }
 
@@ -447,7 +449,6 @@
                 cancelAnimationFrame(animationFrameId);
             }
             animationFrameId = null;
-            scrollDirection = 0;
         }
 
         // --- CÓDIGO RESTANTE PARA MODAIS E PDFS ---
@@ -788,4 +789,4 @@
 
     </script>
 </body>
-</html>
+</ht
