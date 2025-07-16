@@ -172,7 +172,6 @@
         let isDragging = false;
         let longPressTimer = null;
         let animationFrameId = null;
-        let currentClientX = 0; // NOVO: Armazena a posição X atual do toque/mouse
 
         // --- Lógica Principal ---
         function listenToOrders() {
@@ -254,14 +253,13 @@
 
         function handleMouseMove(e) {
             e.preventDefault();
-            currentClientX = e.clientX; // Atualiza a posição do mouse
             if (!isDragging) {
                 if (Math.abs(e.pageX - startX) > 10 || Math.abs(e.pageY - startY) > 10) {
                     initiateDragVisuals();
                 }
             }
             if (isDragging) {
-                moveDrag(e.pageX, e.pageY);
+                moveDrag(e.pageX, e.pageY, e.clientX);
             }
         }
 
@@ -282,7 +280,6 @@
             draggedCard = this;
             startX = touch.pageX;
             startY = touch.pageY;
-            currentClientX = touch.clientX;
             isDragging = false;
             longPressTimer = setTimeout(() => {
                 startDrag(draggedCard, startX, startY);
@@ -295,13 +292,12 @@
         function handleTouchMove(e) {
             if (!draggedCard) return;
             const touch = e.touches[0];
-            currentClientX = touch.clientX; // Atualiza a posição do toque
             if (Math.abs(touch.pageX - startX) > 10 || Math.abs(touch.pageY - startY) > 10) {
                 clearTimeout(longPressTimer);
             }
             if (isDragging) {
                 e.preventDefault();
-                moveDrag(touch.pageX, touch.pageY);
+                moveDrag(touch.pageX, touch.pageY, touch.clientX);
             }
         }
 
@@ -341,14 +337,14 @@
             placeholder.classList.add('placeholder');
             placeholder.style.height = `${rect.height}px`;
             draggedCard.classList.add('dragging');
-            moveDrag(startX, startY);
-            startAutoScrollLoop(); // Inicia o loop de scroll
+            moveDrag(startX, startY, startX);
         }
 
-        function moveDrag(pageX, pageY) {
+        function moveDrag(pageX, pageY, clientX) {
             if (isDragging) {
                 ghostCard.style.left = `${pageX - offsetX}px`;
                 ghostCard.style.top = `${pageY - offsetY}px`;
+                handleAutoScroll(clientX); // Passa a posição X para a função de scroll
                 const targetListContainer = document.elementFromPoint(pageX, pageY)?.closest('.cards');
                 if (targetListContainer) {
                     const afterElement = getDragAfterElement(targetListContainer, pageY);
@@ -391,7 +387,7 @@
 
         function cleanupAfterDrag() {
             board.style.scrollSnapType = 'x mandatory';
-            stopAutoScrollLoop();
+            stopAutoScroll();
             if (ghostCard) ghostCard.remove();
             if (placeholder) placeholder.remove();
             if (draggedCard) draggedCard.classList.remove('dragging');
@@ -414,37 +410,36 @@
             }
         }
 
-        // --- Lógica de Auto-Scroll com requestAnimationFrame (Refatorada) ---
-        function scrollLoop() {
+        // --- Lógica de Auto-Scroll Refatorada ---
+        function handleAutoScroll(x) {
+            const scrollZone = 80; // Zona de ativação aumentada
+            const scrollSpeed = 10;
+            
+            if (x < scrollZone) {
+                startAutoScroll(-scrollSpeed);
+            } else if (x > window.innerWidth - scrollZone) {
+                startAutoScroll(scrollSpeed);
+            } else {
+                stopAutoScroll();
+            }
+        }
+
+        function scrollLoop(speed) {
             if (!isDragging) {
-                stopAutoScrollLoop();
+                stopAutoScroll();
                 return;
             }
-
-            const scrollZone = 80; // Zona de ativação aumentada para mobile
-            const scrollSpeed = 10;
-            let scrollDirection = 0;
-
-            if (currentClientX < scrollZone) {
-                scrollDirection = -1; // Rolar para a esquerda
-            } else if (currentClientX > window.innerWidth - scrollZone) {
-                scrollDirection = 1; // Rolar para a direita
-            }
-
-            if (scrollDirection !== 0) {
-                board.scrollLeft += scrollSpeed * scrollDirection;
-            }
-
-            animationFrameId = requestAnimationFrame(scrollLoop);
+            board.scrollLeft += speed;
+            animationFrameId = requestAnimationFrame(() => scrollLoop(speed));
         }
 
-        function startAutoScrollLoop() {
+        function startAutoScroll(speed) {
             if (!animationFrameId) {
-                animationFrameId = requestAnimationFrame(scrollLoop);
+                scrollLoop(speed);
             }
         }
 
-        function stopAutoScrollLoop() {
+        function stopAutoScroll() {
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
             }
