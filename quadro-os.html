@@ -117,6 +117,7 @@
         </main>
     </div>
 
+    <!-- Modal de Detalhes/Edição da OS -->
     <div id="details-modal" class="modal-overlay">
         <div class="modal-content">
             <button id="modal-close-button" class="modal-close">&times;</button>
@@ -124,6 +125,7 @@
         </div>
     </div>
 
+    <!-- Modal de Assinatura -->
     <div id="signature-modal-details" class="signature-modal-overlay">
         <div class="signature-modal-content">
             <h3>Assine no campo abaixo:</h3>
@@ -170,7 +172,6 @@
         let isDragging = false;
         let longPressTimer = null;
         let animationFrameId = null;
-        let longPressActivated = false; // ADICIONADO: Nova variável de estado para o toque longo
 
         // --- Lógica Principal ---
         function listenToOrders() {
@@ -280,13 +281,10 @@
             startX = touch.pageX;
             startY = touch.pageY;
             isDragging = false;
-            
             longPressTimer = setTimeout(() => {
-                // ALTERAÇÃO: O timer agora apenas sinaliza que o toque longo foi ativado.
-                // A iniciação visual do arraste ocorrerá no handleTouchMove.
-                longPressActivated = true;
+                startDrag(draggedCard, startX, startY);
+                initiateDragVisuals();
             }, 300);
-
             document.addEventListener('touchmove', handleTouchMove, { passive: false });
             document.addEventListener('touchend', handleTouchEnd);
         }
@@ -294,19 +292,9 @@
         function handleTouchMove(e) {
             if (!draggedCard) return;
             const touch = e.touches[0];
-
-            // Limpa o timer se o dedo mover antes dos 300ms, prevenindo o arraste
             if (Math.abs(touch.pageX - startX) > 10 || Math.abs(touch.pageY - startY) > 10) {
                 clearTimeout(longPressTimer);
             }
-
-            // ALTERAÇÃO: Inicia o arraste visual apenas se o toque longo foi ativado E o dedo se moveu
-            if (longPressActivated && !isDragging) {
-                // A verificação de movimento já foi feita acima para limpar o timer,
-                // então podemos iniciar o arraste visual diretamente.
-                initiateDragVisuals();
-            }
-
             if (isDragging) {
                 e.preventDefault();
                 moveDrag(touch.pageX, touch.pageY, touch.clientX);
@@ -319,8 +307,7 @@
                 const touch = e.changedTouches[0];
                 dropCard(touch.clientX, touch.clientY);
             } else {
-                // Se não estava arrastando e o movimento foi mínimo, considera um clique/toque
-                if (!longPressActivated && Math.abs(e.changedTouches[0].pageX - startX) < 10 && Math.abs(e.changedTouches[0].pageY - startY) < 10) {
+                if (Math.abs(e.changedTouches[0].pageX - startX) < 10 && Math.abs(e.changedTouches[0].pageY - startY) < 10) {
                     openDetailsModal(draggedCard.dataset.id);
                 }
             }
@@ -351,6 +338,7 @@
             placeholder.style.height = `${rect.height}px`;
             draggedCard.classList.add('dragging');
             moveDrag(startX, startY, startX);
+            startAutoScrollLoop();
         }
 
         function moveDrag(pageX, pageY, clientX) {
@@ -408,7 +396,6 @@
             placeholder = null;
             draggedCard = null;
             isDragging = false;
-            longPressActivated = false; // ADICIONADO: Reseta a variável de toque longo
         }
 
         async function updateOrder(orderId, newStatus, newPosition) {
@@ -427,7 +414,7 @@
         // --- Lógica de Auto-Scroll Refatorada ---
         function handleAutoScroll(x) {
             const scrollZone = 80;
-            const scrollSpeed = 6; // ALTERAÇÃO: Reduzido de 15 para 6 para um scroll mais suave
+            const scrollSpeed = 15;
             
             stopAutoScroll();
 
@@ -440,7 +427,9 @@
 
         function scrollLoop(speed) {
             board.scrollLeft += speed;
-            animationFrameId = requestAnimationFrame(() => scrollLoop(speed));
+            if (isDragging) {
+                animationFrameId = requestAnimationFrame(() => scrollLoop(speed));
+            }
         }
 
         function startAutoScroll(speed) {
@@ -452,11 +441,11 @@
         function stopAutoScroll() {
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
             }
+            animationFrameId = null;
         }
-        
-        // --- CÓDIGO RESTANTE PARA MODAIS E PDFS (SEM ALTERAÇÕES) ---
+
+        // --- CÓDIGO RESTANTE PARA MODAIS E PDFS ---
         
         async function openDetailsModal(orderId) {
             try {
