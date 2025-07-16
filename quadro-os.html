@@ -171,7 +171,8 @@
         let startY = 0;
         let isDragging = false;
         let longPressTimer = null;
-        let autoScrollInterval = null;
+        let animationFrameId = null;
+        let scrollDirection = 0;
 
         // --- Lógica Principal ---
         function listenToOrders() {
@@ -259,7 +260,7 @@
                 }
             }
             if (isDragging) {
-                moveDrag(e.pageX, e.pageY);
+                moveDrag(e.pageX, e.pageY, e.clientX);
             }
         }
 
@@ -297,7 +298,7 @@
             }
             if (isDragging) {
                 e.preventDefault();
-                moveDrag(touch.pageX, touch.pageY);
+                moveDrag(touch.pageX, touch.pageY, touch.clientX);
             }
         }
 
@@ -326,30 +327,26 @@
         function initiateDragVisuals() {
             if (!draggedCard) return;
             isDragging = true;
-            
-            // Desativa o snap para um scroll suave
             board.style.scrollSnapType = 'none';
-
             ghostCard = draggedCard.cloneNode(true);
             ghostCard.classList.add('ghost');
             const rect = draggedCard.getBoundingClientRect();
             ghostCard.style.width = `${rect.width}px`;
             ghostCard.style.height = `${rect.height}px`;
             document.body.appendChild(ghostCard);
-            
             placeholder = document.createElement('div');
             placeholder.classList.add('placeholder');
             placeholder.style.height = `${rect.height}px`;
-            
             draggedCard.classList.add('dragging');
-            moveDrag(startX, startY);
+            moveDrag(startX, startY, startX);
+            startAutoScrollLoop();
         }
 
-        function moveDrag(pageX, pageY) {
+        function moveDrag(pageX, pageY, clientX) {
             if (isDragging) {
                 ghostCard.style.left = `${pageX - offsetX}px`;
                 ghostCard.style.top = `${pageY - offsetY}px`;
-                handleAutoScroll(pageX);
+                setAutoScrollDirection(clientX);
                 const targetListContainer = document.elementFromPoint(pageX, pageY)?.closest('.cards');
                 if (targetListContainer) {
                     const afterElement = getDragAfterElement(targetListContainer, pageY);
@@ -391,14 +388,11 @@
         }
 
         function cleanupAfterDrag() {
-            // Reativa o snap para a navegação normal
             board.style.scrollSnapType = 'x mandatory';
-
-            stopAutoScroll();
+            stopAutoScrollLoop();
             if (ghostCard) ghostCard.remove();
             if (placeholder) placeholder.remove();
             if (draggedCard) draggedCard.classList.remove('dragging');
-            
             ghostCard = null;
             placeholder = null;
             draggedCard = null;
@@ -418,20 +412,42 @@
             }
         }
 
-        function handleAutoScroll(x) {
-            const scrollZone = 50;
-            const scrollSpeed = 10;
-            stopAutoScroll();
+        // --- Lógica de Auto-Scroll com requestAnimationFrame ---
+        function setAutoScrollDirection(x) {
+            const scrollZone = 70; // Zona de ativação aumentada para mobile
             if (x < scrollZone) {
-                autoScrollInterval = setInterval(() => { board.scrollLeft -= scrollSpeed; }, 15);
+                scrollDirection = -1; // Rolar para a esquerda
             } else if (x > window.innerWidth - scrollZone) {
-                autoScrollInterval = setInterval(() => { board.scrollLeft += scrollSpeed; }, 15);
+                scrollDirection = 1; // Rolar para a direita
+            } else {
+                scrollDirection = 0; // Parar de rolar
             }
         }
 
-        function stopAutoScroll() {
-            clearInterval(autoScrollInterval);
-            autoScrollInterval = null;
+        function scrollLoop() {
+            if (!isDragging) {
+                stopAutoScrollLoop();
+                return;
+            }
+            if (scrollDirection !== 0) {
+                const scrollSpeed = 10;
+                board.scrollLeft += scrollSpeed * scrollDirection;
+            }
+            animationFrameId = requestAnimationFrame(scrollLoop);
+        }
+
+        function startAutoScrollLoop() {
+            if (!animationFrameId) {
+                scrollLoop();
+            }
+        }
+
+        function stopAutoScrollLoop() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            animationFrameId = null;
+            scrollDirection = 0;
         }
 
         // --- CÓDIGO RESTANTE PARA MODAIS E PDFS ---
