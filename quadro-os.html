@@ -259,15 +259,15 @@
                 }
             }
             if (isDragging) {
-                moveDrag(e.pageX, e.pageY, e.clientX);
+                moveDrag(e.pageX, e.pageY);
             }
         }
 
         function handleMouseUp(e) {
             if (isDragging) {
-                dropCard(e.clientX, e.clientY);
+                dropCard();
             } else {
-                openDetailsModal(draggedCard.dataset.id);
+                if(draggedCard) openDetailsModal(draggedCard.dataset.id);
             }
             cleanupAfterDrag();
             document.removeEventListener('mousemove', handleMouseMove);
@@ -297,15 +297,14 @@
             }
             if (isDragging) {
                 e.preventDefault();
-                moveDrag(touch.pageX, touch.pageY, touch.clientX);
+                moveDrag(touch.pageX, touch.pageY);
             }
         }
 
         function handleTouchEnd(e) {
             clearTimeout(longPressTimer);
             if (isDragging) {
-                const touch = e.changedTouches[0];
-                dropCard(touch.clientX, touch.clientY);
+                dropCard();
             } else {
                 if (Math.abs(e.changedTouches[0].pageX - startX) < 10 && Math.abs(e.changedTouches[0].pageY - startY) < 10) {
                     openDetailsModal(draggedCard.dataset.id);
@@ -337,15 +336,29 @@
             placeholder.classList.add('placeholder');
             placeholder.style.height = `${rect.height}px`;
             draggedCard.classList.add('dragging');
-            moveDrag(startX, startY, startX);
-            startAutoScrollLoop();
+            
+            // Posiciona o fantasma inicial
+            ghostCard.style.left = `${startX - offsetX}px`;
+            ghostCard.style.top = `${startY - offsetY}px`;
+
+            // CORREÇÃO: Inicia um loop de animação contínuo para gerenciar a rolagem
+            animationFrameId = requestAnimationFrame(animationLoop);
+        }
+        
+        // CORREÇÃO: Loop de animação que executa a cada quadro
+        function animationLoop() {
+            if (!isDragging) return;
+            handleAutoScroll(); // Verifica e executa a rolagem
+            requestAnimationFrame(animationLoop); // Continua o loop
         }
 
-        function moveDrag(pageX, pageY, clientX) {
+        function moveDrag(pageX, pageY) {
             if (isDragging) {
+                // Apenas atualiza a posição do fantasma
                 ghostCard.style.left = `${pageX - offsetX}px`;
                 ghostCard.style.top = `${pageY - offsetY}px`;
-                handleAutoScroll(clientX);
+                
+                // Encontra a lista e a posição para o placeholder
                 const targetListContainer = document.elementFromPoint(pageX, pageY)?.closest('.cards');
                 if (targetListContainer) {
                     const afterElement = getDragAfterElement(targetListContainer, pageY);
@@ -371,7 +384,7 @@
             }, { offset: Number.NEGATIVE_INFINITY }).element;
         }
 
-        function dropCard(finalX, finalY) {
+        function dropCard() {
             if (!placeholder || !placeholder.parentElement) {
                 cleanupAfterDrag();
                 return;
@@ -388,7 +401,11 @@
 
         function cleanupAfterDrag() {
             board.style.scrollSnapType = 'x mandatory';
-            stopAutoScroll();
+            // CORREÇÃO: Para o loop de animação
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
             if (ghostCard) ghostCard.remove();
             if (placeholder) placeholder.remove();
             if (draggedCard) draggedCard.classList.remove('dragging');
@@ -411,41 +428,22 @@
             }
         }
 
-        // --- Lógica de Auto-Scroll Refatorada ---
-        function handleAutoScroll(x) {
+        // CORREÇÃO: Lógica de Auto-Scroll baseada na posição do CARTÃO FANTASMA
+        function handleAutoScroll() {
+            if (!ghostCard) return; // Só executa se o fantasma existir
+
             const scrollZone = 80;
-            const scrollSpeed = 15;
-            
-            stopAutoScroll();
+            const scrollSpeed = 10; // Velocidade um pouco mais controlada
+            const rect = ghostCard.getBoundingClientRect(); // Pega a posição atual do fantasma
 
-            if (x < scrollZone) {
-                startAutoScroll(-scrollSpeed);
-            } else if (x > window.innerWidth - scrollZone) {
-                startAutoScroll(scrollSpeed);
+            if (rect.left < scrollZone) {
+                board.scrollLeft -= scrollSpeed;
+            } else if (rect.right > window.innerWidth - scrollZone) {
+                board.scrollLeft += scrollSpeed;
             }
         }
 
-        function scrollLoop(speed) {
-            board.scrollLeft += speed;
-            if (isDragging) {
-                animationFrameId = requestAnimationFrame(() => scrollLoop(speed));
-            }
-        }
-
-        function startAutoScroll(speed) {
-            if (!animationFrameId) {
-                scrollLoop(speed);
-            }
-        }
-
-        function stopAutoScroll() {
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-            }
-            animationFrameId = null;
-        }
-
-        // --- CÓDIGO RESTANTE PARA MODAIS E PDFS ---
+        // --- CÓDIGO RESTANTE PARA MODAIS E PDFS (sem alterações) ---
         
         async function openDetailsModal(orderId) {
             try {
