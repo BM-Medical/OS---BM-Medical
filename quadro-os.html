@@ -172,6 +172,7 @@
         let isDragging = false;
         let longPressTimer = null;
         let animationFrameId = null;
+        let currentClientX = 0;
 
         // --- Lógica Principal ---
         function listenToOrders() {
@@ -338,13 +339,14 @@
             placeholder.style.height = `${rect.height}px`;
             draggedCard.classList.add('dragging');
             moveDrag(startX, startY, startX);
+            startAutoScrollLoop();
         }
 
         function moveDrag(pageX, pageY, clientX) {
             if (isDragging) {
+                currentClientX = clientX; // Atualiza a posição X global
                 ghostCard.style.left = `${pageX - offsetX}px`;
                 ghostCard.style.top = `${pageY - offsetY}px`;
-                handleAutoScroll(clientX); // Passa a posição X para a função de scroll
                 const targetListContainer = document.elementFromPoint(pageX, pageY)?.closest('.cards');
                 if (targetListContainer) {
                     const afterElement = getDragAfterElement(targetListContainer, pageY);
@@ -387,7 +389,7 @@
 
         function cleanupAfterDrag() {
             board.style.scrollSnapType = 'x mandatory';
-            stopAutoScroll();
+            stopAutoScrollLoop();
             if (ghostCard) ghostCard.remove();
             if (placeholder) placeholder.remove();
             if (draggedCard) draggedCard.classList.remove('dragging');
@@ -411,35 +413,30 @@
         }
 
         // --- Lógica de Auto-Scroll Refatorada ---
-        function handleAutoScroll(x) {
-            const scrollZone = 80; // Zona de ativação aumentada
-            const scrollSpeed = 10;
-            
-            if (x < scrollZone) {
-                startAutoScroll(-scrollSpeed);
-            } else if (x > window.innerWidth - scrollZone) {
-                startAutoScroll(scrollSpeed);
-            } else {
-                stopAutoScroll();
-            }
-        }
-
-        function scrollLoop(speed) {
+        function scrollLoop() {
             if (!isDragging) {
-                stopAutoScroll();
+                stopAutoScrollLoop();
                 return;
             }
-            board.scrollLeft += speed;
-            animationFrameId = requestAnimationFrame(() => scrollLoop(speed));
+            const scrollZone = 80;
+            const scrollSpeed = 12; // Velocidade de rolagem ajustada
+            
+            if (currentClientX < scrollZone) {
+                board.scrollLeft -= scrollSpeed;
+            } else if (currentClientX > window.innerWidth - scrollZone) {
+                board.scrollLeft += scrollSpeed;
+            }
+            
+            animationFrameId = requestAnimationFrame(scrollLoop);
         }
 
-        function startAutoScroll(speed) {
+        function startAutoScrollLoop() {
             if (!animationFrameId) {
-                scrollLoop(speed);
+                animationFrameId = requestAnimationFrame(scrollLoop);
             }
         }
 
-        function stopAutoScroll() {
+        function stopAutoScrollLoop() {
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
             }
@@ -784,4 +781,4 @@
 
     </script>
 </body>
-</ht
+</html>
