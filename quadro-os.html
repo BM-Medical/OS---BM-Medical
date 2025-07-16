@@ -90,6 +90,7 @@
 
         @media (max-width: 768px) {
             .board {
+                /* Adiciona o snap scroll para a rolagem normal */
                 scroll-snap-type: x mandatory;
                 scroll-padding: 0 20px;
             }
@@ -172,6 +173,7 @@
         let isDragging = false;
         let longPressTimer = null;
         let animationFrameId = null;
+        let isSnapping = false; // ADICIONADO: Variável de controle para o snap scroll
 
         // --- Lógica Principal ---
         function listenToOrders() {
@@ -337,28 +339,23 @@
             placeholder.style.height = `${rect.height}px`;
             draggedCard.classList.add('dragging');
             
-            // Posiciona o fantasma inicial
             ghostCard.style.left = `${startX - offsetX}px`;
             ghostCard.style.top = `${startY - offsetY}px`;
 
-            // CORREÇÃO: Inicia um loop de animação contínuo para gerenciar a rolagem
             animationFrameId = requestAnimationFrame(animationLoop);
         }
         
-        // CORREÇÃO: Loop de animação que executa a cada quadro
         function animationLoop() {
             if (!isDragging) return;
-            handleAutoScroll(); // Verifica e executa a rolagem
-            requestAnimationFrame(animationLoop); // Continua o loop
+            handleAutoScroll();
+            requestAnimationFrame(animationLoop);
         }
 
         function moveDrag(pageX, pageY) {
             if (isDragging) {
-                // Apenas atualiza a posição do fantasma
                 ghostCard.style.left = `${pageX - offsetX}px`;
                 ghostCard.style.top = `${pageY - offsetY}px`;
                 
-                // Encontra a lista e a posição para o placeholder
                 const targetListContainer = document.elementFromPoint(pageX, pageY)?.closest('.cards');
                 if (targetListContainer) {
                     const afterElement = getDragAfterElement(targetListContainer, pageY);
@@ -401,7 +398,6 @@
 
         function cleanupAfterDrag() {
             board.style.scrollSnapType = 'x mandatory';
-            // CORREÇÃO: Para o loop de animação
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
@@ -428,18 +424,41 @@
             }
         }
 
-        // CORREÇÃO: Lógica de Auto-Scroll baseada na posição do CARTÃO FANTASMA
+        // ALTERAÇÃO: Lógica de Auto-Scroll com "Snap"
         function handleAutoScroll() {
-            if (!ghostCard) return; // Só executa se o fantasma existir
+            // Só executa se o fantasma existir e não estiver já a fazer um "snap"
+            if (!ghostCard || isSnapping || !placeholder?.parentElement) return;
 
             const scrollZone = 80;
-            const scrollSpeed = 10; // Velocidade um pouco mais controlada
-            const rect = ghostCard.getBoundingClientRect(); // Pega a posição atual do fantasma
+            const rect = ghostCard.getBoundingClientRect();
+            const currentList = placeholder.closest('.list');
+            
+            if (!currentList) return; // Segurança
 
-            if (rect.left < scrollZone) {
-                board.scrollLeft -= scrollSpeed;
-            } else if (rect.right > window.innerWidth - scrollZone) {
-                board.scrollLeft += scrollSpeed;
+            let targetList = null;
+
+            if (rect.right > window.innerWidth - scrollZone) {
+                // Tenta deslizar para a direita
+                targetList = currentList.nextElementSibling;
+            } else if (rect.left < scrollZone) {
+                // Tenta deslizar para a esquerda
+                targetList = currentList.previousElementSibling;
+            }
+
+            if (targetList && targetList.classList.contains('list')) {
+                isSnapping = true; // Ativa a flag para evitar múltiplos "snaps"
+                
+                // Executa o deslize suave para a lista alvo
+                targetList.scrollIntoView({
+                    behavior: 'smooth',
+                    inline: 'center',
+                    block: 'nearest'
+                });
+                
+                // Cooldown para permitir um novo "snap" após a animação
+                setTimeout(() => {
+                    isSnapping = false;
+                }, 600); // 600ms é um tempo seguro para a animação terminar
             }
         }
 
