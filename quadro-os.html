@@ -90,7 +90,6 @@
 
         @media (max-width: 768px) {
             .board {
-                /* Adiciona o snap scroll para a rolagem normal */
                 scroll-snap-type: x mandatory;
                 scroll-padding: 0 20px;
             }
@@ -172,8 +171,8 @@
         let startY = 0;
         let isDragging = false;
         let longPressTimer = null;
-        let animationFrameId = null;
-        let isSnapping = false; // ADICIONADO: Variável de controle para o snap scroll
+        let scrollInterval = null; // ALTERAÇÃO: Usaremos setInterval em vez de requestAnimationFrame
+        let isSnapping = false;
 
         // --- Lógica Principal ---
         function listenToOrders() {
@@ -342,15 +341,10 @@
             ghostCard.style.left = `${startX - offsetX}px`;
             ghostCard.style.top = `${startY - offsetY}px`;
 
-            animationFrameId = requestAnimationFrame(animationLoop);
+            // ALTERAÇÃO: Inicia um intervalo para verificar a rolagem periodicamente
+            scrollInterval = setInterval(handleAutoScroll, 250);
         }
         
-        function animationLoop() {
-            if (!isDragging) return;
-            handleAutoScroll();
-            requestAnimationFrame(animationLoop);
-        }
-
         function moveDrag(pageX, pageY) {
             if (isDragging) {
                 ghostCard.style.left = `${pageX - offsetX}px`;
@@ -398,9 +392,10 @@
 
         function cleanupAfterDrag() {
             board.style.scrollSnapType = 'x mandatory';
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
+            // ALTERAÇÃO: Limpa o intervalo ao soltar o cartão
+            if (scrollInterval) {
+                clearInterval(scrollInterval);
+                scrollInterval = null;
             }
             if (ghostCard) ghostCard.remove();
             if (placeholder) placeholder.remove();
@@ -424,41 +419,52 @@
             }
         }
 
-        // ALTERAÇÃO: Lógica de Auto-Scroll com "Snap"
-        function handleAutoScroll() {
-            // Só executa se o fantasma existir e não estiver já a fazer um "snap"
-            if (!ghostCard || isSnapping || !placeholder?.parentElement) return;
+        function animateScroll(targetScrollLeft, duration) {
+            const startScrollLeft = board.scrollLeft;
+            const distance = targetScrollLeft - startScrollLeft;
+            let startTime = null;
 
-            const scrollZone = 80;
+            function step(currentTime) {
+                if (!startTime) startTime = currentTime;
+                const elapsedTime = currentTime - startTime;
+                const progress = Math.min(elapsedTime / duration, 1);
+                const ease = 1 - Math.pow(1 - progress, 3);
+                board.scrollLeft = startScrollLeft + distance * ease;
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                } else {
+                    isSnapping = false; // Permite um novo snap no próximo intervalo
+                }
+            }
+            requestAnimationFrame(step);
+        }
+        
+        // ALTERAÇÃO: Lógica de Auto-Scroll baseada em intervalo
+        function handleAutoScroll() {
+            if (!isDragging || !ghostCard || isSnapping || !placeholder?.parentElement) return;
+
+            const scrollZone = 40;
             const rect = ghostCard.getBoundingClientRect();
             const currentList = placeholder.closest('.list');
             
-            if (!currentList) return; // Segurança
+            if (!currentList) return;
 
             let targetList = null;
 
             if (rect.right > window.innerWidth - scrollZone) {
-                // Tenta deslizar para a direita
                 targetList = currentList.nextElementSibling;
             } else if (rect.left < scrollZone) {
-                // Tenta deslizar para a esquerda
                 targetList = currentList.previousElementSibling;
             }
 
             if (targetList && targetList.classList.contains('list')) {
-                isSnapping = true; // Ativa a flag para evitar múltiplos "snaps"
+                isSnapping = true; // Impede novos snaps até a animação terminar
                 
-                // Executa o deslize suave para a lista alvo
-                targetList.scrollIntoView({
-                    behavior: 'smooth',
-                    inline: 'center',
-                    block: 'nearest'
-                });
+                const boardRect = board.getBoundingClientRect();
+                const targetRect = targetList.getBoundingClientRect();
+                const targetScrollLeft = board.scrollLeft + targetRect.left - boardRect.left - (boardRect.width - targetRect.width) / 2;
                 
-                // Cooldown para permitir um novo "snap" após a animação
-                setTimeout(() => {
-                    isSnapping = false;
-                }, 600); // 600ms é um tempo seguro para a animação terminar
+                animateScroll(targetScrollLeft, 500); // Animação um pouco mais rápida
             }
         }
 
@@ -549,7 +555,7 @@
         async function saveOrderChanges(orderId) {
             const form = document.getElementById('edit-os-form');
             const updatedData = {};
-            if(form.equipamento_select){updatedData.equipamento=form.equipamento_select.value==='Outro'?form.outro_equipamento.value:form.equipamento_select.value}
+            if(form.equipamento_select){updatedData.equipamento=form.equipamento_select.value==='Outro'?form.outro_equipamento.value:form.outro_equipamento.value}
             if(form.marca)updatedData.marca=form.marca.value;if(form.modelo)updatedData.modelo=form.modelo.value;if(form.serial)updatedData.serial=form.serial.value;if(form.data_servico)updatedData.data_servico=form.data_servico.value;if(form.hora_chegada)updatedData.hora_chegada=form.hora_chegada.value;if(form.hora_saida)updatedData.hora_saida=form.hora_saida.value;if(form.data_retirada)updatedData.data_retirada=form.data_retirada.value;if(form.data_devolucao)updatedData.data_devolucao=form.data_devolucao.value;if(form.local_atendimento)updatedData.local_atendimento=form.local_atendimento.value;if(form.servicos_realizados)updatedData.servicos_realizados=form.servicos_realizados.value;if(form.pecas_utilizadas)updatedData.pecas_utilizadas=form.pecas_utilizadas.value;
             const orderRef = doc(db, "orders", orderId);
             await updateDoc(orderRef, updatedData);
