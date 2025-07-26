@@ -25,6 +25,7 @@
         .list[data-status="arquivada"] { background-color: #d6e9d6; }
         .list-header { padding: 12px 15px; font-weight: 700; font-size: 1rem; border-bottom: 1px solid #ced4da; position: sticky; top: 0; background-color: inherit; }
         .cards { padding: 10px; flex-grow: 1; min-height: 100px; overflow-y: auto; }
+        
         .card { 
             background-color: #fff; 
             border-radius: 6px; 
@@ -35,7 +36,20 @@
             position: relative; 
             user-select: none;
             touch-action: pan-y;
+            border-left: 5px solid #3498db; /* Cor padrão */
         }
+        .card strong {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
+        .card p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+
         .card:active { cursor: grabbing; }
         .card.dragging { opacity: 0.5; }
         .card-icons { position: absolute; top: 8px; right: 8px; display: flex; gap: 8px; cursor: pointer; }
@@ -194,6 +208,18 @@
             card.dataset.position = order.position;
             const isSigned = order.signature_data && typeof order.signature_data === 'string' && order.signature_data.length > 200;
             card.className = isSigned ? 'card is-signed' : 'card is-unsigned';
+            
+            // ALTERAÇÃO: Lógica de cores atualizada
+            if (order.contrato === 'Contrato N° 03/2024') { // UFPEL (Autoclave)
+                card.style.borderLeftColor = '#e67e22'; // Laranja
+            } else if (order.contrato === 'Contrato Nº 138/2024') { // Capão
+                card.style.borderLeftColor = '#2ecc71'; // Verde
+            } else if (order.contrato === 'Contrato Nº 10/2025') { // Exército
+                card.style.borderLeftColor = '#f1c40f'; // Amarelo
+            } else { // Outros/Padrão
+                card.style.borderLeftColor = '#3498db'; // Azul
+            }
+
             card.innerHTML = `
                 <div class="card-icons">
                     <div class="card-icon icon-signed"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/><path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/></svg></div>
@@ -370,9 +396,8 @@
         }
         
         function handleTouchAutoScroll(clientX) {
-            // ALTERAÇÃO: Zona de ativação baseada em percentual da tela
             const viewportWidth = window.innerWidth;
-            const scrollZone = viewportWidth * 0.35; // 35% da tela em cada lado
+            const scrollZone = viewportWidth * 0.35;
             let newSpeed = 0;
 
             if (clientX < scrollZone) {
