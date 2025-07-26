@@ -10,7 +10,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="auth-guard.js" type="module"></script>
     <style>
-        /* ALTERAÇÃO: Previne a rolagem vertical da página inteira */
         html, body {
             overflow: hidden;
             height: 100%;
@@ -91,21 +90,6 @@
 
         .ghost { position: absolute; pointer-events: none; opacity: 0.9; box-shadow: 0 10px 20px rgba(0,0,0,0.2); z-index: 100; transform: rotate(3deg); transition: transform 0.1s; }
 
-        #debug-overlay {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 8px;
-            border-radius: 5px;
-            z-index: 9999;
-            font-family: monospace;
-            font-size: 12px;
-            pointer-events: none;
-            display: none;
-        }
-
         @media (max-width: 768px) {
             .board { scroll-snap-type: none; }
             .list { scroll-snap-align: none; }
@@ -113,8 +97,6 @@
     </style>
 </head>
 <body>
-    <div id="debug-overlay"></div>
-
     <div class="board-container">
         <header class="board-header">
             <a href="index.html"><img src="./images/logo.png" alt="Logo BM Medical"></a>
@@ -171,7 +153,6 @@
         const modalOverlay = document.getElementById('details-modal');
         const modalBody = document.getElementById('modal-body');
         const modalCloseButton = document.getElementById('modal-close-button');
-        const debugOverlay = document.getElementById('debug-overlay');
         
         let draggedCard = null;
         let ghostCard = null;
@@ -282,12 +263,10 @@
             const touch = e.touches[0];
             if (!isDragging) {
                 initiateDragVisuals(draggedCard, startX, startY);
-                debugOverlay.style.display = 'block';
             }
             if (isDragging) {
                 moveDrag(touch.pageX, touch.pageY, touch.clientX, touch.clientY);
                 handleTouchAutoScroll(touch.clientX);
-                debugOverlay.textContent = `clientX: ${Math.round(touch.clientX)} | speed: ${touchScrollSpeed} | w: ${window.innerWidth}`;
             }
         }
 
@@ -353,7 +332,6 @@
                 draggedCard.classList.remove('dragging');
             }
             if(placeholder) placeholder.remove();
-            debugOverlay.style.display = 'none';
             ghostCard = null;
             placeholder = null;
             draggedCard = null;
@@ -392,9 +370,9 @@
         }
         
         function handleTouchAutoScroll(clientX) {
-            // ALTERAÇÃO: Zona de ativação aumentada para ser mais fácil de acionar
-            const scrollZone = 120; 
+            // ALTERAÇÃO: Zona de ativação baseada em percentual da tela
             const viewportWidth = window.innerWidth;
+            const scrollZone = viewportWidth * 0.35; // 35% da tela em cada lado
             let newSpeed = 0;
 
             if (clientX < scrollZone) {
