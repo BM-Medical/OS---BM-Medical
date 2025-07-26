@@ -10,6 +10,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="auth-guard.js" type="module"></script>
     <style>
+        /* ALTERAÇÃO: Previne a rolagem vertical da página inteira */
+        html, body {
+            overflow: hidden;
+            height: 100%;
+        }
         body { font-family: 'Inter', sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
         .board-container { display: flex; flex-direction: column; height: 100vh; }
         .board-header { padding: 15px 20px; background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 20px; position: sticky; top: 0; z-index: 10; }
@@ -282,7 +287,7 @@
             if (isDragging) {
                 moveDrag(touch.pageX, touch.pageY, touch.clientX, touch.clientY);
                 handleTouchAutoScroll(touch.clientX);
-                debugOverlay.textContent = `clientX: ${Math.round(touch.clientX)} | speed: ${touchScrollSpeed}`;
+                debugOverlay.textContent = `clientX: ${Math.round(touch.clientX)} | speed: ${touchScrollSpeed} | w: ${window.innerWidth}`;
             }
         }
 
@@ -387,27 +392,32 @@
         }
         
         function handleTouchAutoScroll(clientX) {
-            const scrollZone = 50; 
+            // ALTERAÇÃO: Zona de ativação aumentada para ser mais fácil de acionar
+            const scrollZone = 120; 
             const viewportWidth = window.innerWidth;
+            let newSpeed = 0;
+
             if (clientX < scrollZone) {
-                touchScrollSpeed = -5;
-                if (!touchScrollAnimationId) touchScrollAnimationId = requestAnimationFrame(animateTouchScroll);
+                newSpeed = -5;
             } else if (clientX > viewportWidth - scrollZone) {
-                touchScrollSpeed = 5;
-                if (!touchScrollAnimationId) touchScrollAnimationId = requestAnimationFrame(animateTouchScroll);
-            } else {
-                touchScrollSpeed = 0;
+                newSpeed = 5;
+            }
+            
+            touchScrollSpeed = newSpeed;
+
+            if (touchScrollSpeed !== 0 && !touchScrollAnimationId) {
+                touchScrollAnimationId = requestAnimationFrame(animateTouchScroll);
             }
         }
 
         function animateTouchScroll() {
-            if (touchScrollSpeed !== 0) {
-                board.scrollLeft += touchScrollSpeed;
-                touchScrollAnimationId = requestAnimationFrame(animateTouchScroll);
-            } else {
+            if (touchScrollSpeed === 0) {
                 cancelAnimationFrame(touchScrollAnimationId);
                 touchScrollAnimationId = null;
+                return;
             }
+            board.scrollLeft += touchScrollSpeed;
+            touchScrollAnimationId = requestAnimationFrame(animateTouchScroll);
         }
 
         // --- CÓDIGO RESTAURADO PARA MODAIS E PDFS ---
