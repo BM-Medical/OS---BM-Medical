@@ -449,8 +449,7 @@
         function handleAutoScroll() {
             if (!ghostCard || isSnapping || !placeholder?.parentElement) return;
 
-            const scrollZone = 20;
-            const hitboxPadding = 50;
+            const scrollZone = 40;
             const rect = ghostCard.getBoundingClientRect();
             const currentList = placeholder.closest('.list');
             
@@ -459,10 +458,10 @@
             let targetList = null;
             let isInZone = false;
 
-            if ((rect.right - hitboxPadding) > window.innerWidth - scrollZone) {
+            if (rect.right > window.innerWidth - scrollZone) {
                 targetList = currentList.nextElementSibling;
                 isInZone = true;
-            } else if ((rect.left + hitboxPadding) < scrollZone) {
+            } else if (rect.left < scrollZone) {
                 targetList = currentList.previousElementSibling;
                 isInZone = true;
             }
@@ -475,8 +474,7 @@
                 const targetRect = targetList.getBoundingClientRect();
                 const targetScrollLeft = board.scrollLeft + targetRect.left - boardRect.left - (boardRect.width - targetRect.width) / 2;
                 
-                // ALTERAÇÃO: Duração da animação alterada de volta para 700ms
-                animateScroll(targetScrollLeft, 700);
+                animateScroll(targetScrollLeft, 1200);
             } else if (!isInZone) {
                 canSnap = true;
             }
