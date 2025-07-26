@@ -449,8 +449,8 @@
         function handleAutoScroll() {
             if (!ghostCard || isSnapping || !placeholder?.parentElement) return;
 
-            const scrollZone = 20; // ALTERAÇÃO: Zona da tela ainda menor
-            const hitboxPadding = 50; // ALTERAÇÃO: "Caixa de colisão" imaginária
+            const scrollZone = 20;
+            const hitboxPadding = 50;
             const rect = ghostCard.getBoundingClientRect();
             const currentList = placeholder.closest('.list');
             
@@ -459,7 +459,6 @@
             let targetList = null;
             let isInZone = false;
 
-            // ALTERAÇÃO: A verificação agora usa a "caixa de colisão"
             if ((rect.right - hitboxPadding) > window.innerWidth - scrollZone) {
                 targetList = currentList.nextElementSibling;
                 isInZone = true;
@@ -476,7 +475,8 @@
                 const targetRect = targetList.getBoundingClientRect();
                 const targetScrollLeft = board.scrollLeft + targetRect.left - boardRect.left - (boardRect.width - targetRect.width) / 2;
                 
-                animateScroll(targetScrollLeft, 1200);
+                // ALTERAÇÃO: Duração da animação alterada de volta para 700ms
+                animateScroll(targetScrollLeft, 700);
             } else if (!isInZone) {
                 canSnap = true;
             }
