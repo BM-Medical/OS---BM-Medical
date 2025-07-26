@@ -170,9 +170,9 @@
         let startX = 0;
         let startY = 0;
         let isDragging = false;
-        let longPressTimer = null;
-        let scrollInterval = null; // ALTERAÇÃO: Usaremos setInterval em vez de requestAnimationFrame
+        let animationFrameId = null;
         let isSnapping = false;
+        let canSnap = true;
 
         // --- Lógica Principal ---
         function listenToOrders() {
@@ -282,20 +282,21 @@
             startX = touch.pageX;
             startY = touch.pageY;
             isDragging = false;
-            longPressTimer = setTimeout(() => {
-                startDrag(draggedCard, startX, startY);
-                initiateDragVisuals();
-            }, 300);
             document.addEventListener('touchmove', handleTouchMove, { passive: false });
             document.addEventListener('touchend', handleTouchEnd);
         }
 
         function handleTouchMove(e) {
             if (!draggedCard) return;
+
             const touch = e.touches[0];
-            if (Math.abs(touch.pageX - startX) > 10 || Math.abs(touch.pageY - startY) > 10) {
-                clearTimeout(longPressTimer);
+            if (!isDragging) {
+                if (Math.abs(touch.pageX - startX) > 10 || Math.abs(touch.pageY - startY) > 10) {
+                    startDrag(draggedCard, startX, startY);
+                    initiateDragVisuals();
+                }
             }
+
             if (isDragging) {
                 e.preventDefault();
                 moveDrag(touch.pageX, touch.pageY);
@@ -303,18 +304,16 @@
         }
 
         function handleTouchEnd(e) {
-            clearTimeout(longPressTimer);
             if (isDragging) {
                 dropCard();
             } else {
-                if (Math.abs(e.changedTouches[0].pageX - startX) < 10 && Math.abs(e.changedTouches[0].pageY - startY) < 10) {
-                    openDetailsModal(draggedCard.dataset.id);
-                }
+                openDetailsModal(draggedCard.dataset.id);
             }
             cleanupAfterDrag();
             document.removeEventListener('touchmove', handleTouchMove);
             document.removeEventListener('touchend', handleTouchEnd);
         }
+
 
         function startDrag(element, pageX, pageY) {
             draggedCard = element;
@@ -341,10 +340,15 @@
             ghostCard.style.left = `${startX - offsetX}px`;
             ghostCard.style.top = `${startY - offsetY}px`;
 
-            // ALTERAÇÃO: Inicia um intervalo para verificar a rolagem periodicamente
-            scrollInterval = setInterval(handleAutoScroll, 250);
+            animationFrameId = requestAnimationFrame(animationLoop);
         }
         
+        function animationLoop() {
+            if (!isDragging) return;
+            handleAutoScroll();
+            requestAnimationFrame(animationLoop);
+        }
+
         function moveDrag(pageX, pageY) {
             if (isDragging) {
                 ghostCard.style.left = `${pageX - offsetX}px`;
@@ -392,10 +396,9 @@
 
         function cleanupAfterDrag() {
             board.style.scrollSnapType = 'x mandatory';
-            // ALTERAÇÃO: Limpa o intervalo ao soltar o cartão
-            if (scrollInterval) {
-                clearInterval(scrollInterval);
-                scrollInterval = null;
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
             }
             if (ghostCard) ghostCard.remove();
             if (placeholder) placeholder.remove();
@@ -404,6 +407,7 @@
             placeholder = null;
             draggedCard = null;
             isDragging = false;
+            canSnap = true;
         }
 
         async function updateOrder(orderId, newStatus, newPosition) {
@@ -433,38 +437,48 @@
                 if (progress < 1) {
                     requestAnimationFrame(step);
                 } else {
-                    isSnapping = false; // Permite um novo snap no próximo intervalo
+                    isSnapping = false;
+                    setTimeout(() => {
+                        canSnap = true;
+                    }, 100);
                 }
             }
             requestAnimationFrame(step);
         }
         
-        // ALTERAÇÃO: Lógica de Auto-Scroll baseada em intervalo
         function handleAutoScroll() {
-            if (!isDragging || !ghostCard || isSnapping || !placeholder?.parentElement) return;
+            if (!ghostCard || isSnapping || !placeholder?.parentElement) return;
 
-            const scrollZone = 40;
+            const scrollZone = 20; // ALTERAÇÃO: Zona da tela ainda menor
+            const hitboxPadding = 50; // ALTERAÇÃO: "Caixa de colisão" imaginária
             const rect = ghostCard.getBoundingClientRect();
             const currentList = placeholder.closest('.list');
             
             if (!currentList) return;
 
             let targetList = null;
+            let isInZone = false;
 
-            if (rect.right > window.innerWidth - scrollZone) {
+            // ALTERAÇÃO: A verificação agora usa a "caixa de colisão"
+            if ((rect.right - hitboxPadding) > window.innerWidth - scrollZone) {
                 targetList = currentList.nextElementSibling;
-            } else if (rect.left < scrollZone) {
+                isInZone = true;
+            } else if ((rect.left + hitboxPadding) < scrollZone) {
                 targetList = currentList.previousElementSibling;
+                isInZone = true;
             }
 
-            if (targetList && targetList.classList.contains('list')) {
-                isSnapping = true; // Impede novos snaps até a animação terminar
+            if (isInZone && canSnap && targetList && targetList.classList.contains('list')) {
+                isSnapping = true;
+                canSnap = false;
                 
                 const boardRect = board.getBoundingClientRect();
                 const targetRect = targetList.getBoundingClientRect();
                 const targetScrollLeft = board.scrollLeft + targetRect.left - boardRect.left - (boardRect.width - targetRect.width) / 2;
                 
-                animateScroll(targetScrollLeft, 500); // Animação um pouco mais rápida
+                animateScroll(targetScrollLeft, 1200);
+            } else if (!isInZone) {
+                canSnap = true;
             }
         }
 
