@@ -166,12 +166,10 @@
         let startX = 0;
         let startY = 0;
         let isDragging = false;
-        let longPressTimer = null; // Para diferenciar clique de arraste no mobile
+        let longPressTimer = null;
 
-        // --- ALTERAÇÃO: Variáveis para a nova rolagem de toque ---
         let touchScrollAnimationId = null;
         let touchScrollSpeed = 0;
-        // --- FIM DA ALTERAÇÃO ---
 
         // --- Lógica Principal ---
         function listenToOrders() {
@@ -237,19 +235,14 @@
             container.querySelectorAll('.card').forEach(card => {
                 if (card.dataset.listenersAttached) return;
                 card.dataset.listenersAttached = 'true';
-                // Eventos de Mouse (Desktop) - SEM ALTERAÇÃO
                 card.addEventListener('mousedown', handleMouseDown);
-                // Eventos de Toque (Mobile) - Serão alterados
                 card.addEventListener('touchstart', handleTouchStart, { passive: true });
                 card.addEventListener('touchend', handleTouchEnd);
                 card.addEventListener('touchcancel', handleTouchEnd);
             });
         }
 
-        // --- LÓGICA DE DRAG & DROP (DESKTOP - SEM ALTERAÇÕES) ---
-
         function handleMouseDown(e) {
-            // Ignora o clique se for nos ícones (comportamento de abrir modal)
             if (e.target.closest('.card-icons')) return;
             draggedCard = this;
             startX = e.pageX;
@@ -261,13 +254,13 @@
 
         function handleMouseMove(e) {
             e.preventDefault();
-            // Inicia o arraste visual apenas se o mouse se mover o suficiente
             if (!isDragging && (Math.abs(e.pageX - startX) > 5 || Math.abs(e.pageY - startY) > 5)) {
                 initiateDragVisuals(draggedCard, startX, startY);
             }
 
             if (isDragging) {
-                moveDrag(e.pageX, e.pageY);
+                // --- CORREÇÃO ---
+                moveDrag(e.pageX, e.pageY, e.clientX, e.clientY);
             }
         }
 
@@ -282,8 +275,6 @@
             document.removeEventListener('mouseup', handleMouseUp);
         }
 
-        // --- LÓGICA DE DRAG & DROP (MOBILE - COM ALTERAÇÕES) ---
-
         function handleTouchStart(e) {
             if (e.target.closest('.card-icons')) return;
             const touch = e.touches[0];
@@ -291,17 +282,16 @@
             startX = touch.pageX;
             startY = touch.pageY;
 
-            // Usa um timer para diferenciar um toque (para abrir modal) de um arraste
             clearTimeout(longPressTimer);
             longPressTimer = setTimeout(() => {
                 document.addEventListener('touchmove', handleTouchMove, { passive: false });
                 longPressTimer = null; 
-            }, 200); // 200ms para iniciar o arraste
+            }, 200);
         }
 
         function handleTouchMove(e) {
             if (!draggedCard || longPressTimer) return;
-            e.preventDefault(); // Previne a rolagem da página pelo navegador
+            e.preventDefault();
             
             const touch = e.touches[0];
 
@@ -310,14 +300,13 @@
             }
 
             if (isDragging) {
-                moveDrag(touch.pageX, touch.pageY);
-                // --- ALTERAÇÃO: Chama a nova função de rolagem por toque ---
+                // --- CORREÇÃO ---
+                moveDrag(touch.pageX, touch.pageY, touch.clientX, touch.clientY);
                 handleTouchAutoScroll(touch.clientX); 
             }
         }
 
         function handleTouchEnd(e) {
-            // Se o timer ainda existir, significa que foi um clique rápido
             if (longPressTimer) {
                 clearTimeout(longPressTimer);
                 openDetailsModal(draggedCard.dataset.id);
@@ -328,8 +317,26 @@
             cleanupAfterDrag();
             document.removeEventListener('touchmove', handleTouchMove);
         }
-
-        // --- FUNÇÕES GERAIS DE DRAG & DROP (COM ALTERAÇÕES) ---
+        
+        // --- CORREÇÃO: Função agora recebe coordenadas da página e da tela ---
+        function moveDrag(pageX, pageY, clientX, clientY) {
+            if (!isDragging || !ghostCard) return;
+            
+            // Usa pageX/Y para posicionar o fantasma na página inteira
+            ghostCard.style.left = `${pageX - offsetX}px`;
+            ghostCard.style.top = `${pageY - offsetY}px`;
+            
+            // Usa clientX/Y para achar o elemento sob o dedo na tela visível
+            const targetListContainer = document.elementFromPoint(clientX, clientY)?.closest('.cards');
+            if (targetListContainer) {
+                const afterElement = getDragAfterElement(targetListContainer, clientY); // Passa clientY
+                if (afterElement) {
+                    targetListContainer.insertBefore(placeholder, afterElement);
+                } else {
+                    targetListContainer.appendChild(placeholder);
+                }
+            }
+        }
 
         function initiateDragVisuals(element, pageX, pageY) {
             if (!element || isDragging) return;
@@ -352,37 +359,20 @@
             element.classList.add('dragging');
             element.parentElement.insertBefore(placeholder, element);
             
-            moveDrag(pageX, pageY); // Posição inicial do fantasma
+            // --- CORREÇÃO: Passa todas as coordenadas necessárias na primeira chamada ---
+            const clientX = pageX - window.scrollX;
+            const clientY = pageY - window.scrollY;
+            moveDrag(pageX, pageY, clientX, clientY);
         }
         
-        function moveDrag(pageX, pageY) {
-            if (!isDragging || !ghostCard) return;
-            
-            ghostCard.style.left = `${pageX - offsetX}px`;
-            ghostCard.style.top = `${pageY - offsetY}px`;
-            
-            const targetListContainer = document.elementFromPoint(pageX, pageY)?.closest('.cards');
-            if (targetListContainer) {
-                const afterElement = getDragAfterElement(targetListContainer, pageY);
-                if (afterElement) {
-                    targetListContainer.insertBefore(placeholder, afterElement);
-                } else {
-                    targetListContainer.appendChild(placeholder);
-                }
-            }
-        }
-
         function cleanupAfterDrag() {
-            // --- ALTERAÇÃO: Para a animação de rolagem de toque ---
             if (touchScrollAnimationId) {
                 cancelAnimationFrame(touchScrollAnimationId);
                 touchScrollAnimationId = null;
             }
-            // --- FIM DA ALTERAÇÃO ---
 
             if (ghostCard) ghostCard.remove();
             if (draggedCard) {
-                // Insere o cartão original onde o placeholder estava
                 if (placeholder && placeholder.parentElement) {
                     placeholder.parentElement.insertBefore(draggedCard, placeholder);
                 }
@@ -406,7 +396,7 @@
             const nextElement = placeholder.nextElementSibling;
 
             const prevPosition = prevElement ? parseFloat(prevElement.dataset.position) : 0;
-            const nextPosition = nextElement ? parseFloat(nextElement.dataset.position) : (prevPosition + 200000); // Adiciona um grande número para garantir espaço
+            const nextPosition = nextElement ? parseFloat(nextElement.dataset.position) : (prevPosition + 200000);
             const newPosition = (prevPosition + nextPosition) / 2;
 
             updateOrder(draggedCard.dataset.id, newStatus, newPosition);
@@ -438,25 +428,21 @@
             }
         }
         
-        // --- NOVO: Lógica de Rolagem Horizontal para Toque ---
         function handleTouchAutoScroll(clientX) {
-            const scrollZone = 50; // Largura da zona de ativação da rolagem (em pixels)
+            const scrollZone = 50; 
             const viewportWidth = window.innerWidth;
             
             if (clientX < scrollZone) {
-                // Rolagem para a esquerda
-                touchScrollSpeed = -4; // Velocidade lenta
+                touchScrollSpeed = -4; 
                 if (!touchScrollAnimationId) {
                     touchScrollAnimationId = requestAnimationFrame(animateTouchScroll);
                 }
             } else if (clientX > viewportWidth - scrollZone) {
-                // Rolagem para a direita
-                touchScrollSpeed = 4; // Velocidade lenta
+                touchScrollSpeed = 4;
                 if (!touchScrollAnimationId) {
                     touchScrollAnimationId = requestAnimationFrame(animateTouchScroll);
                 }
             } else {
-                // Parar a rolagem se estiver fora da zona
                 touchScrollSpeed = 0;
                 if (touchScrollAnimationId) {
                     cancelAnimationFrame(touchScrollAnimationId);
@@ -473,13 +459,9 @@
                 touchScrollAnimationId = null;
             }
         }
-        // --- FIM DA NOVA LÓGICA ---
 
-
-        // --- CÓDIGO RESTANTE PARA MODAIS E PDFS (sem alterações) ---
-        
         async function openDetailsModal(orderId) {
-            if (isDragging) return; // Não abre o modal se estiver arrastando
+            if (isDragging) return;
             try {
                 const docRef = doc(db, "orders", orderId);
                 const docSnap = await getDoc(docRef);
