@@ -179,6 +179,8 @@
         let longPressTimer = null;
         let touchScrollAnimationId = null;
         let touchScrollSpeed = 0;
+        // ALTERAÇÃO: Variável para o listener temporário
+        let initialMoveListener = null;
 
         function listenToOrders() {
             const q = query(collection(db, "orders"), where("status", "!=", "arquivada"));
@@ -209,15 +211,14 @@
             const isSigned = order.signature_data && typeof order.signature_data === 'string' && order.signature_data.length > 200;
             card.className = isSigned ? 'card is-signed' : 'card is-unsigned';
             
-            // ALTERAÇÃO: Lógica de cores atualizada
-            if (order.contrato === 'Contrato N° 03/2024') { // UFPEL (Autoclave)
-                card.style.borderLeftColor = '#e67e22'; // Laranja
-            } else if (order.contrato === 'Contrato Nº 138/2024') { // Capão
-                card.style.borderLeftColor = '#2ecc71'; // Verde
-            } else if (order.contrato === 'Contrato Nº 10/2025') { // Exército
-                card.style.borderLeftColor = '#f1c40f'; // Amarelo
-            } else { // Outros/Padrão
-                card.style.borderLeftColor = '#3498db'; // Azul
+            if (order.contrato === 'Contrato N° 03/2024') {
+                card.style.borderLeftColor = '#e67e22';
+            } else if (order.contrato === 'Contrato Nº 138/2024') {
+                card.style.borderLeftColor = '#2ecc71';
+            } else if (order.contrato === 'Contrato Nº 10/2025') {
+                card.style.borderLeftColor = '#f1c40f';
+            } else {
+                card.style.borderLeftColor = '#3498db';
             }
 
             card.innerHTML = `
@@ -270,33 +271,55 @@
             document.removeEventListener('mouseup', handleMouseUp);
         }
 
+        // --- LÓGICA DE TOQUE ATUALIZADA ---
         function handleTouchStart(e) {
             if (e.target.closest('.card-icons')) return;
             const touch = e.touches[0];
             draggedCard = this;
             startX = touch.pageX;
             startY = touch.pageY;
+
+            // Define um listener temporário para detetar se o utilizador está a rolar
+            initialMoveListener = (moveEvent) => {
+                const moveTouch = moveEvent.touches[0];
+                // Se o dedo se mover mais do que um pequeno limiar, é um scroll
+                if (Math.abs(moveTouch.pageX - startX) > 10 || Math.abs(moveTouch.pageY - startY) > 10) {
+                    clearTimeout(longPressTimer); // Cancela o início do arrasto
+                    document.removeEventListener('touchmove', initialMoveListener);
+                    initialMoveListener = null;
+                }
+            };
+            document.addEventListener('touchmove', initialMoveListener);
+
             clearTimeout(longPressTimer);
+            // Inicia um temporizador. Se não for cancelado, ativa o modo de arrasto.
             longPressTimer = setTimeout(() => {
+                if (initialMoveListener) {
+                    document.removeEventListener('touchmove', initialMoveListener);
+                    initialMoveListener = null;
+                }
+                // Adiciona o listener principal para mover o cartão
                 document.addEventListener('touchmove', handleTouchMove, { passive: false });
+                initiateDragVisuals(draggedCard, startX, startY);
                 longPressTimer = null; 
-            }, 200);
+            }, 400); // Atraso de 400ms para "pegar" o cartão
         }
 
         function handleTouchMove(e) {
-            if (!draggedCard || longPressTimer) return;
+            if (!isDragging) return; // Só executa se o arrasto já tiver sido iniciado
             e.preventDefault();
             const touch = e.touches[0];
-            if (!isDragging) {
-                initiateDragVisuals(draggedCard, startX, startY);
-            }
-            if (isDragging) {
-                moveDrag(touch.pageX, touch.pageY, touch.clientX, touch.clientY);
-                handleTouchAutoScroll(touch.clientX);
-            }
+            moveDrag(touch.pageX, touch.pageY, touch.clientX, touch.clientY);
+            handleTouchAutoScroll(touch.clientX);
         }
 
         function handleTouchEnd() {
+            // Se o listener temporário ainda existir, remove-o
+            if (initialMoveListener) {
+                document.removeEventListener('touchmove', initialMoveListener);
+                initialMoveListener = null;
+            }
+            // Se o temporizador ainda estiver ativo, foi um toque rápido (clique)
             if (longPressTimer) {
                 clearTimeout(longPressTimer);
                 if (draggedCard) openDetailsModal(draggedCard.dataset.id);
@@ -304,7 +327,6 @@
                 dropCard();
             }
             cleanupAfterDrag();
-            document.removeEventListener('touchmove', handleTouchMove);
         }
         
         function initiateDragVisuals(element, pageX, pageY) {
@@ -346,6 +368,7 @@
         }
 
         function cleanupAfterDrag() {
+            document.removeEventListener('touchmove', handleTouchMove);
             if (touchScrollAnimationId) {
                 cancelAnimationFrame(touchScrollAnimationId);
                 touchScrollAnimationId = null;
