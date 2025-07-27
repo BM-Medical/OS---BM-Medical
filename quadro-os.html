@@ -185,6 +185,8 @@
         let touchScrollAnimationId = null;
         let touchScrollSpeed = 0;
         let initialMoveListener = null;
+        // ALTERAÇÃO: Nova variável para controlar se foi um scroll
+        let isScrolling = false;
 
         function listenToOrders() {
             const q = query(collection(db, "orders"), where("status", "!=", "arquivada"));
@@ -281,10 +283,12 @@
             draggedCard = this;
             startX = touch.pageX;
             startY = touch.pageY;
+            isScrolling = false; // Reseta a variável a cada novo toque
 
             initialMoveListener = (moveEvent) => {
                 const moveTouch = moveEvent.touches[0];
                 if (Math.abs(moveTouch.pageX - startX) > 10 || Math.abs(moveTouch.pageY - startY) > 10) {
+                    isScrolling = true; // Marca que um scroll ocorreu
                     clearTimeout(longPressTimer);
                     document.removeEventListener('touchmove', initialMoveListener);
                     initialMoveListener = null;
@@ -317,7 +321,8 @@
                 document.removeEventListener('touchmove', initialMoveListener);
                 initialMoveListener = null;
             }
-            if (longPressTimer) {
+            // ALTERAÇÃO: Só abre o modal se for um toque rápido E não tiver sido um scroll
+            if (longPressTimer && !isScrolling) {
                 clearTimeout(longPressTimer);
                 if (draggedCard) openDetailsModal(draggedCard.dataset.id);
             } else if (isDragging) {
@@ -329,7 +334,6 @@
         function initiateDragVisuals(element, pageX, pageY) {
             if (!element || isDragging) return;
             isDragging = true;
-            // ALTERAÇÃO: Desativa o snap e o comportamento suave durante o arrasto
             board.style.scrollSnapType = 'none';
             board.style.scrollBehavior = 'auto';
             const rect = element.getBoundingClientRect();
@@ -369,7 +373,6 @@
 
         function cleanupAfterDrag() {
             document.removeEventListener('touchmove', handleTouchMove);
-            // ALTERAÇÃO: Reativa o snap e o comportamento suave
             board.style.scrollSnapType = 'x mandatory';
             board.style.scrollBehavior = 'smooth';
             if (touchScrollAnimationId) {
@@ -449,7 +452,6 @@
             touchScrollAnimationId = requestAnimationFrame(animateTouchScroll);
         }
 
-        // --- CÓDIGO RESTAURADO PARA MODAIS E PDFS ---
         async function openDetailsModal(orderId) {
             if (isDragging) return;
             try {
