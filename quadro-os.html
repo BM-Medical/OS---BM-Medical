@@ -329,8 +329,9 @@
         function initiateDragVisuals(element, pageX, pageY) {
             if (!element || isDragging) return;
             isDragging = true;
-            // ALTERAÇÃO: Desativa o snap durante o arrasto
+            // ALTERAÇÃO: Desativa o snap e o comportamento suave durante o arrasto
             board.style.scrollSnapType = 'none';
+            board.style.scrollBehavior = 'auto';
             const rect = element.getBoundingClientRect();
             offsetX = pageX - rect.left;
             offsetY = pageY - rect.top;
@@ -368,8 +369,9 @@
 
         function cleanupAfterDrag() {
             document.removeEventListener('touchmove', handleTouchMove);
-            // ALTERAÇÃO: Reativa o snap quando o cartão é largado
+            // ALTERAÇÃO: Reativa o snap e o comportamento suave
             board.style.scrollSnapType = 'x mandatory';
+            board.style.scrollBehavior = 'smooth';
             if (touchScrollAnimationId) {
                 cancelAnimationFrame(touchScrollAnimationId);
                 touchScrollAnimationId = null;
