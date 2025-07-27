@@ -185,7 +185,6 @@
         let touchScrollAnimationId = null;
         let touchScrollSpeed = 0;
         let initialMoveListener = null;
-        // ALTERAÇÃO: Nova variável para controlar se foi um scroll
         let isScrolling = false;
 
         function listenToOrders() {
@@ -283,12 +282,12 @@
             draggedCard = this;
             startX = touch.pageX;
             startY = touch.pageY;
-            isScrolling = false; // Reseta a variável a cada novo toque
+            isScrolling = false;
 
             initialMoveListener = (moveEvent) => {
                 const moveTouch = moveEvent.touches[0];
                 if (Math.abs(moveTouch.pageX - startX) > 10 || Math.abs(moveTouch.pageY - startY) > 10) {
-                    isScrolling = true; // Marca que um scroll ocorreu
+                    isScrolling = true;
                     clearTimeout(longPressTimer);
                     document.removeEventListener('touchmove', initialMoveListener);
                     initialMoveListener = null;
@@ -321,7 +320,6 @@
                 document.removeEventListener('touchmove', initialMoveListener);
                 initialMoveListener = null;
             }
-            // ALTERAÇÃO: Só abre o modal se for um toque rápido E não tiver sido um scroll
             if (longPressTimer && !isScrolling) {
                 clearTimeout(longPressTimer);
                 if (draggedCard) openDetailsModal(draggedCard.dataset.id);
