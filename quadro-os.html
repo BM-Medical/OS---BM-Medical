@@ -104,9 +104,15 @@
 
         .ghost { position: absolute; pointer-events: none; opacity: 0.9; box-shadow: 0 10px 20px rgba(0,0,0,0.2); z-index: 100; transform: rotate(3deg); transition: transform 0.1s; }
 
+        /* ALTERAÇÃO: Aplica o "snap scrolling" */
         @media (max-width: 768px) {
-            .board { scroll-snap-type: none; }
-            .list { scroll-snap-align: none; }
+            .board { 
+                scroll-snap-type: x mandatory; 
+                scroll-behavior: smooth;
+            }
+            .list { 
+                scroll-snap-align: center; 
+            }
         }
     </style>
 </head>
@@ -179,7 +185,6 @@
         let longPressTimer = null;
         let touchScrollAnimationId = null;
         let touchScrollSpeed = 0;
-        // ALTERAÇÃO: Variável para o listener temporário
         let initialMoveListener = null;
 
         function listenToOrders() {
@@ -271,7 +276,6 @@
             document.removeEventListener('mouseup', handleMouseUp);
         }
 
-        // --- LÓGICA DE TOQUE ATUALIZADA ---
         function handleTouchStart(e) {
             if (e.target.closest('.card-icons')) return;
             const touch = e.touches[0];
@@ -279,12 +283,10 @@
             startX = touch.pageX;
             startY = touch.pageY;
 
-            // Define um listener temporário para detetar se o utilizador está a rolar
             initialMoveListener = (moveEvent) => {
                 const moveTouch = moveEvent.touches[0];
-                // Se o dedo se mover mais do que um pequeno limiar, é um scroll
                 if (Math.abs(moveTouch.pageX - startX) > 10 || Math.abs(moveTouch.pageY - startY) > 10) {
-                    clearTimeout(longPressTimer); // Cancela o início do arrasto
+                    clearTimeout(longPressTimer);
                     document.removeEventListener('touchmove', initialMoveListener);
                     initialMoveListener = null;
                 }
@@ -292,21 +294,19 @@
             document.addEventListener('touchmove', initialMoveListener);
 
             clearTimeout(longPressTimer);
-            // Inicia um temporizador. Se não for cancelado, ativa o modo de arrasto.
             longPressTimer = setTimeout(() => {
                 if (initialMoveListener) {
                     document.removeEventListener('touchmove', initialMoveListener);
                     initialMoveListener = null;
                 }
-                // Adiciona o listener principal para mover o cartão
                 document.addEventListener('touchmove', handleTouchMove, { passive: false });
                 initiateDragVisuals(draggedCard, startX, startY);
                 longPressTimer = null; 
-            }, 400); // Atraso de 400ms para "pegar" o cartão
+            }, 400);
         }
 
         function handleTouchMove(e) {
-            if (!isDragging) return; // Só executa se o arrasto já tiver sido iniciado
+            if (!isDragging) return;
             e.preventDefault();
             const touch = e.touches[0];
             moveDrag(touch.pageX, touch.pageY, touch.clientX, touch.clientY);
@@ -314,12 +314,10 @@
         }
 
         function handleTouchEnd() {
-            // Se o listener temporário ainda existir, remove-o
             if (initialMoveListener) {
                 document.removeEventListener('touchmove', initialMoveListener);
                 initialMoveListener = null;
             }
-            // Se o temporizador ainda estiver ativo, foi um toque rápido (clique)
             if (longPressTimer) {
                 clearTimeout(longPressTimer);
                 if (draggedCard) openDetailsModal(draggedCard.dataset.id);
@@ -332,6 +330,7 @@
         function initiateDragVisuals(element, pageX, pageY) {
             if (!element || isDragging) return;
             isDragging = true;
+            board.style.scrollSnapType = 'none'; // Desativa o snap durante o arrasto
             const rect = element.getBoundingClientRect();
             offsetX = pageX - rect.left;
             offsetY = pageY - rect.top;
@@ -369,6 +368,7 @@
 
         function cleanupAfterDrag() {
             document.removeEventListener('touchmove', handleTouchMove);
+            board.style.scrollSnapType = 'x mandatory'; // Reativa o snap
             if (touchScrollAnimationId) {
                 cancelAnimationFrame(touchScrollAnimationId);
                 touchScrollAnimationId = null;
