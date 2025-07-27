@@ -13,7 +13,6 @@
         html, body {
             overflow: hidden;
             height: 100%;
-            /* Desativa a seleção de texto para uma melhor experiência de arrasto */
             -webkit-user-select: none;
             -ms-user-select: none;
             user-select: none;
@@ -121,16 +120,7 @@
 
         .ghost { position: absolute; pointer-events: none; opacity: 0.9; box-shadow: 0 10px 20px rgba(0,0,0,0.2); z-index: 100; transform: rotate(3deg); transition: transform 0.1s; }
 
-        /* O scroll-snap é removido pelo JS quando se arrasta um cartão */
-        @media (max-width: 768px) {
-            .board { 
-                scroll-snap-type: x mandatory; 
-                scroll-behavior: smooth;
-            }
-            .list { 
-                scroll-snap-align: center; 
-            }
-        }
+        /* O scroll-snap foi removido daqui e será controlado por JS */
     </style>
 </head>
 <body>
@@ -207,6 +197,7 @@
         let isBoardScrolling = false;
         let scrollStartX = 0;
         let scrollStartLeft = 0;
+        let hasMoved = false;
 
         function listenToOrders() {
             const q = query(collection(db, "orders"), where("status", "!=", "arquivada"));
@@ -219,12 +210,10 @@
                 });
                 for (const status in ordersByStatus) {
                     const listContainer = document.querySelector(`.list[data-status="${status}"] .cards`);
-                    const scrollTop = listContainer.scrollTop;
                     listContainer.innerHTML = '';
                     ordersByStatus[status]
                         .sort((a, b) => a.position - b.position)
                         .forEach(order => listContainer.appendChild(createCard(order)));
-                    addCardListeners(listContainer);
                 }
             });
         }
@@ -260,90 +249,81 @@
 
         // --- LÓGICA DE EVENTOS REFEITA ---
 
-        function addCardListeners(container) {
-            container.querySelectorAll('.card').forEach(card => {
-                if (card.dataset.listenersAttached) return;
-                card.dataset.listenersAttached = 'true';
-                card.addEventListener('touchstart', handleCardTouchStart, { passive: true });
-            });
-        }
-
-        // Evento de scroll manual no quadro
         board.addEventListener('touchstart', (e) => {
-            // Só inicia o scroll se não estivermos a arrastar um cartão
             if (isDragging) return;
             isBoardScrolling = true;
+            hasMoved = false;
             scrollStartX = e.touches[0].pageX;
             scrollStartLeft = board.scrollLeft;
-            // Desativa temporariamente o snap para um scroll manual fluido
             board.style.scrollSnapType = 'none';
+            board.style.scrollBehavior = 'auto';
+
+            const targetCard = e.target.closest('.card');
+            if (targetCard) {
+                clearTimeout(longPressTimer);
+                longPressTimer = setTimeout(() => {
+                    if (!hasMoved) { // Só inicia o arrasto se o dedo não se moveu
+                        isBoardScrolling = false;
+                        initiateDragVisuals(targetCard, e.touches[0].pageX, e.touches[0].pageY);
+                    }
+                }, 350);
+            }
         }, { passive: true });
 
         document.addEventListener('touchmove', (e) => {
             if (!isBoardScrolling || isDragging) return;
+            hasMoved = true;
+            clearTimeout(longPressTimer);
             const x = e.touches[0].pageX;
             const walk = (x - scrollStartX);
             board.scrollLeft = scrollStartLeft - walk;
-        });
+        }, { passive: true });
 
-        document.addEventListener('touchend', () => {
+        document.addEventListener('touchend', (e) => {
+            clearTimeout(longPressTimer);
             if (isBoardScrolling) {
                 isBoardScrolling = false;
-                // Reativa o snap para centralizar na lista mais próxima
                 board.style.scrollSnapType = 'x mandatory';
+                board.style.scrollBehavior = 'smooth';
+
+                // Lógica de Snap manual
+                const lists = [...board.querySelectorAll('.list')];
+                const screenCenter = window.innerWidth / 2;
+                let closestList = null;
+                let closestDist = Infinity;
+
+                lists.forEach(list => {
+                    const rect = list.getBoundingClientRect();
+                    const listCenter = rect.left + rect.width / 2;
+                    const dist = Math.abs(screenCenter - listCenter);
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        closestList = list;
+                    }
+                });
+
+                if (closestList) {
+                    board.scrollTo({
+                        left: closestList.offsetLeft - (window.innerWidth / 2) + (closestList.offsetWidth / 2) - 20, // 20 é o padding do board
+                        behavior: 'smooth'
+                    });
+                }
+            }
+            
+            const targetCard = e.target.closest('.card');
+            if (targetCard && !hasMoved && !isDragging) {
+                openDetailsModal(targetCard.dataset.id);
             }
         });
 
-        // Eventos específicos dos cartões
-        function handleCardTouchStart(e) {
-            // Se já estivermos a fazer scroll no quadro, ignora
-            if (isBoardScrolling) return;
-
-            const touch = e.touches[0];
-            draggedCard = this;
-            startX = touch.pageX;
-            startY = touch.pageY;
-
-            clearTimeout(longPressTimer);
-            longPressTimer = setTimeout(() => {
-                isBoardScrolling = false; // Garante que o scroll do quadro pare
-                document.addEventListener('touchmove', handleCardTouchMove, { passive: false });
-                document.addEventListener('touchend', handleCardTouchEnd);
-                initiateDragVisuals(draggedCard, startX, startY);
-                longPressTimer = null;
-            }, 400); // 400ms para iniciar o arrasto
-        }
-        
-        function handleCardTouchMove(e) {
-            if (!isDragging) {
-                // Se o dedo se mover antes do long press, cancela o arrasto
-                if (Math.abs(e.touches[0].pageX - startX) > 10 || Math.abs(e.touches[0].pageY - startY) > 10) {
-                    clearTimeout(longPressTimer);
-                }
-                return;
-            }
-            e.preventDefault();
-            const touch = e.touches[0];
-            moveDrag(touch.pageX, touch.pageY, touch.clientX, touch.clientY);
-            handleTouchAutoScroll(touch.clientX);
-        }
-
-        function handleCardTouchEnd() {
-            clearTimeout(longPressTimer);
-            if (isDragging) {
-                dropCard();
-            } else if (!isBoardScrolling && draggedCard) {
-                 // Se não houve scroll e não está a arrastar, foi um clique
-                openDetailsModal(draggedCard.dataset.id);
-            }
-            cleanupAfterDrag();
-        }
-
+        // Eventos de arrasto de cartão (só são ativados pelo long press)
         function initiateDragVisuals(element, pageX, pageY) {
             if (!element || isDragging) return;
             isDragging = true;
-            board.style.scrollSnapType = 'none';
-            board.style.scrollBehavior = 'auto';
+            
+            document.addEventListener('touchmove', handleCardTouchMove, { passive: false });
+            document.addEventListener('touchend', handleCardTouchEnd);
+
             const rect = element.getBoundingClientRect();
             offsetX = pageX - rect.left;
             offsetY = pageY - rect.top;
@@ -362,6 +342,21 @@
             moveDrag(pageX, pageY, clientX, clientY);
         }
         
+        function handleCardTouchMove(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            moveDrag(touch.pageX, touch.pageY, touch.clientX, touch.clientY);
+            handleTouchAutoScroll(touch.clientX);
+        }
+
+        function handleCardTouchEnd() {
+            if (isDragging) {
+                dropCard();
+            }
+            cleanupAfterDrag();
+        }
+
         function moveDrag(pageX, pageY, clientX, clientY) {
             if (!isDragging || !ghostCard) return;
             ghostCard.style.left = `${pageX - offsetX}px`;
