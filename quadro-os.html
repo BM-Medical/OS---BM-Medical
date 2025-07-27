@@ -10,6 +10,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="auth-guard.js" type="module"></script>
     <style>
+        html, body {
+            overflow: hidden;
+            height: 100%;
+        }
         body { font-family: 'Inter', sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
         .board-container { display: flex; flex-direction: column; height: 100vh; }
         .board-header { padding: 15px 20px; background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 20px; position: sticky; top: 0; z-index: 10; }
@@ -21,6 +25,7 @@
         .list[data-status="arquivada"] { background-color: #d6e9d6; }
         .list-header { padding: 12px 15px; font-weight: 700; font-size: 1rem; border-bottom: 1px solid #ced4da; position: sticky; top: 0; background-color: inherit; }
         .cards { padding: 10px; flex-grow: 1; min-height: 100px; overflow-y: auto; }
+        
         .card { 
             background-color: #fff; 
             border-radius: 6px; 
@@ -31,11 +36,22 @@
             position: relative; 
             user-select: none;
             touch-action: pan-y;
+            border-left: 5px solid #3498db; /* Cor padrão */
         }
+        .card strong {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
+        .card p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+
         .card:active { cursor: grabbing; }
-        .card strong { display: block; margin-bottom: 5px; color: #007bff; }
-        .card p { margin: 0; font-size: 0.9rem; color: #6c757d; }
-        .dragging { opacity: 0.5; }
+        .card.dragging { opacity: 0.5; }
         .card-icons { position: absolute; top: 8px; right: 8px; display: flex; gap: 8px; cursor: pointer; }
         .card-icon { display: none; }
         .card.is-signed .icon-signed { display: block; }
@@ -89,12 +105,12 @@
         .ghost { position: absolute; pointer-events: none; opacity: 0.9; box-shadow: 0 10px 20px rgba(0,0,0,0.2); z-index: 100; transform: rotate(3deg); transition: transform 0.1s; }
 
         @media (max-width: 768px) {
-            .board {
-                scroll-snap-type: x mandatory;
-                scroll-padding: 0 20px;
+            .board { 
+                scroll-snap-type: x mandatory; 
+                scroll-behavior: smooth;
             }
-            .list {
-                scroll-snap-align: center;
+            .list { 
+                scroll-snap-align: center; 
             }
         }
     </style>
@@ -117,15 +133,13 @@
         </main>
     </div>
 
-    <!-- Modal de Detalhes/Edição da OS -->
+    <!-- Modais -->
     <div id="details-modal" class="modal-overlay">
         <div class="modal-content">
             <button id="modal-close-button" class="modal-close">&times;</button>
             <div id="modal-body" class="modal-body"></div>
         </div>
     </div>
-
-    <!-- Modal de Assinatura -->
     <div id="signature-modal-details" class="signature-modal-overlay">
         <div class="signature-modal-content">
             <h3>Assine no campo abaixo:</h3>
@@ -143,7 +157,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getFirestore, collection, doc, getDoc, updateDoc, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
-        // --- Configuração do Firebase ---
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
             authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
@@ -155,13 +168,11 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- Elementos do DOM ---
         const board = document.getElementById('board');
         const modalOverlay = document.getElementById('details-modal');
         const modalBody = document.getElementById('modal-body');
         const modalCloseButton = document.getElementById('modal-close-button');
         
-        // --- Variáveis de Estado do Drag & Drop ---
         let draggedCard = null;
         let ghostCard = null;
         let placeholder = null;
@@ -170,46 +181,27 @@
         let startX = 0;
         let startY = 0;
         let isDragging = false;
-        let animationFrameId = null;
-        let isSnapping = false;
-        let canSnap = true;
+        let longPressTimer = null;
+        let touchScrollAnimationId = null;
+        let touchScrollSpeed = 0;
+        let initialMoveListener = null;
 
-        // --- Lógica Principal ---
         function listenToOrders() {
             const q = query(collection(db, "orders"), where("status", "!=", "arquivada"));
-
             onSnapshot(q, (snapshot) => {
-                const ordersByStatus = {
-                    novas: [],
-                    aguardando_orcamento: [],
-                    aguardando_pecas: [],
-                    emissao_nota: [],
-                    pronto_entrega: []
-                };
-
+                const ordersByStatus = { novas: [], aguardando_orcamento: [], aguardando_pecas: [], emissao_nota: [], pronto_entrega: [] };
                 snapshot.forEach(doc => {
                     const order = { id: doc.id, ...doc.data() };
-                    if (typeof order.position === 'undefined') {
-                        order.position = order.createdAt?.toMillis() || Date.now();
-                    }
-                    if (ordersByStatus[order.status]) {
-                        ordersByStatus[order.status].push(order);
-                    }
+                    if (typeof order.position === 'undefined') order.position = order.createdAt?.toMillis() || Date.now();
+                    if (ordersByStatus[order.status]) ordersByStatus[order.status].push(order);
                 });
-
                 for (const status in ordersByStatus) {
                     const listContainer = document.querySelector(`.list[data-status="${status}"] .cards`);
                     const scrollTop = listContainer.scrollTop;
-                    
                     listContainer.innerHTML = '';
-                    
                     ordersByStatus[status]
                         .sort((a, b) => a.position - b.position)
-                        .forEach(order => {
-                            const card = createCard(order);
-                            listContainer.appendChild(card);
-                        });
-
+                        .forEach(order => listContainer.appendChild(createCard(order)));
                     addDragAndDropListenersToContainer(listContainer);
                     listContainer.scrollTop = scrollTop;
                 }
@@ -222,6 +214,17 @@
             card.dataset.position = order.position;
             const isSigned = order.signature_data && typeof order.signature_data === 'string' && order.signature_data.length > 200;
             card.className = isSigned ? 'card is-signed' : 'card is-unsigned';
+            
+            if (order.contrato === 'Contrato N° 03/2024') {
+                card.style.borderLeftColor = '#e67e22';
+            } else if (order.contrato === 'Contrato Nº 138/2024') {
+                card.style.borderLeftColor = '#2ecc71';
+            } else if (order.contrato === 'Contrato Nº 10/2025') {
+                card.style.borderLeftColor = '#f1c40f';
+            } else {
+                card.style.borderLeftColor = '#3498db';
+            }
+
             card.innerHTML = `
                 <div class="card-icons">
                     <div class="card-icon icon-signed"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/><path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/></svg></div>
@@ -239,37 +242,34 @@
                 if (card.dataset.listenersAttached) return;
                 card.dataset.listenersAttached = 'true';
                 card.addEventListener('mousedown', handleMouseDown);
-                card.addEventListener('touchstart', handleTouchStart, { passive: false });
+                card.addEventListener('touchstart', handleTouchStart, { passive: true });
+                card.addEventListener('touchend', handleTouchEnd);
+                card.addEventListener('touchcancel', handleTouchEnd);
             });
         }
 
-        // --- LÓGICA DE DRAG & DROP ---
-
         function handleMouseDown(e) {
             if (e.target.closest('.card-icons')) return;
-            startDrag(this, e.pageX, e.pageY);
+            draggedCard = this;
+            startX = e.pageX;
+            startY = e.pageY;
             document.addEventListener('mousemove', handleMouseMove);
             document.addEventListener('mouseup', handleMouseUp);
         }
 
         function handleMouseMove(e) {
             e.preventDefault();
-            if (!isDragging) {
-                if (Math.abs(e.pageX - startX) > 10 || Math.abs(e.pageY - startY) > 10) {
-                    initiateDragVisuals();
-                }
+            if (!isDragging && (Math.abs(e.pageX - startX) > 5 || Math.abs(e.pageY - startY) > 5)) {
+                initiateDragVisuals(draggedCard, startX, startY);
             }
             if (isDragging) {
-                moveDrag(e.pageX, e.pageY);
+                moveDrag(e.pageX, e.pageY, e.clientX, e.clientY);
             }
         }
 
-        function handleMouseUp(e) {
-            if (isDragging) {
-                dropCard();
-            } else {
-                if(draggedCard) openDetailsModal(draggedCard.dataset.id);
-            }
+        function handleMouseUp() {
+            if (isDragging) dropCard();
+            else if (draggedCard) openDetailsModal(draggedCard.dataset.id);
             cleanupAfterDrag();
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
@@ -281,109 +281,115 @@
             draggedCard = this;
             startX = touch.pageX;
             startY = touch.pageY;
-            isDragging = false;
-            document.addEventListener('touchmove', handleTouchMove, { passive: false });
-            document.addEventListener('touchend', handleTouchEnd);
+
+            initialMoveListener = (moveEvent) => {
+                const moveTouch = moveEvent.touches[0];
+                if (Math.abs(moveTouch.pageX - startX) > 10 || Math.abs(moveTouch.pageY - startY) > 10) {
+                    clearTimeout(longPressTimer);
+                    document.removeEventListener('touchmove', initialMoveListener);
+                    initialMoveListener = null;
+                }
+            };
+            document.addEventListener('touchmove', initialMoveListener);
+
+            clearTimeout(longPressTimer);
+            longPressTimer = setTimeout(() => {
+                if (initialMoveListener) {
+                    document.removeEventListener('touchmove', initialMoveListener);
+                    initialMoveListener = null;
+                }
+                document.addEventListener('touchmove', handleTouchMove, { passive: false });
+                initiateDragVisuals(draggedCard, startX, startY);
+                longPressTimer = null; 
+            }, 400);
         }
 
         function handleTouchMove(e) {
-            if (!draggedCard) return;
-
+            if (!isDragging) return;
+            e.preventDefault();
             const touch = e.touches[0];
-            if (!isDragging) {
-                if (Math.abs(touch.pageX - startX) > 10 || Math.abs(touch.pageY - startY) > 10) {
-                    startDrag(draggedCard, startX, startY);
-                    initiateDragVisuals();
-                }
-            }
-
-            if (isDragging) {
-                e.preventDefault();
-                moveDrag(touch.pageX, touch.pageY);
-            }
+            moveDrag(touch.pageX, touch.pageY, touch.clientX, touch.clientY);
+            handleTouchAutoScroll(touch.clientX);
         }
 
-        function handleTouchEnd(e) {
-            if (isDragging) {
+        function handleTouchEnd() {
+            if (initialMoveListener) {
+                document.removeEventListener('touchmove', initialMoveListener);
+                initialMoveListener = null;
+            }
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                if (draggedCard) openDetailsModal(draggedCard.dataset.id);
+            } else if (isDragging) {
                 dropCard();
-            } else {
-                openDetailsModal(draggedCard.dataset.id);
             }
             cleanupAfterDrag();
-            document.removeEventListener('touchmove', handleTouchMove);
-            document.removeEventListener('touchend', handleTouchEnd);
         }
-
-
-        function startDrag(element, pageX, pageY) {
-            draggedCard = element;
-            const rect = draggedCard.getBoundingClientRect();
+        
+        function initiateDragVisuals(element, pageX, pageY) {
+            if (!element || isDragging) return;
+            isDragging = true;
+            // ALTERAÇÃO: Desativa o snap durante o arrasto
+            board.style.scrollSnapType = 'none';
+            const rect = element.getBoundingClientRect();
             offsetX = pageX - rect.left;
             offsetY = pageY - rect.top;
-        }
-
-        function initiateDragVisuals() {
-            if (!draggedCard) return;
-            isDragging = true;
-            board.style.scrollSnapType = 'none';
-            ghostCard = draggedCard.cloneNode(true);
+            ghostCard = element.cloneNode(true);
             ghostCard.classList.add('ghost');
-            const rect = draggedCard.getBoundingClientRect();
             ghostCard.style.width = `${rect.width}px`;
             ghostCard.style.height = `${rect.height}px`;
             document.body.appendChild(ghostCard);
             placeholder = document.createElement('div');
             placeholder.classList.add('placeholder');
             placeholder.style.height = `${rect.height}px`;
-            draggedCard.classList.add('dragging');
-            
-            ghostCard.style.left = `${startX - offsetX}px`;
-            ghostCard.style.top = `${startY - offsetY}px`;
-
-            animationFrameId = requestAnimationFrame(animationLoop);
+            element.classList.add('dragging');
+            element.parentElement.insertBefore(placeholder, element);
+            const clientX = pageX - window.scrollX;
+            const clientY = pageY - window.scrollY;
+            moveDrag(pageX, pageY, clientX, clientY);
         }
         
-        function animationLoop() {
-            if (!isDragging) return;
-            handleAutoScroll();
-            requestAnimationFrame(animationLoop);
-        }
-
-        function moveDrag(pageX, pageY) {
-            if (isDragging) {
-                ghostCard.style.left = `${pageX - offsetX}px`;
-                ghostCard.style.top = `${pageY - offsetY}px`;
-                
-                const targetListContainer = document.elementFromPoint(pageX, pageY)?.closest('.cards');
-                if (targetListContainer) {
-                    const afterElement = getDragAfterElement(targetListContainer, pageY);
-                    if (afterElement) {
-                        targetListContainer.insertBefore(placeholder, afterElement);
-                    } else {
-                        targetListContainer.appendChild(placeholder);
-                    }
+        function moveDrag(pageX, pageY, clientX, clientY) {
+            if (!isDragging || !ghostCard) return;
+            ghostCard.style.left = `${pageX - offsetX}px`;
+            ghostCard.style.top = `${pageY - offsetY}px`;
+            ghostCard.style.display = 'none';
+            const targetListContainer = document.elementFromPoint(clientX, clientY)?.closest('.cards');
+            ghostCard.style.display = '';
+            if (targetListContainer) {
+                const afterElement = getDragAfterElement(targetListContainer, clientY);
+                if (afterElement) {
+                    targetListContainer.insertBefore(placeholder, afterElement);
+                } else {
+                    targetListContainer.appendChild(placeholder);
                 }
             }
         }
-        
-        function getDragAfterElement(container, y) {
-            const draggableElements = [...container.querySelectorAll('.card:not(.dragging)')];
-            return draggableElements.reduce((closest, child) => {
-                const box = child.getBoundingClientRect();
-                const offset = y - box.top - box.height / 2;
-                if (offset < 0 && offset > closest.offset) {
-                    return { offset: offset, element: child };
-                } else {
-                    return closest;
+
+        function cleanupAfterDrag() {
+            document.removeEventListener('touchmove', handleTouchMove);
+            // ALTERAÇÃO: Reativa o snap quando o cartão é largado
+            board.style.scrollSnapType = 'x mandatory';
+            if (touchScrollAnimationId) {
+                cancelAnimationFrame(touchScrollAnimationId);
+                touchScrollAnimationId = null;
+            }
+            if (ghostCard) ghostCard.remove();
+            if (draggedCard) {
+                if (placeholder && placeholder.parentElement) {
+                    placeholder.parentElement.insertBefore(draggedCard, placeholder);
                 }
-            }, { offset: Number.NEGATIVE_INFINITY }).element;
+                draggedCard.classList.remove('dragging');
+            }
+            if(placeholder) placeholder.remove();
+            ghostCard = null;
+            placeholder = null;
+            draggedCard = null;
+            isDragging = false;
         }
 
         function dropCard() {
-            if (!placeholder || !placeholder.parentElement) {
-                cleanupAfterDrag();
-                return;
-            }
+            if (!placeholder || !placeholder.parentElement || !draggedCard) return;
             const parentList = placeholder.parentElement;
             const newStatus = parentList.parentElement.dataset.status;
             const prevElement = placeholder.previousElementSibling;
@@ -394,95 +400,56 @@
             updateOrder(draggedCard.dataset.id, newStatus, newPosition);
         }
 
-        function cleanupAfterDrag() {
-            board.style.scrollSnapType = 'x mandatory';
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
-            }
-            if (ghostCard) ghostCard.remove();
-            if (placeholder) placeholder.remove();
-            if (draggedCard) draggedCard.classList.remove('dragging');
-            ghostCard = null;
-            placeholder = null;
-            draggedCard = null;
-            isDragging = false;
-            canSnap = true;
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.card:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) return { offset: offset, element: child };
+                else return closest;
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
         }
 
         async function updateOrder(orderId, newStatus, newPosition) {
             const orderRef = doc(db, "orders", orderId);
             try {
-                await updateDoc(orderRef, { 
-                    status: newStatus,
-                    position: newPosition 
-                });
+                await updateDoc(orderRef, { status: newStatus, position: newPosition });
             } catch (error) {
                 console.error("Erro ao atualizar a OS:", error);
-                alert("Não foi possível atualizar a Ordem de Serviço.");
             }
-        }
-
-        function animateScroll(targetScrollLeft, duration) {
-            const startScrollLeft = board.scrollLeft;
-            const distance = targetScrollLeft - startScrollLeft;
-            let startTime = null;
-
-            function step(currentTime) {
-                if (!startTime) startTime = currentTime;
-                const elapsedTime = currentTime - startTime;
-                const progress = Math.min(elapsedTime / duration, 1);
-                const ease = 1 - Math.pow(1 - progress, 3);
-                board.scrollLeft = startScrollLeft + distance * ease;
-                if (progress < 1) {
-                    requestAnimationFrame(step);
-                } else {
-                    isSnapping = false;
-                    setTimeout(() => {
-                        canSnap = true;
-                    }, 100);
-                }
-            }
-            requestAnimationFrame(step);
         }
         
-        function handleAutoScroll() {
-            if (!ghostCard || isSnapping || !placeholder?.parentElement) return;
+        function handleTouchAutoScroll(clientX) {
+            const viewportWidth = window.innerWidth;
+            const scrollZone = viewportWidth * 0.35;
+            let newSpeed = 0;
 
-            const scrollZone = 40;
-            const rect = ghostCard.getBoundingClientRect();
-            const currentList = placeholder.closest('.list');
+            if (clientX < scrollZone) {
+                newSpeed = -5;
+            } else if (clientX > viewportWidth - scrollZone) {
+                newSpeed = 5;
+            }
             
-            if (!currentList) return;
+            touchScrollSpeed = newSpeed;
 
-            let targetList = null;
-            let isInZone = false;
-
-            if (rect.right > window.innerWidth - scrollZone) {
-                targetList = currentList.nextElementSibling;
-                isInZone = true;
-            } else if (rect.left < scrollZone) {
-                targetList = currentList.previousElementSibling;
-                isInZone = true;
-            }
-
-            if (isInZone && canSnap && targetList && targetList.classList.contains('list')) {
-                isSnapping = true;
-                canSnap = false;
-                
-                const boardRect = board.getBoundingClientRect();
-                const targetRect = targetList.getBoundingClientRect();
-                const targetScrollLeft = board.scrollLeft + targetRect.left - boardRect.left - (boardRect.width - targetRect.width) / 2;
-                
-                animateScroll(targetScrollLeft, 1200);
-            } else if (!isInZone) {
-                canSnap = true;
+            if (touchScrollSpeed !== 0 && !touchScrollAnimationId) {
+                touchScrollAnimationId = requestAnimationFrame(animateTouchScroll);
             }
         }
 
-        // --- CÓDIGO RESTANTE PARA MODAIS E PDFS (sem alterações) ---
-        
+        function animateTouchScroll() {
+            if (touchScrollSpeed === 0) {
+                cancelAnimationFrame(touchScrollAnimationId);
+                touchScrollAnimationId = null;
+                return;
+            }
+            board.scrollLeft += touchScrollSpeed;
+            touchScrollAnimationId = requestAnimationFrame(animateTouchScroll);
+        }
+
+        // --- CÓDIGO RESTAURADO PARA MODAIS E PDFS ---
         async function openDetailsModal(orderId) {
+            if (isDragging) return;
             try {
                 const docRef = doc(db, "orders", orderId);
                 const docSnap = await getDoc(docRef);
@@ -813,7 +780,6 @@
             if (e.target === modalOverlay) modalOverlay.style.display = 'none';
         });
 
-        // Inicia a aplicação
         listenToOrders();
 
     </script>
