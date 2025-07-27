@@ -13,6 +13,7 @@
         html, body {
             overflow: hidden;
             height: 100%;
+            /* Desativa a seleção de texto para uma melhor experiência de arrasto */
             -webkit-user-select: none;
             -ms-user-select: none;
             user-select: none;
@@ -193,7 +194,6 @@
         let touchScrollAnimationId = null;
         let touchScrollSpeed = 0;
         
-        // --- LÓGICA DE SCROLL MANUAL ---
         let isBoardScrolling = false;
         let scrollStartX = 0;
         let scrollStartLeft = 0;
@@ -255,14 +255,13 @@
             hasMoved = false;
             scrollStartX = e.touches[0].pageX;
             scrollStartLeft = board.scrollLeft;
-            board.style.scrollSnapType = 'none';
             board.style.scrollBehavior = 'auto';
 
             const targetCard = e.target.closest('.card');
             if (targetCard) {
                 clearTimeout(longPressTimer);
                 longPressTimer = setTimeout(() => {
-                    if (!hasMoved) { // Só inicia o arrasto se o dedo não se moveu
+                    if (!hasMoved) { 
                         isBoardScrolling = false;
                         initiateDragVisuals(targetCard, e.touches[0].pageX, e.touches[0].pageY);
                     }
@@ -283,10 +282,8 @@
             clearTimeout(longPressTimer);
             if (isBoardScrolling) {
                 isBoardScrolling = false;
-                board.style.scrollSnapType = 'x mandatory';
                 board.style.scrollBehavior = 'smooth';
 
-                // Lógica de Snap manual
                 const lists = [...board.querySelectorAll('.list')];
                 const screenCenter = window.innerWidth / 2;
                 let closestList = null;
@@ -303,8 +300,9 @@
                 });
 
                 if (closestList) {
+                    const paddingLeft = parseInt(window.getComputedStyle(board).paddingLeft, 10);
                     board.scrollTo({
-                        left: closestList.offsetLeft - (window.innerWidth / 2) + (closestList.offsetWidth / 2) - 20, // 20 é o padding do board
+                        left: closestList.offsetLeft - (window.innerWidth / 2) + (closestList.offsetWidth / 2) - paddingLeft,
                         behavior: 'smooth'
                     });
                 }
@@ -316,7 +314,6 @@
             }
         });
 
-        // Eventos de arrasto de cartão (só são ativados pelo long press)
         function initiateDragVisuals(element, pageX, pageY) {
             if (!element || isDragging) return;
             isDragging = true;
@@ -377,8 +374,6 @@
         function cleanupAfterDrag() {
             document.removeEventListener('touchmove', handleCardTouchMove);
             document.removeEventListener('touchend', handleCardTouchEnd);
-            board.style.scrollSnapType = 'x mandatory';
-            board.style.scrollBehavior = 'smooth';
             if (touchScrollAnimationId) {
                 cancelAnimationFrame(touchScrollAnimationId);
                 touchScrollAnimationId = null;
