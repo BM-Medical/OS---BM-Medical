@@ -21,7 +21,7 @@
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; font-weight: 500; margin-bottom: 8px; color: #555; }
         .form-group input[type="text"], .form-group input[type="date"], .form-group input[type="time"], .form-group textarea, .form-group select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        .form-group input[readonly] { background-color: #e9ecef; cursor: not-allowed; }
+        .form-group input[readonly], .form-group textarea:disabled { background-color: #e9ecef; cursor: not-allowed; }
         .form-group textarea { resize: vertical; min-height: 120px; }
         .radio-group { display: flex; gap: 20px; align-items: center; }
         .radio-group label { font-weight: normal; margin-bottom: 0; }
@@ -40,6 +40,10 @@
         .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; margin-top: 40px; }
         .footer p { margin: 5px 10px; }
         
+        /* Checkbox de Recebimento */
+        .checkbox-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .checkbox-group label { margin-bottom: 0; font-weight: normal; }
+
         .signature-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: center; z-index: 2000; }
         .signature-modal-content { background-color: #fff; padding: 20px; border-radius: 10px; width: 95%; max-width: 600px; text-align: center; display: flex; flex-direction: column; }
         .signature-modal-content canvas { border: 2px dashed #ccc; border-radius: 6px; cursor: crosshair; width: 100%; height: 250px; }
@@ -164,6 +168,10 @@
                 </div>
                 <div class="form-section">
                     <h2>Descrição dos Serviços Realizados</h2>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="recebimento_check">
+                        <label for="recebimento_check">Apenas recebimento do equipamento</label>
+                    </div>
                     <div class="form-group">
                         <textarea id="servicos_realizados" name="servicos_realizados" required></textarea>
                     </div>
@@ -395,6 +403,23 @@
         }
         document.getElementById('preventiva').addEventListener('change', fetchAndSetOsNumber);
         document.getElementById('corretiva').addEventListener('change', fetchAndSetOsNumber);
+
+        // Lógica do Checkbox de Recebimento
+        const recebimentoCheck = document.getElementById('recebimento_check');
+        const servicosTextarea = document.getElementById('servicos_realizados');
+        
+        recebimentoCheck.addEventListener('change', () => {
+            if (recebimentoCheck.checked) {
+                servicosTextarea.value = "Recebimento de equipamento para análise.";
+                servicosTextarea.disabled = true;
+                servicosTextarea.required = false;
+            } else {
+                servicosTextarea.value = "";
+                servicosTextarea.disabled = false;
+                servicosTextarea.required = true;
+            }
+        });
+
         const form = document.getElementById('os-form');
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -407,6 +432,12 @@
                 if (equipamentoValor === 'Outro') {
                     equipamentoValor = formData.get('outro_equipamento');
                 }
+                
+                // CORREÇÃO: Garante que o valor correto seja salvo
+                const servicosRealizadosValue = recebimentoCheck.checked 
+                    ? "Recebimento de equipamento para análise." 
+                    : servicosTextarea.value;
+
                 const osData = {
                     contrato: "Contrato Nº 138/2024",
                     cliente: "Secretaria Municipal de Saúde De Capão Do Leão",
@@ -422,7 +453,7 @@
                     os_numero: formData.get('os_numero'),
                     data_retirada: formData.get('data_retirada'),
                     data_devolucao: formData.get('data_devolucao'),
-                    servicos_realizados: formData.get('servicos_realizados'),
+                    servicos_realizados: servicosRealizadosValue,
                     pecas_utilizadas: formData.get('pecas_utilizadas'),
                     signature_data: formData.get('signature_data'),
                     status: 'novas',

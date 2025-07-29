@@ -10,13 +10,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="auth-guard.js" type="module"></script>
     <style>
+        /* ESTILOS GERAIS E DO QUADRO */
         html, body {
             overflow: hidden;
             height: 100%;
-            /* Desativa a seleção de texto para uma melhor experiência de arrasto */
-            -webkit-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
         }
         body { font-family: 'Inter', sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
         .board-container { display: flex; flex-direction: column; height: 100vh; }
@@ -24,42 +21,35 @@
         .board-header img { height: 40px; }
         .board-header h1 { font-size: 1.5rem; margin: 0; flex-grow: 1; }
         .board-header .logout-button { background-color: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: 500; }
-        .board { 
-            display: flex; 
-            gap: 15px; 
-            padding: 20px; 
-            overflow-x: auto; 
-            flex-grow: 1; 
-            align-items: flex-start;
-            /* Remove a barra de scroll visualmente, mas mantém a funcionalidade */
-            scrollbar-width: none; /* Firefox */
-            -ms-overflow-style: none;  /* IE 10+ */
-        }
-        .board::-webkit-scrollbar {
-            display: none; /* Safari and Chrome */
-        }
+        .board { display: flex; gap: 15px; padding: 20px; overflow-x: auto; flex-grow: 1; align-items: flex-start; }
         .list { background-color: #e9ecef; border-radius: 8px; width: 300px; min-width: 300px; max-height: 100%; display: flex; flex-direction: column; }
         .list[data-status="arquivada"] { background-color: #d6e9d6; }
-        .list-header { padding: 12px 15px; font-weight: 700; font-size: 1rem; border-bottom: 1px solid #ced4da; position: sticky; top: 0; background-color: inherit; }
+        .list-header { padding: 12px 15px; font-weight: 700; font-size: 1rem; border-bottom: 1px solid #ced4da; position: sticky; top: 0; background-color: inherit; z-index: 2; }
         .cards { padding: 10px; flex-grow: 1; min-height: 100px; overflow-y: auto; }
         
+        /* ESTILOS DO CARTÃO (CARD) */
         .card { 
             background-color: #fff; 
             border-radius: 6px; 
             padding: 15px; 
+            padding-bottom: 40px; /* Espaço extra no fundo para o botão de mover */
             margin-bottom: 10px; 
             box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
-            cursor: grab; 
+            cursor: pointer; 
             position: relative; 
             user-select: none;
-            touch-action: pan-y;
             border-left: 5px solid #3498db; /* Cor padrão */
+            transition: box-shadow 0.2s ease-in-out;
+        }
+        .card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.12);
         }
         .card strong {
             display: block;
             margin-bottom: 5px;
             font-weight: 500;
             color: #333;
+            padding-right: 45px; /* Espaço para o ícone de status */
         }
         .card p {
             margin: 0;
@@ -67,26 +57,69 @@
             color: #6c757d;
         }
 
-        .card:active { cursor: grabbing; }
-        .card.dragging { opacity: 0.5; }
-        .card-icons { position: absolute; top: 8px; right: 8px; display: flex; gap: 8px; cursor: pointer; }
-        .card-icon { display: none; }
-        .card.is-signed .icon-signed { display: block; }
-        .card.is-unsigned .icon-unsigned { display: flex; align-items: center; gap: 4px; }
-        
+        /* ÍCONES DE STATUS (ASSINATURA) - CANTO SUPERIOR DIREITO */
+        .card-status-icon {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            align-items: center;
+        }
         .icon-signed { width: 22px; height: 22px; }
         .icon-signed .checkmark__circle { stroke-dasharray: 166; stroke-dashoffset: 166; stroke-width: 3; stroke-miterlimit: 10; stroke: #2ecc71; fill: none; animation: stroke .6s cubic-bezier(0.65, 0, 0.45, 1) forwards; }
         .icon-signed .checkmark__check { transform-origin: 50% 50%; stroke-dasharray: 48; stroke-dashoffset: 48; stroke-width: 4; stroke: #2ecc71; animation: stroke .3s cubic-bezier(0.65, 0, 0.45, 1) .8s forwards; }
         @keyframes stroke { 100% { stroke-dashoffset: 0; } }
+        .icon-unsigned { display: flex; align-items: center; gap: 4px; }
+
+        /* NOVO SISTEMA DE MOVER - CANTO INFERIOR DIREITO */
+        .card-move-action {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+        }
+        .card-move-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+        .card-move-icon:hover {
+            background-color: #e0e0e0;
+        }
+        .card-move-icon svg {
+            width: 20px;
+            height: 20px;
+            fill: #6c757d;
+        }
         
-        .placeholder {
-            background: rgba(0,0,0,0.08);
+        /* MENU DE MOVIMENTAÇÃO GLOBAL E FLUTUANTE */
+        .move-menu {
+            display: none; /* Escondido por padrão */
+            position: fixed; /* Posição fixa para flutuar sobre tudo */
+            background-color: #fff;
             border-radius: 6px;
-            margin-bottom: 10px;
-            border: 2px dashed #999;
-            box-sizing: border-box;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1100; /* Z-index alto para ficar na frente */
+            padding: 5px 0;
+            min-width: 200px;
+        }
+        .move-menu.show {
+            display: block;
+        }
+        .move-menu-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .move-menu-item:hover {
+            background-color: #f5f5f5;
         }
 
+        /* ESTILOS DOS MODAIS */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background-color: #fff; padding: 30px; border-radius: 10px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; position: relative; }
         .modal-close { position: absolute; top: 15px; right: 20px; font-size: 2rem; font-weight: bold; cursor: pointer; border: none; background: none; }
@@ -119,9 +152,10 @@
         .signature-modal-overlay:fullscreen .signature-modal-content { height: 100%; width: 100%; max-width: none; border-radius: 0; padding: 15px; box-sizing: border-box; }
         .signature-modal-overlay:fullscreen .signature-modal-content canvas { flex-grow: 1; height: auto; }
 
-        .ghost { position: absolute; pointer-events: none; opacity: 0.9; box-shadow: 0 10px 20px rgba(0,0,0,0.2); z-index: 100; transform: rotate(3deg); transition: transform 0.1s; }
-
-        /* O scroll-snap foi removido daqui e será controlado por JS */
+        @media (max-width: 768px) {
+            .board { scroll-snap-type: none; }
+            .list { scroll-snap-align: none; }
+        }
     </style>
 </head>
 <body>
@@ -133,14 +167,12 @@
         </header>
 
         <main class="board" id="board">
-            <div class="list" data-status="novas"><div class="list-header">Novas OS</div><div class="cards"></div></div>
-            <div class="list" data-status="aguardando_orcamento"><div class="list-header">Aguardando Orçamento</div><div class="cards"></div></div>
-            <div class="list" data-status="aguardando_pecas"><div class="list-header">Aguardando Peças</div><div class="cards"></div></div>
-            <div class="list" data-status="emissao_nota"><div class="list-header">Emissão de Nota</div><div class="cards"></div></div>
-            <div class="list" data-status="pronto_entrega"><div class="list-header">Pronto para Entrega</div><div class="cards"></div></div>
-            <div class="list" data-status="arquivada"><div class="list-header">Concluídas (Arquivar aqui)</div><div class="cards"></div></div>
+            <!-- As colunas são preenchidas dinamicamente pelo JavaScript -->
         </main>
     </div>
+
+    <!-- Menu de movimentação global -->
+    <div id="global-move-menu" class="move-menu"></div>
 
     <!-- Modais -->
     <div id="details-modal" class="modal-overlay">
@@ -166,6 +198,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getFirestore, collection, doc, getDoc, updateDoc, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
+        // Configuração do Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
             authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
@@ -177,282 +210,179 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // Elementos do DOM
         const board = document.getElementById('board');
         const modalOverlay = document.getElementById('details-modal');
         const modalBody = document.getElementById('modal-body');
         const modalCloseButton = document.getElementById('modal-close-button');
-        
-        let draggedCard = null;
-        let ghostCard = null;
-        let placeholder = null;
-        let offsetX = 0;
-        let offsetY = 0;
-        let startX = 0;
-        let startY = 0;
-        let isDragging = false;
-        let longPressTimer = null;
-        let touchScrollAnimationId = null;
-        let touchScrollSpeed = 0;
-        
-        let isBoardScrolling = false;
-        let scrollStartX = 0;
-        let scrollStartLeft = 0;
-        let hasMoved = false;
+        const globalMoveMenu = document.getElementById('global-move-menu');
 
+        // Definição das colunas e seus nomes amigáveis
+        const statuses = {
+            'novas': 'Novas OS',
+            'em_execucao': 'Em Execução',
+            'aguardando_pecas': 'Aguardando Peças',
+            'pronto_entrega': 'Pronto para Entrega',
+            'arquivada': 'Concluídas (Arquivar aqui)'
+        };
+
+        // Função para inicializar o quadro, criando as colunas
+        function initializeBoard() {
+            for (const statusKey in statuses) {
+                const list = document.createElement('div');
+                list.className = 'list';
+                list.dataset.status = statusKey;
+                list.innerHTML = `
+                    <div class="list-header">${statuses[statusKey]}</div>
+                    <div class="cards"></div>
+                `;
+                board.appendChild(list);
+            }
+        }
+
+        // Função para escutar as alterações nas OS em tempo real
         function listenToOrders() {
-            const q = query(collection(db, "orders"), where("status", "!=", "arquivada"));
+            const q = query(collection(db, "orders"));
+            
             onSnapshot(q, (snapshot) => {
-                const ordersByStatus = { novas: [], aguardando_orcamento: [], aguardando_pecas: [], emissao_nota: [], pronto_entrega: [] };
+                const ordersByStatus = {};
+                for (const key in statuses) {
+                    ordersByStatus[key] = [];
+                }
+
                 snapshot.forEach(doc => {
                     const order = { id: doc.id, ...doc.data() };
-                    if (typeof order.position === 'undefined') order.position = order.createdAt?.toMillis() || Date.now();
-                    if (ordersByStatus[order.status]) ordersByStatus[order.status].push(order);
+                    if (typeof order.position === 'undefined') {
+                        order.position = order.createdAt?.toMillis() || Date.now();
+                    }
+                    if (order.status && ordersByStatus.hasOwnProperty(order.status)) {
+                        ordersByStatus[order.status].push(order);
+                    } else {
+                        console.warn(`Ordem de Serviço ${order.id} com status inválido ou ausente: '${order.status}'`);
+                    }
                 });
+
                 for (const status in ordersByStatus) {
                     const listContainer = document.querySelector(`.list[data-status="${status}"] .cards`);
+                    if (!listContainer) continue;
+
+                    const scrollTop = listContainer.scrollTop;
                     listContainer.innerHTML = '';
+                    
                     ordersByStatus[status]
                         .sort((a, b) => a.position - b.position)
                         .forEach(order => listContainer.appendChild(createCard(order)));
+                    
+                    listContainer.scrollTop = scrollTop;
                 }
             });
         }
 
+        // Função para criar um cartão de OS
         function createCard(order) {
             const card = document.createElement('div');
+            card.className = 'card';
             card.dataset.id = order.id;
-            card.dataset.position = order.position;
-            const isSigned = order.signature_data && typeof order.signature_data === 'string' && order.signature_data.length > 200;
-            card.className = isSigned ? 'card is-signed' : 'card is-unsigned';
-            
-            if (order.contrato === 'Contrato N° 03/2024') {
-                card.style.borderLeftColor = '#e67e22';
-            } else if (order.contrato === 'Contrato Nº 138/2024') {
-                card.style.borderLeftColor = '#2ecc71';
-            } else if (order.contrato === 'Contrato Nº 10/2025') {
-                card.style.borderLeftColor = '#f1c40f';
-            } else {
-                card.style.borderLeftColor = '#3498db';
-            }
+            card.dataset.status = order.status; // Armazena o status atual no card
 
+            const contractColors = {
+                'Contrato N° 03/2024': '#e67e22', // UFPEL
+                'Contrato Nº 138/2024': '#2ecc71', // Capão do Leão
+                'Contrato Nº 10/2025': '#f1c40f', // Exército
+            };
+            card.style.borderLeftColor = contractColors[order.contrato] || '#3498db';
+
+            const isSigned = order.signature_data && typeof order.signature_data === 'string' && order.signature_data.length > 200;
+            const signedIcon = `<div class="icon-signed" title="OS Assinada"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/><path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/></svg></div>`;
+            const unsignedIcon = `<div class="icon-unsigned" title="Assinatura pendente">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6c757d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                                  </div>`;
+            
             card.innerHTML = `
-                <div class="card-icons">
-                    <div class="card-icon icon-signed"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/><path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/></svg></div>
-                    <div class="card-icon icon-unsigned"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6c757d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg></div>
+                <div class="card-status-icon">
+                    ${isSigned ? signedIcon : unsignedIcon}
                 </div>
+                
                 <strong>${order.os_numero || 'N/A'}</strong>
                 <p>${order.equipamento || 'N/A'}</p>
                 <p>Data: ${order.data_servico || order.data_retirada || 'N/A'}</p>
+
+                <div class="card-move-action">
+                    <div class="card-move-icon" title="Mover cartão">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 6V3L18.5 8.5L13 14V11H4V6H13M20 16V18H4V21H20V16Z"/></svg>
+                    </div>
+                </div>
             `;
+
+            card.addEventListener('click', (e) => {
+                if (!e.target.closest('.card-move-action')) {
+                    openDetailsModal(order.id);
+                }
+            });
+
+            const moveIcon = card.querySelector('.card-move-icon');
+            moveIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showMoveMenu(card, moveIcon);
+            });
+
             return card;
         }
 
-        // --- LÓGICA DE EVENTOS REFEITA ---
+        function showMoveMenu(card, icon) {
+            const orderId = card.dataset.id;
+            const currentStatus = card.dataset.status;
+            
+            globalMoveMenu.innerHTML = ''; // Limpa o menu anterior
 
-        board.addEventListener('touchstart', (e) => {
-            if (isDragging) return;
-            isBoardScrolling = true;
-            hasMoved = false;
-            scrollStartX = e.touches[0].pageX;
-            scrollStartLeft = board.scrollLeft;
-            board.style.scrollBehavior = 'auto';
-
-            const targetCard = e.target.closest('.card');
-            if (targetCard) {
-                clearTimeout(longPressTimer);
-                longPressTimer = setTimeout(() => {
-                    if (!hasMoved) { 
-                        isBoardScrolling = false;
-                        initiateDragVisuals(targetCard, e.touches[0].pageX, e.touches[0].pageY);
-                    }
-                }, 350);
-            }
-        }, { passive: true });
-
-        document.addEventListener('touchmove', (e) => {
-            if (!isBoardScrolling || isDragging) return;
-            hasMoved = true;
-            clearTimeout(longPressTimer);
-            const x = e.touches[0].pageX;
-            const walk = (x - scrollStartX);
-            board.scrollLeft = scrollStartLeft - walk;
-        }, { passive: true });
-
-        document.addEventListener('touchend', (e) => {
-            clearTimeout(longPressTimer);
-            if (isBoardScrolling) {
-                isBoardScrolling = false;
-                board.style.scrollBehavior = 'smooth';
-
-                const lists = [...board.querySelectorAll('.list')];
-                const screenCenter = window.innerWidth / 2;
-                let closestList = null;
-                let closestDist = Infinity;
-
-                lists.forEach(list => {
-                    const rect = list.getBoundingClientRect();
-                    const listCenter = rect.left + rect.width / 2;
-                    const dist = Math.abs(screenCenter - listCenter);
-                    if (dist < closestDist) {
-                        closestDist = dist;
-                        closestList = list;
-                    }
-                });
-
-                if (closestList) {
-                    const paddingLeft = parseInt(window.getComputedStyle(board).paddingLeft, 10);
-                    board.scrollTo({
-                        left: closestList.offsetLeft - (window.innerWidth / 2) + (closestList.offsetWidth / 2) - paddingLeft,
-                        behavior: 'smooth'
+            for (const statusKey in statuses) {
+                if (statusKey !== currentStatus) {
+                    const item = document.createElement('div');
+                    item.className = 'move-menu-item';
+                    item.textContent = statuses[statusKey];
+                    item.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        moveCardToStatus(orderId, statusKey);
+                        globalMoveMenu.classList.remove('show');
                     });
+                    globalMoveMenu.appendChild(item);
                 }
             }
-            
-            const targetCard = e.target.closest('.card');
-            if (targetCard && !hasMoved && !isDragging) {
-                openDetailsModal(targetCard.dataset.id);
+
+            const iconRect = icon.getBoundingClientRect();
+            const menuHeight = globalMoveMenu.offsetHeight;
+            const windowHeight = window.innerHeight;
+
+            // Lógica para decidir se abre para cima ou para baixo
+            if (iconRect.bottom + menuHeight + 10 > windowHeight) {
+                // Abre para cima
+                globalMoveMenu.style.top = `${iconRect.top - menuHeight - 5}px`;
+            } else {
+                // Abre para baixo
+                globalMoveMenu.style.top = `${iconRect.bottom + 5}px`;
             }
-        });
 
-        function initiateDragVisuals(element, pageX, pageY) {
-            if (!element || isDragging) return;
-            isDragging = true;
-            
-            document.addEventListener('touchmove', handleCardTouchMove, { passive: false });
-            document.addEventListener('touchend', handleCardTouchEnd);
-
-            const rect = element.getBoundingClientRect();
-            offsetX = pageX - rect.left;
-            offsetY = pageY - rect.top;
-            ghostCard = element.cloneNode(true);
-            ghostCard.classList.add('ghost');
-            ghostCard.style.width = `${rect.width}px`;
-            ghostCard.style.height = `${rect.height}px`;
-            document.body.appendChild(ghostCard);
-            placeholder = document.createElement('div');
-            placeholder.classList.add('placeholder');
-            placeholder.style.height = `${rect.height}px`;
-            element.classList.add('dragging');
-            element.parentElement.insertBefore(placeholder, element);
-            const clientX = pageX - window.scrollX;
-            const clientY = pageY - window.scrollY;
-            moveDrag(pageX, pageY, clientX, clientY);
-        }
-        
-        function handleCardTouchMove(e) {
-            if (!isDragging) return;
-            e.preventDefault();
-            const touch = e.touches[0];
-            moveDrag(touch.pageX, touch.pageY, touch.clientX, touch.clientY);
-            handleTouchAutoScroll(touch.clientX);
+            globalMoveMenu.style.left = `${iconRect.left - globalMoveMenu.offsetWidth + iconRect.width}px`;
+            globalMoveMenu.classList.add('show');
         }
 
-        function handleCardTouchEnd() {
-            if (isDragging) {
-                dropCard();
-            }
-            cleanupAfterDrag();
-        }
-
-        function moveDrag(pageX, pageY, clientX, clientY) {
-            if (!isDragging || !ghostCard) return;
-            ghostCard.style.left = `${pageX - offsetX}px`;
-            ghostCard.style.top = `${pageY - offsetY}px`;
-            ghostCard.style.display = 'none';
-            const targetListContainer = document.elementFromPoint(clientX, clientY)?.closest('.cards');
-            ghostCard.style.display = '';
-            if (targetListContainer) {
-                const afterElement = getDragAfterElement(targetListContainer, clientY);
-                if (afterElement) {
-                    targetListContainer.insertBefore(placeholder, afterElement);
-                } else {
-                    targetListContainer.appendChild(placeholder);
-                }
-            }
-        }
-
-        function cleanupAfterDrag() {
-            document.removeEventListener('touchmove', handleCardTouchMove);
-            document.removeEventListener('touchend', handleCardTouchEnd);
-            if (touchScrollAnimationId) {
-                cancelAnimationFrame(touchScrollAnimationId);
-                touchScrollAnimationId = null;
-            }
-            if (ghostCard) ghostCard.remove();
-            if (draggedCard) {
-                if (placeholder && placeholder.parentElement) {
-                    placeholder.parentElement.insertBefore(draggedCard, placeholder);
-                }
-                draggedCard.classList.remove('dragging');
-            }
-            if(placeholder) placeholder.remove();
-            ghostCard = null;
-            placeholder = null;
-            draggedCard = null;
-            isDragging = false;
-        }
-
-        function dropCard() {
-            if (!placeholder || !placeholder.parentElement || !draggedCard) return;
-            const parentList = placeholder.parentElement;
-            const newStatus = parentList.parentElement.dataset.status;
-            const prevElement = placeholder.previousElementSibling;
-            const nextElement = placeholder.nextElementSibling;
-            const prevPosition = prevElement ? parseFloat(prevElement.dataset.position) : 0;
-            const nextPosition = nextElement ? parseFloat(nextElement.dataset.position) : (prevPosition + 200000);
-            const newPosition = (prevPosition + nextPosition) / 2;
-            updateOrder(draggedCard.dataset.id, newStatus, newPosition);
-        }
-
-        function getDragAfterElement(container, y) {
-            const draggableElements = [...container.querySelectorAll('.card:not(.dragging)')];
-            return draggableElements.reduce((closest, child) => {
-                const box = child.getBoundingClientRect();
-                const offset = y - box.top - box.height / 2;
-                if (offset < 0 && offset > closest.offset) return { offset: offset, element: child };
-                else return closest;
-            }, { offset: Number.NEGATIVE_INFINITY }).element;
-        }
-
-        async function updateOrder(orderId, newStatus, newPosition) {
+        async function moveCardToStatus(orderId, newStatus) {
             const orderRef = doc(db, "orders", orderId);
             try {
-                await updateDoc(orderRef, { status: newStatus, position: newPosition });
+                await updateDoc(orderRef, { 
+                    status: newStatus, 
+                    position: Date.now() 
+                });
             } catch (error) {
                 console.error("Erro ao atualizar a OS:", error);
+                alert("Ocorreu um erro ao mover o cartão.");
             }
         }
+
+        // --- LÓGICA DOS MODAIS ---
         
-        function handleTouchAutoScroll(clientX) {
-            const viewportWidth = window.innerWidth;
-            const scrollZone = viewportWidth * 0.35;
-            let newSpeed = 0;
-
-            if (clientX < scrollZone) {
-                newSpeed = -5;
-            } else if (clientX > viewportWidth - scrollZone) {
-                newSpeed = 5;
-            }
-            
-            touchScrollSpeed = newSpeed;
-
-            if (touchScrollSpeed !== 0 && !touchScrollAnimationId) {
-                touchScrollAnimationId = requestAnimationFrame(animateTouchScroll);
-            }
-        }
-
-        function animateTouchScroll() {
-            if (touchScrollSpeed === 0) {
-                cancelAnimationFrame(touchScrollAnimationId);
-                touchScrollAnimationId = null;
-                return;
-            }
-            board.scrollLeft += touchScrollSpeed;
-            touchScrollAnimationId = requestAnimationFrame(animateTouchScroll);
-        }
-
         async function openDetailsModal(orderId) {
-            if (isDragging) return;
             try {
                 const docRef = doc(db, "orders", orderId);
                 const docSnap = await getDoc(docRef);
@@ -471,12 +401,24 @@
             let signatureSectionHtml = isSigned
                 ? `<img src="${order.signature_data}" class="signature-thumbnail" alt="Assinatura">`
                 : `<div class="signature-placeholder">Sem Assinatura</div>`;
+            
+            let servicosDisplayHtml;
+            if (order.servicos_realizados === "Recebimento de equipamento para análise.") {
+                servicosDisplayHtml = `<p><strong>Serviços Realizados:</strong></p><p style="font-style: italic; color: #7f8c8d;">Equipamento recebido para análise. Nenhum serviço realizado ainda.</p>`;
+            } else {
+                servicosDisplayHtml = `<p><strong>Serviços Realizados:</strong><br>${(order.servicos_realizados || 'Não informado.').replace(/\n/g, '<br>')}</p>`;
+            }
+
             return `
                 <h1>Detalhes da OS: ${order.os_numero}</h1>
                 <div class="form-section"><h2>Dados do Cliente</h2><p><strong>Contrato:</strong> ${order.contrato||'N/A'}</p><p><strong>Cliente:</strong> ${order.cliente||'N/A'}</p><p><strong>Endereço:</strong> ${order.endereco||'N/A'}</p></div>
                 <div class="form-section"><h2>Dados do Equipamento</h2><p><strong>Equipamento:</strong> ${order.equipamento||'N/A'}</p><p><strong>Marca:</strong> ${order.marca||'N/A'}</p><p><strong>Modelo:</strong> ${order.modelo||'N/A'}</p><p><strong>Serial:</strong> ${order.serial||'N/A'}</p></div>
                 <div class="form-section"><h2>Atendimento</h2><p><strong>Data da Retirada / Serviço:</strong> ${order.data_retirada||order.data_servico||'N/A'}</p><p><strong>Data da Devolução:</strong> ${order.data_devolucao||'N/A'}</p><p><strong>Hora de Chegada:</strong> ${order.hora_chegada||'N/A'}</p><p><strong>Hora de Saída:</strong> ${order.hora_saida||'N/A'}</p><p><strong>Local do Atendimento:</strong> ${order.local_atendimento||'N/A'}</p></div>
-                <div class="form-section"><h2>Serviços e Peças</h2><p><strong>Serviços Realizados:</strong><br>${(order.servicos_realizados||'').replace(/\n/g,'<br>')}</p><p><strong>Peças Utilizadas:</strong><br>${order.pecas_utilizadas||'Nenhuma'}</p></div>
+                <div class="form-section">
+                    <h2>Serviços e Peças</h2>
+                    ${servicosDisplayHtml}
+                    <p><strong>Peças Utilizadas:</strong><br>${order.pecas_utilizadas||'Nenhuma'}</p>
+                </div>
                 <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div><div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width:200px;"></div></div></div>
                 <div class="modal-footer"><button class="btn-action btn-edit" onclick="window.switchToEditMode('${order.id}')">Editar OS</button><button class="btn-action btn-pdf" onclick="window.generatePdfFromModal('${order.id}', this)">Gerar PDF</button></div>`;
         }
@@ -721,7 +663,7 @@
                 docPDF.text('Av. Duque de Caxias, 915-B403, Pelotas-RS', pageWidth - margin, 30, { align: 'right' });
                 docPDF.text('Fone: (51) 99377-5933', pageWidth - margin, 35, { align: 'right' });
                 docPDF.setFontSize(16).setFont(undefined, 'bold');
-                docPDF.text(`Ordem de Serviço: ${order.os_numero || 'N/A'}`, pageWidth / 2, 55, { align: 'center' });
+                docPDF.text(`Ordem de Serviço: ${order.os_numero}`, pageWidth / 2, 55, { align: 'center' });
                 let yPosition = 65;
                 yPosition = drawSection('Dados do Cliente', yPosition);
                 docPDF.setFontSize(10).setFont(undefined, 'normal');
@@ -730,14 +672,14 @@
                 docPDF.text(`Cliente: ${order.cliente || 'N/A'}`, margin, yPosition);
                 yPosition += 10;
                 yPosition = drawSection('Dados do Equipamento', yPosition);
-                docPDF.text(`Equipamento: ${order.equipamento || 'N/A'}`, margin, yPosition);
+                docPDF.text(`Equipamento: ${order.equipamento}`, margin, yPosition);
                 yPosition += 7;
-                docPDF.text(`Modelo: ${order.modelo || 'N/A'}`, margin, yPosition);
+                docPDF.text(`Modelo: ${order.modelo}`, margin, yPosition);
                 yPosition += 7;
-                docPDF.text(`Serial: ${order.serial || 'N/A'}`, margin, yPosition);
+                docPDF.text(`Serial: ${order.serial}`, margin, yPosition);
                 yPosition += 10;
                 yPosition = drawSection('Dados do Atendimento', yPosition);
-                docPDF.text(`Data do Serviço: ${order.data_servico || 'N/A'}`, margin, yPosition);
+                docPDF.text(`Data do Serviço: ${order.data_servico || order.data_retirada}`, margin, yPosition);
                 yPosition += 7;
                 docPDF.text(`Hora de Chegada: ${order.hora_chegada || 'N/A'}`, margin, yPosition);
                 yPosition += 7;
@@ -778,11 +720,21 @@
             }
         }
 
+        // Adiciona eventos de fechar ao modal
         modalCloseButton.addEventListener('click', () => modalOverlay.style.display = 'none');
         modalOverlay.addEventListener('click', (e) => {
             if (e.target === modalOverlay) modalOverlay.style.display = 'none';
         });
 
+        // Evento para fechar menus de movimentação ao clicar fora
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.card-move-action')) {
+                globalMoveMenu.classList.remove('show');
+            }
+        });
+        
+        // Inicia a aplicação
+        initializeBoard();
         listenToOrders();
 
     </script>
