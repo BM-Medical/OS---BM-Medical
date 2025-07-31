@@ -238,6 +238,12 @@
                 `;
                 board.appendChild(list);
             }
+            // ALTERAÇÃO: Adiciona o listener de scroll para fechar o menu
+            document.querySelectorAll('.cards').forEach(cardsContainer => {
+                cardsContainer.addEventListener('scroll', () => {
+                    globalMoveMenu.classList.remove('show');
+                });
+            });
         }
 
         // Função para escutar as alterações nas OS em tempo real
@@ -352,18 +358,24 @@
 
             const iconRect = icon.getBoundingClientRect();
             const menuHeight = globalMoveMenu.offsetHeight;
+            const menuWidth = globalMoveMenu.offsetWidth;
             const windowHeight = window.innerHeight;
+            const windowWidth = window.innerWidth;
 
             // Lógica para decidir se abre para cima ou para baixo
             if (iconRect.bottom + menuHeight + 10 > windowHeight) {
-                // Abre para cima
                 globalMoveMenu.style.top = `${iconRect.top - menuHeight - 5}px`;
             } else {
-                // Abre para baixo
                 globalMoveMenu.style.top = `${iconRect.bottom + 5}px`;
             }
 
-            globalMoveMenu.style.left = `${iconRect.left - globalMoveMenu.offsetWidth + iconRect.width}px`;
+            // ALTERAÇÃO: Lógica para decidir se abre para a esquerda ou direita
+            let leftPosition = iconRect.left - menuWidth + iconRect.width;
+            if (leftPosition < 5) { // Se for sair da tela pela esquerda
+                leftPosition = 5; // Encosta na borda esquerda
+            }
+            globalMoveMenu.style.left = `${leftPosition}px`;
+
             globalMoveMenu.classList.add('show');
         }
 
