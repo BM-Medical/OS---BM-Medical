@@ -238,11 +238,14 @@
                 `;
                 board.appendChild(list);
             }
-            // ALTERAÇÃO: Adiciona o listener de scroll para fechar o menu
+            // Adiciona listeners de scroll para fechar o menu
             document.querySelectorAll('.cards').forEach(cardsContainer => {
                 cardsContainer.addEventListener('scroll', () => {
                     globalMoveMenu.classList.remove('show');
                 });
+            });
+            board.addEventListener('scroll', () => {
+                globalMoveMenu.classList.remove('show');
             });
         }
 
@@ -356,11 +359,16 @@
                 }
             }
 
-            const iconRect = icon.getBoundingClientRect();
+            // Pré-cálculo das dimensões do menu
+            globalMoveMenu.style.visibility = 'hidden';
+            globalMoveMenu.style.display = 'block';
             const menuHeight = globalMoveMenu.offsetHeight;
             const menuWidth = globalMoveMenu.offsetWidth;
+            globalMoveMenu.style.visibility = '';
+            globalMoveMenu.style.display = 'none';
+
+            const iconRect = icon.getBoundingClientRect();
             const windowHeight = window.innerHeight;
-            const windowWidth = window.innerWidth;
 
             // Lógica para decidir se abre para cima ou para baixo
             if (iconRect.bottom + menuHeight + 10 > windowHeight) {
@@ -369,10 +377,10 @@
                 globalMoveMenu.style.top = `${iconRect.bottom + 5}px`;
             }
 
-            // ALTERAÇÃO: Lógica para decidir se abre para a esquerda ou direita
+            // Lógica para posicionamento horizontal, garantindo que fique na tela
             let leftPosition = iconRect.left - menuWidth + iconRect.width;
             if (leftPosition < 5) { // Se for sair da tela pela esquerda
-                leftPosition = 5; // Encosta na borda esquerda
+                leftPosition = 5; // Encosta na borda esquerda com uma pequena margem
             }
             globalMoveMenu.style.left = `${leftPosition}px`;
 
