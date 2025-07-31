@@ -238,7 +238,7 @@
                 `;
                 board.appendChild(list);
             }
-            // Adiciona listeners de scroll para fechar o menu
+            // ALTERAÇÃO: Adiciona listeners de scroll para fechar o menu
             document.querySelectorAll('.cards').forEach(cardsContainer => {
                 cardsContainer.addEventListener('scroll', () => {
                     globalMoveMenu.classList.remove('show');
