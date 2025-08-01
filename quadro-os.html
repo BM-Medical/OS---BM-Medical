@@ -349,19 +349,55 @@
                     globalMoveMenu.appendChild(item);
                 }
             }
+            
+            // NOVA LÓGICA DE POSICIONAMENTO ROBUSTA
+            // 1. Torna o menu temporariamente visível, mas fora da tela, para obter suas dimensões
+            globalMoveMenu.style.visibility = 'hidden';
+            globalMoveMenu.style.left = '-1000px'; // Move para fora da tela
+            globalMoveMenu.classList.add('show'); // Usa a classe para definir display: block
+
+            const menuWidth = globalMoveMenu.offsetWidth;
+            const menuHeight = globalMoveMenu.offsetHeight;
+
+            // Esconde novamente antes de calcular a posição final
+            globalMoveMenu.classList.remove('show');
+            globalMoveMenu.style.visibility = 'visible';
+            globalMoveMenu.style.left = '0px';
 
             const iconRect = icon.getBoundingClientRect();
-            const menuHeight = globalMoveMenu.offsetHeight;
+            const windowWidth = window.innerWidth;
             const windowHeight = window.innerHeight;
+            const margin = 8; // Um pouco mais de margem
 
-            // Lógica para decidir se abre para cima ou para baixo
-            if (iconRect.bottom + menuHeight + 10 > windowHeight) {
-                globalMoveMenu.style.top = `${iconRect.top - menuHeight - 5}px`;
-            } else {
-                globalMoveMenu.style.top = `${iconRect.bottom + 5}px`;
+            // 2. Calcula a posição ideal (começando por baixo e à direita)
+            let topPos = iconRect.bottom + margin;
+            let leftPos = iconRect.left;
+
+            // 3. Corrige a posição se houver colisão com as bordas da janela
+            
+            // Colisão com a borda inferior
+            if (topPos + menuHeight > windowHeight) {
+                topPos = iconRect.top - menuHeight - margin;
             }
 
-            globalMoveMenu.style.left = `${iconRect.left - globalMoveMenu.offsetWidth + iconRect.width}px`;
+            // Colisão com a borda superior (caso o menu seja muito alto)
+            if (topPos < 0) {
+                topPos = margin;
+            }
+
+            // Colisão com a borda direita
+            if (leftPos + menuWidth > windowWidth) {
+                leftPos = windowWidth - menuWidth - margin;
+            }
+            
+            // Colisão com a borda esquerda (menos comum, mas bom ter)
+            if (leftPos < 0) {
+                leftPos = margin;
+            }
+
+            // 4. Aplica as posições calculadas e exibe o menu
+            globalMoveMenu.style.top = `${topPos}px`;
+            globalMoveMenu.style.left = `${leftPos}px`;
             globalMoveMenu.classList.add('show');
         }
 
@@ -744,4 +780,4 @@
 
     </script>
 </body>
-</html>
+</ht
