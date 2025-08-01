@@ -730,6 +730,13 @@
                 globalMoveMenu.classList.remove('show');
             }
         });
+
+        // MELHORIA: Evento para fechar o menu de movimentação ao iniciar a rolagem (toque) em dispositivos móveis
+        board.addEventListener('touchstart', () => {
+            if (globalMoveMenu.classList.contains('show')) {
+                globalMoveMenu.classList.remove('show');
+            }
+        }, { passive: true }); // Usar passive: true para melhor performance de rolagem
         
         // Inicia a aplicação
         initializeBoard();
