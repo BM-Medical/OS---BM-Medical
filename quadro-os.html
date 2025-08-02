@@ -22,15 +22,14 @@
         .board-header h1 { font-size: 1.5rem; margin: 0; flex-grow: 1; }
         .board-header .logout-button { background-color: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: 500; }
         
-        /* MELHORIA: Adicionado padding-bottom e box-sizing para criar espaço inferior */
         .board { 
             display: flex; 
             gap: 15px; 
-            padding: 20px 20px 60px 20px; /* Aumento do padding inferior */
+            padding: 20px 20px 60px 20px; 
             overflow-x: auto; 
             flex-grow: 1; 
             align-items: flex-start;
-            box-sizing: border-box; /* Garante que o padding seja incluído no cálculo do tamanho */
+            box-sizing: border-box; 
         }
 
         .list { background-color: #e9ecef; border-radius: 8px; width: 300px; min-width: 300px; max-height: 100%; display: flex; flex-direction: column; }
@@ -43,13 +42,13 @@
             background-color: #fff; 
             border-radius: 6px; 
             padding: 15px; 
-            padding-bottom: 40px; /* Espaço extra no fundo para o botão de mover */
+            padding-bottom: 40px;
             margin-bottom: 10px; 
             box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
             cursor: pointer; 
             position: relative; 
             user-select: none;
-            border-left: 5px solid #3498db; /* Cor padrão */
+            border-left: 5px solid #3498db;
             transition: box-shadow 0.2s ease-in-out;
         }
         .card:hover {
@@ -60,7 +59,7 @@
             margin-bottom: 5px;
             font-weight: 500;
             color: #333;
-            padding-right: 45px; /* Espaço para o ícone de status */
+            padding-right: 45px;
         }
         .card p {
             margin: 0;
@@ -68,7 +67,7 @@
             color: #6c757d;
         }
 
-        /* ÍCONES DE STATUS (ASSINATURA) - CANTO SUPERIOR DIREITO */
+        /* ÍCONES DE STATUS (ASSINATURA) */
         .card-status-icon {
             position: absolute;
             top: 12px;
@@ -82,7 +81,7 @@
         @keyframes stroke { 100% { stroke-dashoffset: 0; } }
         .icon-unsigned { display: flex; align-items: center; gap: 4px; }
 
-        /* NOVO SISTEMA DE MOVER - CANTO INFERIOR DIREITO */
+        /* SISTEMA DE MOVER */
         .card-move-action {
             position: absolute;
             bottom: 8px;
@@ -107,14 +106,13 @@
             fill: #6c757d;
         }
         
-        /* MENU DE MOVIMENTAÇÃO GLOBAL E FLUTUANTE */
         .move-menu {
-            display: none; /* Escondido por padrão */
-            position: fixed; /* Posição fixa para flutuar sobre tudo */
+            display: none;
+            position: fixed;
             background-color: #fff;
             border-radius: 6px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 1100; /* Z-index alto para ficar na frente */
+            z-index: 1100;
             padding: 5px 0;
             min-width: 200px;
         }
@@ -132,8 +130,32 @@
 
         /* ESTILOS DOS MODAIS */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background-color: #fff; padding: 30px; border-radius: 10px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; position: relative; }
-        .modal-close { position: absolute; top: 15px; right: 20px; font-size: 2rem; font-weight: bold; cursor: pointer; border: none; background: none; }
+        .modal-content { background-color: #fff; padding: 20px 30px 30px 30px; border-radius: 10px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; position: relative; }
+        
+        /* MELHORIA: Cabeçalho do Modal e Botão de Fechar */
+        .modal-header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .modal-header-container h1 {
+            font-size: 1.5rem;
+            margin: 0;
+            flex-grow: 1;
+        }
+        .modal-close { 
+            font-size: 2.5rem; 
+            font-weight: 300; 
+            cursor: pointer; 
+            border: none; 
+            background: none; 
+            padding: 0 10px;
+            line-height: 1;
+        }
+
         .modal-body .form-section { border: 1px solid #e0e0e0; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         .modal-body h2 { font-size: 1.2rem; color: #3498db; margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
         .modal-body p, .modal-body .details-grid p { font-size: 1rem; margin: 5px 0; white-space: pre-wrap; }
@@ -188,7 +210,7 @@
     <!-- Modais -->
     <div id="details-modal" class="modal-overlay">
         <div class="modal-content">
-            <button id="modal-close-button" class="modal-close">&times;</button>
+             <!-- O conteúdo do modal, incluindo o botão de fechar, será injetado aqui -->
             <div id="modal-body" class="modal-body"></div>
         </div>
     </div>
@@ -225,7 +247,6 @@
         const board = document.getElementById('board');
         const modalOverlay = document.getElementById('details-modal');
         const modalBody = document.getElementById('modal-body');
-        const modalCloseButton = document.getElementById('modal-close-button');
         const globalMoveMenu = document.getElementById('global-move-menu');
 
         // Definição das colunas e seus nomes amigáveis
@@ -361,16 +382,13 @@
                 }
             }
             
-            // NOVA LÓGICA DE POSICIONAMENTO ROBUSTA
-            // 1. Torna o menu temporariamente visível, mas fora da tela, para obter suas dimensões
             globalMoveMenu.style.visibility = 'hidden';
-            globalMoveMenu.style.left = '-1000px'; // Move para fora da tela
-            globalMoveMenu.classList.add('show'); // Usa a classe para definir display: block
+            globalMoveMenu.style.left = '-1000px'; 
+            globalMoveMenu.classList.add('show'); 
 
             const menuWidth = globalMoveMenu.offsetWidth;
             const menuHeight = globalMoveMenu.offsetHeight;
 
-            // Esconde novamente antes de calcular a posição final
             globalMoveMenu.classList.remove('show');
             globalMoveMenu.style.visibility = 'visible';
             globalMoveMenu.style.left = '0px';
@@ -378,35 +396,27 @@
             const iconRect = icon.getBoundingClientRect();
             const windowWidth = window.innerWidth;
             const windowHeight = window.innerHeight;
-            const margin = 8; // Um pouco mais de margem
+            const margin = 8; 
 
-            // 2. Calcula a posição ideal (começando por baixo e à direita)
             let topPos = iconRect.bottom + margin;
             let leftPos = iconRect.left;
-
-            // 3. Corrige a posição se houver colisão com as bordas da janela
             
-            // Colisão com a borda inferior
             if (topPos + menuHeight > windowHeight) {
                 topPos = iconRect.top - menuHeight - margin;
             }
 
-            // Colisão com a borda superior (caso o menu seja muito alto)
             if (topPos < 0) {
                 topPos = margin;
             }
 
-            // Colisão com a borda direita
             if (leftPos + menuWidth > windowWidth) {
                 leftPos = windowWidth - menuWidth - margin;
             }
             
-            // Colisão com a borda esquerda (menos comum, mas bom ter)
             if (leftPos < 0) {
                 leftPos = margin;
             }
 
-            // 4. Aplica as posições calculadas e exibe o menu
             globalMoveMenu.style.top = `${topPos}px`;
             globalMoveMenu.style.left = `${leftPos}px`;
             globalMoveMenu.classList.add('show');
@@ -454,8 +464,12 @@
                 servicosDisplayHtml = `<p><strong>Serviços Realizados:</strong><br>${(order.servicos_realizados || 'Não informado.').replace(/\n/g, '<br>')}</p>`;
             }
 
+            // MELHORIA: Adiciona o cabeçalho do modal dinamicamente
             return `
-                <h1>Detalhes da OS: ${order.os_numero}</h1>
+                <div class="modal-header-container">
+                    <h1>Detalhes da OS: ${order.os_numero}</h1>
+                    <button id="modal-close-button" class="modal-close">&times;</button>
+                </div>
                 <div class="form-section"><h2>Dados do Cliente</h2><p><strong>Contrato:</strong> ${order.contrato||'N/A'}</p><p><strong>Cliente:</strong> ${order.cliente||'N/A'}</p><p><strong>Endereço:</strong> ${order.endereco||'N/A'}</p></div>
                 <div class="form-section"><h2>Dados do Equipamento</h2><p><strong>Equipamento:</strong> ${order.equipamento||'N/A'}</p><p><strong>Marca:</strong> ${order.marca||'N/A'}</p><p><strong>Modelo:</strong> ${order.modelo||'N/A'}</p><p><strong>Serial:</strong> ${order.serial||'N/A'}</p></div>
                 <div class="form-section"><h2>Atendimento</h2><p><strong>Data da Retirada / Serviço:</strong> ${order.data_retirada||order.data_servico||'N/A'}</p><p><strong>Data da Devolução:</strong> ${order.data_devolucao||'N/A'}</p><p><strong>Hora de Chegada:</strong> ${order.hora_chegada||'N/A'}</p><p><strong>Hora de Saída:</strong> ${order.hora_saida||'N/A'}</p><p><strong>Local do Atendimento:</strong> ${order.local_atendimento||'N/A'}</p></div>
@@ -514,7 +528,12 @@
                     attendanceFields += `<div class="form-group"><label for="edit_local_atendimento">Local:</label><select id="edit_local_atendimento" name="local_atendimento">${locationHtml}</select></div>`;
                 }
             }
-            return `<form id="edit-os-form"><h1>Editar OS: ${order.os_numero}</h1>${equipmentFields?`<div class="form-section"><h2>Dados do Equipamento</h2>${equipmentFields}</div>`:''}
+            return `
+                <div class="modal-header-container">
+                    <h1>Editar OS: ${order.os_numero}</h1>
+                    <button id="modal-close-button" class="modal-close">&times;</button>
+                </div>
+                ${equipmentFields?`<div class="form-section"><h2>Dados do Equipamento</h2>${equipmentFields}</div>`:''}
                 <div class="form-section"><h2>Atendimento</h2>${attendanceFields}</div>
                 <div class="form-section"><h2>Serviços e Peças</h2><div class="form-group"><label for="edit_servicos_realizados">Serviços Realizados:</label><textarea id="edit_servicos_realizados" name="servicos_realizados" rows="4">${order.servicos_realizados||''}</textarea></div><div class="form-group"><label for="edit_pecas_utilizadas">Peças Utilizadas:</label><textarea id="edit_pecas_utilizadas" name="pecas_utilizadas" rows="3">${order.pecas_utilizadas||''}</textarea></div></div>
                 <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div><div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width:200px;"></div></div></div>
@@ -765,10 +784,12 @@
             }
         }
 
-        // Adiciona eventos de fechar ao modal
-        modalCloseButton.addEventListener('click', () => modalOverlay.style.display = 'none');
+        // MELHORIA: Usa delegação de eventos para fechar o modal
         modalOverlay.addEventListener('click', (e) => {
-            if (e.target === modalOverlay) modalOverlay.style.display = 'none';
+            // Fecha se clicar no overlay ou em um elemento com a classe 'modal-close'
+            if (e.target === modalOverlay || e.target.classList.contains('modal-close')) {
+                modalOverlay.style.display = 'none';
+            }
         });
 
         // Evento para fechar menus de movimentação ao clicar fora
@@ -778,12 +799,12 @@
             }
         });
 
-        // MELHORIA: Evento para fechar o menu de movimentação ao iniciar a rolagem (toque) em dispositivos móveis
+        // Evento para fechar o menu de movimentação ao iniciar a rolagem (toque) em dispositivos móveis
         board.addEventListener('touchstart', () => {
             if (globalMoveMenu.classList.contains('show')) {
                 globalMoveMenu.classList.remove('show');
             }
-        }, { passive: true }); // Usar passive: true para melhor performance de rolagem
+        }, { passive: true });
         
         // Inicia a aplicação
         initializeBoard();
