@@ -30,6 +30,8 @@
             flex-grow: 1; 
             align-items: flex-start;
             box-sizing: border-box; 
+            /* MELHORIA: Desativa gestos nativos de "puxar para recarregar" e "arrastar para voltar" */
+            touch-action: pan-x pan-y;
         }
 
         .list { background-color: #e9ecef; border-radius: 8px; width: 300px; min-width: 300px; max-height: 100%; display: flex; flex-direction: column; }
@@ -132,7 +134,6 @@
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background-color: #fff; padding: 20px 30px 30px 30px; border-radius: 10px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; position: relative; }
         
-        /* MELHORIA: Cabeçalho do Modal e Botão de Fechar */
         .modal-header-container {
             display: flex;
             justify-content: space-between;
@@ -464,7 +465,6 @@
                 servicosDisplayHtml = `<p><strong>Serviços Realizados:</strong><br>${(order.servicos_realizados || 'Não informado.').replace(/\n/g, '<br>')}</p>`;
             }
 
-            // MELHORIA: Adiciona o cabeçalho do modal dinamicamente
             return `
                 <div class="modal-header-container">
                     <h1>Detalhes da OS: ${order.os_numero}</h1>
@@ -784,29 +784,24 @@
             }
         }
 
-        // MELHORIA: Usa delegação de eventos para fechar o modal
         modalOverlay.addEventListener('click', (e) => {
-            // Fecha se clicar no overlay ou em um elemento com a classe 'modal-close'
             if (e.target === modalOverlay || e.target.classList.contains('modal-close')) {
                 modalOverlay.style.display = 'none';
             }
         });
 
-        // Evento para fechar menus de movimentação ao clicar fora
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.card-move-action')) {
                 globalMoveMenu.classList.remove('show');
             }
         });
 
-        // Evento para fechar o menu de movimentação ao iniciar a rolagem (toque) em dispositivos móveis
         board.addEventListener('touchstart', () => {
             if (globalMoveMenu.classList.contains('show')) {
                 globalMoveMenu.classList.remove('show');
             }
         }, { passive: true });
         
-        // Inicia a aplicação
         initializeBoard();
         listenToOrders();
 
