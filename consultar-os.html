@@ -4,65 +4,54 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultar Ordens de Serviço</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="auth-guard.js" type="module"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
-        .container { width: 90%; max-width: 1100px; margin: 0 auto; padding: 20px; flex: 1; display: flex; flex-direction: column; align-items: center; }
-        .header { padding: 20px 0; width: 100%; text-align: center; position: relative; }
-        .logout-button { position: absolute; top: 20px; right: 0; background-color: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: 500; }
-        .main-content { width: 100%; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
-        h1 { font-size: 2.2rem; color: #333; margin-bottom: 20px; text-align: center; }
-        #search-box { width: 100%; padding: 15px; font-size: 1.1rem; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 30px; box-sizing: border-box; }
-        #os-list { list-style: none; padding: 0; margin: 0; }
-        #os-list li { background-color: #f9f9f9; border: 1px solid #eee; padding: 15px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; transition: background-color 0.2s ease; }
-        #os-list li.archived { background-color: #e9ecef; opacity: 0.7; }
-        #os-list li:hover { background-color: #f0f0f0; }
-        .os-info { }
-        .archive-icon { width: 24px; height: 24px; fill: #7f8c8d; }
-        #os-list .os-info strong { font-size: 1.1rem; color: #3498db; display: block; margin-bottom: 4px; }
-        #os-list li.archived .os-info strong { color: #6c757d; }
-        #os-list .os-details { font-size: 0.9rem; color: #777; }
-        .os-actions { display: flex; gap: 10px; align-items: center; }
-        .btn-action { text-decoration: none; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-weight: 500; transition: background-color 0.2s ease; font-size: 0.9rem; }
-        .btn-details { background-color: #7f8c8d; }
-        .btn-details:hover { background-color: #6c7a7b; }
-        .btn-pdf { background-color: #3498db; }
-        .btn-pdf:hover { background-color: #2980b9; }
-        .btn-pdf:disabled { background-color: #bdc3c7; cursor: not-allowed; }
-        .btn-unarchive { background-color: #f39c12; } /* Cor para o botão de desarquivar */
-        .btn-unarchive:hover { background-color: #e67e22; }
-        .back-link { display: inline-block; margin-top: 30px; color: #3498db; text-decoration: none; font-weight: 500; }
-        .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; margin-top: 40px; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f4f7f6;
+        }
     </style>
 </head>
-<body>
-    <div class="container">
-        <header class="header">
-            <a href="index.html"><img src="./images/logo.png" alt="Logo da Empresa" style="max-width: 350px; height: auto;"></a>
-            <button id="logout-button" class="logout-button">Sair</button>
+<body class="flex flex-col min-h-screen">
+    <div class="container mx-auto p-4 flex-grow flex flex-col items-center">
+        <header class="w-full text-center relative py-5">
+            <a href="index.html"><img src="./images/logo.png" alt="Logo da Empresa" class="max-w-xs h-auto mx-auto"></a>
+            <button id="logout-button" class="absolute top-5 right-0 bg-red-600 text-white px-3 py-2 rounded-md font-semibold text-sm">Sair</button>
         </header>
-        <main class="main-content">
-            <h1>Consultar Ordens de Serviço</h1>
-            <input type="text" id="search-box" placeholder="Digite o número da OS, cliente ou equipamento para buscar...">
-            <ul id="os-list"></ul>
-            <div style="text-align: center;">
-                 <a href="index.html" class="back-link">❮ Voltar para a Página Inicial</a>
+        <main class="w-full max-w-lg bg-white p-5 rounded-lg shadow-lg">
+            <h1 class="text-2xl font-bold text-gray-800 mb-4 text-center">Consultar Ordens de Serviço</h1>
+            <input type="text" id="search-box" placeholder="Digite o número da OS, cliente ou equipamento..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <ul id="os-list" class="mt-4"></ul>
+            <div class="text-center mt-6">
+                 <a href="index.html" class="text-blue-600 font-semibold hover:underline">❮ Voltar para a Página Inicial</a>
             </div>
         </main>
     </div>
-    <footer class="footer">
+    <footer class="w-full bg-gray-800 text-white p-5 text-center mt-8">
         <p><strong>BM Medical</strong></p>
-        <p>CNPJ: 48.673.158/0001-59</p>
-        <p>Endereço: Av. Duque de Caxias, 915-B403, Pelotas-RS</p>
-        <p>Telefone: (51) 99377-5933 | Email: contato@nomedaempresa.com.br</p>
     </footer>
+
+    <!-- Modal de Confirmação -->
+    <div id="confirmation-modal" class="fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm text-center">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Confirmar Ação</h3>
+            <p class="text-gray-600 mb-6">Deseja realmente desarquivar a <strong id="os-number-modal"></strong>?</p>
+            <div class="flex justify-center space-x-4">
+                <button id="cancel-btn" class="px-6 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">CANCELAR</button>
+                <button id="confirm-btn" class="px-6 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700">SIM</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getFirestore, collection, getDocs, doc, getDoc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
             authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
@@ -73,6 +62,161 @@
         };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+
+        const confirmationModal = document.getElementById('confirmation-modal');
+        const osNumberModal = document.getElementById('os-number-modal');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const confirmBtn = document.getElementById('confirm-btn');
+        let currentOrderToUnarchive = null;
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const [year, month, day] = dateString.split('-');
+            return `${day}/${month}/${year}`;
+        }
+
+        async function loadOrders() {
+            try {
+                const osList = document.getElementById('os-list');
+                osList.innerHTML = '<li>Carregando...</li>';
+                const ordersRef = collection(db, "orders");
+                const q = query(ordersRef, orderBy("createdAt", "desc"));
+                const querySnapshot = await getDocs(q);
+                osList.innerHTML = '';
+                if (querySnapshot.empty) {
+                    osList.innerHTML = '<li>Nenhuma OS encontrada.</li>';
+                    return;
+                }
+
+                querySnapshot.forEach((doc) => {
+                    const order = { id: doc.id, ...doc.data() };
+                    const listItem = document.createElement('li');
+                    
+                    const isArchived = order.status === 'arquivada';
+                    const formattedDate = formatDate(order.data_servico || order.data_retirada);
+
+                    const detailsButton = `<button class="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 btn-details">Detalhes</button>`;
+                    const pdfButton = `<button class="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 btn-pdf">Gerar PDF</button>`;
+                    const unarchiveButton = `<button class="px-4 py-2 bg-gray-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75 btn-unarchive">Desarquivar</button>`;
+
+                    let actionsHtml = '';
+                    if (isArchived) {
+                        actionsHtml = unarchiveButton + detailsButton + pdfButton;
+                    } else {
+                        actionsHtml = detailsButton + pdfButton;
+                    }
+                    
+                    const cardClasses = isArchived ? 'bg-gray-50' : 'bg-white';
+                    const titleClasses = isArchived ? 'text-gray-500' : 'text-blue-600';
+                    const textClasses = isArchived ? 'text-gray-400' : 'text-gray-500';
+
+                    listItem.innerHTML = `
+                        <div class="rounded-xl shadow-md p-4 mb-4 ${cardClasses}">
+                            <div class="mb-3">
+                                <h2 class="text-lg font-bold ${titleClasses}">OS: ${order.os_numero || 'N/A'} ${isArchived ? '(Arquivada)' : ''}</h2>
+                                <p class="text-sm mt-1 ${textClasses}">Cliente: ${order.cliente || 'N/A'}</p>
+                                <p class="text-sm ${textClasses}">Data: ${formattedDate}</p>
+                            </div>
+                            <div class="border-t border-gray-200 my-2"></div>
+                            <div class="flex justify-end items-center pt-2 space-x-3">
+                                ${actionsHtml}
+                            </div>
+                        </div>
+                    `;
+                    
+                    listItem.querySelector('.btn-details').addEventListener('click', () => {
+                        window.location.href = `detalhe-os.html?id=${order.id}`;
+                    });
+
+                    const pdfBtnElement = listItem.querySelector('.btn-pdf');
+                    if (pdfBtnElement) {
+                        pdfBtnElement.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            generatePdfForOrder(order.id, e.target);
+                        });
+                    }
+
+                    const unarchiveBtnElement = listItem.querySelector('.btn-unarchive');
+                    if (unarchiveBtnElement) {
+                        unarchiveBtnElement.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            currentOrderToUnarchive = { id: order.id, os_numero: order.os_numero, button: e.target };
+                            osNumberModal.textContent = `OS ${order.os_numero}`;
+                            confirmationModal.classList.remove('hidden');
+                        });
+                    }
+
+                    osList.appendChild(listItem);
+                });
+            } catch (error) {
+                console.error('Erro ao carregar Ordens de Serviço:', error);
+                document.getElementById('os-list').innerHTML = '<li>Erro ao carregar dados.</li>';
+            }
+        }
+        
+        async function unarchiveOrder(orderInfo) {
+            orderInfo.button.disabled = true;
+            const orderRef = doc(db, "orders", orderInfo.id);
+            try {
+                await updateDoc(orderRef, {
+                    status: 'novas',
+                    position: Date.now()
+                });
+                await loadOrders();
+            } catch (error) {
+                console.error("Erro ao desarquivar a OS:", error);
+                alert("Ocorreu um erro ao desarquivar a OS.");
+                orderInfo.button.disabled = false;
+            } finally {
+                closeModal();
+            }
+        }
+
+        function closeModal() {
+            confirmationModal.classList.add('hidden');
+            currentOrderToUnarchive = null;
+        }
+
+        cancelBtn.addEventListener('click', closeModal);
+        confirmBtn.addEventListener('click', () => {
+            if (currentOrderToUnarchive) {
+                unarchiveOrder(currentOrderToUnarchive);
+            }
+        });
+
+        confirmationModal.addEventListener('click', (e) => {
+            if (e.target === confirmationModal) {
+                closeModal();
+            }
+        });
+
+        confirmationModal.addEventListener('touchstart', (e) => {
+            if (e.target === confirmationModal) {
+                closeModal();
+            }
+        }, { passive: true });
+
+        // MELHORIA: Adiciona evento para fechar o modal com a roda do mouse
+        document.addEventListener('wheel', () => {
+            if (!confirmationModal.classList.contains('hidden')) {
+                closeModal();
+            }
+        }, { passive: true });
+
+        function filterOrders() {
+            const searchTerm = document.getElementById('search-box').value.toLowerCase();
+            const osItems = document.querySelectorAll('#os-list li');
+            osItems.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+        document.getElementById('search-box').addEventListener('keyup', filterOrders);
+        window.onload = loadOrders;
 
         function imageToDataUrl(url, quality = 0.7) {
             return new Promise((resolve, reject) => {
@@ -95,14 +239,12 @@
 
         async function generatePdfForOrder(orderId, buttonElement) {
             buttonElement.disabled = true;
-            buttonElement.textContent = 'Gerando...';
             try {
                 const logoDataUrl = await imageToDataUrl('./images/logo.png', 0.9);
                 const techSigDataUrl = await imageToDataUrl('./images/assinatura-tecnico.png', 0.7);
-
                 const docRef = doc(db, "orders", orderId);
                 const docSnap = await getDoc(docRef);
-                if (!docSnap.exists()) { throw new Error('OS não encontrada no banco de dados.'); }
+                if (!docSnap.exists()) { throw new Error('OS não encontrada.'); }
                 const order = docSnap.data();
                 const { jsPDF } = window.jspdf;
                 const docPDF = new jsPDF();
@@ -178,105 +320,8 @@
                 alert("Ocorreu um erro ao gerar o PDF.");
             } finally {
                 buttonElement.disabled = false;
-                buttonElement.textContent = 'Gerar PDF';
             }
         }
-
-        async function unarchiveOrder(orderId, buttonElement) {
-            buttonElement.disabled = true;
-            buttonElement.textContent = 'Aguarde...';
-
-            const orderRef = doc(db, "orders", orderId);
-            try {
-                await updateDoc(orderRef, {
-                    status: 'novas',
-                    position: Date.now() // Define uma nova posição para ir ao fim da lista "Novas"
-                });
-                // Recarrega a lista para refletir a mudança
-                await loadOrders();
-            } catch (error) {
-                console.error("Erro ao desarquivar a OS:", error);
-                alert("Ocorreu um erro ao desarquivar a OS.");
-                buttonElement.disabled = false;
-                buttonElement.textContent = 'Desarquivar';
-            }
-        }
-
-        async function loadOrders() {
-            try {
-                const osList = document.getElementById('os-list');
-                osList.innerHTML = '<li>Carregando Ordens de Serviço...</li>';
-                const ordersRef = collection(db, "orders");
-                const q = query(ordersRef, orderBy("createdAt", "desc"));
-                const querySnapshot = await getDocs(q);
-                osList.innerHTML = '';
-                if (querySnapshot.empty) {
-                    osList.innerHTML = '<li>Nenhuma Ordem de Serviço encontrada.</li>';
-                    return;
-                }
-                querySnapshot.forEach((doc) => {
-                    const order = { id: doc.id, ...doc.data() };
-                    const listItem = document.createElement('li');
-                    
-                    let actionsHtml = '';
-                    if (order.status === 'arquivada') {
-                        listItem.classList.add('archived');
-                        actionsHtml = `
-                            <svg class="archive-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 7H4V5H20V7ZM21 3H3C1.9 3 1 3.9 1 5V7C1 8.1 1.9 9 3 9H21C22.1 9 23 8.1 23 7V5C23 3.9 22.1 3 21 3ZM4 12H20V21H4V12ZM3 10C1.9 10 1 10.9 1 12V21C1 22.1 1.9 23 3 23H21C22.1 23 23 22.1 23 21V12C23 10.9 22.1 10 21 10H3Z"></path></svg>
-                            <a href="detalhe-os.html?id=${order.id}" class="btn-action btn-details">Ver Detalhes</a>
-                            <button class="btn-action btn-unarchive">Desarquivar</button>
-                        `;
-                    } else {
-                        actionsHtml = `
-                            <a href="detalhe-os.html?id=${order.id}" class="btn-action btn-details">Ver Detalhes</a>
-                            <button class="btn-action btn-pdf">Gerar PDF</button>
-                        `;
-                    }
-
-                    listItem.innerHTML = `
-                        <div class="os-info">
-                            <strong>OS: ${order.os_numero || 'N/A'}</strong>
-                            <div class="os-details">
-                                Data: ${order.data_servico || order.data_retirada || 'N/A'} | Cliente: ${order.cliente || 'N/A'}
-                            </div>
-                        </div>
-                        <div class="os-actions">
-                            ${actionsHtml}
-                        </div>
-                    `;
-                    
-                    if (order.status === 'arquivada') {
-                        listItem.querySelector('.btn-unarchive').addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            unarchiveOrder(order.id, e.target);
-                        });
-                    } else {
-                        listItem.querySelector('.btn-pdf').addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            generatePdfForOrder(order.id, e.target);
-                        });
-                    }
-                    osList.appendChild(listItem);
-                });
-            } catch (error) {
-                console.error('Erro ao carregar Ordens de Serviço:', error);
-                document.getElementById('os-list').innerHTML = '<li>Erro ao carregar dados.</li>';
-            }
-        }
-        function filterOrders() {
-            const searchTerm = document.getElementById('search-box').value.toLowerCase();
-            const osItems = document.querySelectorAll('#os-list li');
-            osItems.forEach(item => {
-                const text = item.textContent.toLowerCase();
-                if (text.includes(searchTerm)) {
-                    item.style.display = 'flex';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-        }
-        document.getElementById('search-box').addEventListener('keyup', filterOrders);
-        window.onload = loadOrders;
     </script>
 </body>
 </html>

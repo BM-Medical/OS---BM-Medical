@@ -113,6 +113,24 @@
         selectAllCheckbox.addEventListener('change', handleSelectAll);
         generatePdfBtn.addEventListener('click', generateCombinedPdf);
 
+        // Função auxiliar para formatar a data
+        function formatDate(dateObject) {
+            if (!dateObject) return 'N/A';
+            // Converte o timestamp do Firebase para um objeto Date do JS
+            const date = dateObject.toDate ? dateObject.toDate() : dateObject;
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+        
+        // Função para formatar datas que vêm como string (AAAA-MM-DD)
+        function formatDateString(dateString) {
+            if (!dateString) return 'N/A';
+            const [year, month, day] = dateString.split('-');
+            return `${day}/${month}/${year}`;
+        }
+
         async function loadOrders() {
             loadingMessage.style.display = 'block';
             resultsArea.style.display = 'none';
@@ -127,7 +145,6 @@
 
             try {
                 const ordersRef = collection(db, "orders");
-                // CORREÇÃO: Busca apenas pelo contrato para evitar erro de índice
                 const q = query(ordersRef, where("contrato", "==", contract));
 
                 const querySnapshot = await getDocs(q);
@@ -136,7 +153,6 @@
                     results.push({ id: doc.id, ...doc.data() });
                 });
 
-                // CORREÇÃO: Filtra e ordena os resultados no lado do cliente
                 const filteredAndSorted = results.filter(order => {
                     if (!order.createdAt || typeof order.createdAt.toDate !== 'function') return false;
                     const orderDate = order.createdAt.toDate();
@@ -166,14 +182,16 @@
             const isSigned = order.signature_data && order.signature_data.length > 200;
             const statusClass = isSigned ? 'status-ok' : 'status-pending';
             const statusText = isSigned ? 'Pronta para o Relatório' : 'Pendente de Assinatura';
-            const orderDate = order.createdAt.toDate();
+            
+            // ALTERAÇÃO: Usa a função de formatação
+            const formattedDate = formatDate(order.createdAt);
 
             listItem.innerHTML = `
                 <div class="os-info">
                     <input type="checkbox" class="os-checkbox" data-id="${order.id}" data-order='${JSON.stringify(order)}' ${isSigned ? '' : 'disabled'}>
                     <div class="os-details-text">
                         <strong>OS: ${order.os_numero}</strong>
-                        <span>${order.equipamento} - Data: ${orderDate.toLocaleDateString()}</span>
+                        <span>${order.equipamento} - Data: ${formattedDate}</span>
                     </div>
                 </div>
                 <span class="os-status ${statusClass}">${statusText}</span>
@@ -215,10 +233,6 @@
                 if (!isFirstPage) {
                     docPDF.addPage();
                 }
-                // Recria o objeto de data, pois ele se perde na conversão para JSON
-                if (order.createdAt && order.createdAt.seconds) {
-                    order.createdAt = new Date(order.createdAt.seconds * 1000);
-                }
                 await addOrderToPdf(docPDF, order, logoDataUrl, techSigDataUrl);
                 isFirstPage = false;
             }
@@ -236,6 +250,9 @@
             const pageWidth = docPDF.internal.pageSize.width;
             const margin = 15;
             const signatureDataUrl = order.signature_data;
+
+            // ALTERAÇÃO: Usa a função de formatação para a data no PDF
+            const formattedDatePdf = formatDateString(order.data_servico || order.data_retirada);
 
             function drawSection(title, yPos) {
                 docPDF.setFontSize(11).setFont(undefined, 'bold');
@@ -273,7 +290,7 @@
             yPosition += 10;
 
             yPosition = drawSection('Dados do Atendimento', yPosition);
-            docPDF.text(`Data do Serviço: ${order.data_servico || order.data_retirada || 'N/A'}`, margin, yPosition);
+            docPDF.text(`Data do Serviço: ${formattedDatePdf}`, margin, yPosition);
             yPosition += 7;
             docPDF.text(`Hora de Chegada: ${order.hora_chegada || 'N/A'}`, margin, yPosition);
             yPosition += 7;

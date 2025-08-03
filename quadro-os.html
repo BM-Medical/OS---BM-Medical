@@ -30,7 +30,6 @@
             flex-grow: 1; 
             align-items: flex-start;
             box-sizing: border-box; 
-            /* MELHORIA: Desativa gestos nativos de "puxar para recarregar" e "arrastar para voltar" */
             touch-action: pan-x pan-y;
         }
 
@@ -186,6 +185,31 @@
         .signature-modal-overlay:fullscreen .signature-modal-content { height: 100%; width: 100%; max-width: none; border-radius: 0; padding: 15px; box-sizing: border-box; }
         .signature-modal-overlay:fullscreen .signature-modal-content canvas { flex-grow: 1; height: auto; }
 
+        /* Estilos da Notificação Toast */
+        #toast-notification {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 2000;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 30px;
+            font-size: 1rem;
+            opacity: 0;
+            transition: opacity 0.5s, bottom 0.5s;
+        }
+
+        #toast-notification.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
+
         @media (max-width: 768px) {
             .board { scroll-snap-type: none; }
             .list { scroll-snap-align: none; }
@@ -228,6 +252,9 @@
         </div>
     </div>
 
+    <!-- Elemento da Notificação Toast -->
+    <div id="toast-notification"></div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getFirestore, collection, doc, getDoc, updateDoc, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
@@ -258,6 +285,22 @@
             'pronto_entrega': 'Pronto para Entrega',
             'arquivada': 'Concluídas (Arquivar aqui)'
         };
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const [year, month, day] = dateString.split('-');
+            return `${day}/${month}/${year}`;
+        }
+
+        // Função para mostrar a notificação toast
+        function showToast(message) {
+            const toast = document.getElementById('toast-notification');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
 
         // Função para inicializar o quadro, criando as colunas
         function initializeBoard() {
@@ -316,31 +359,26 @@
             const card = document.createElement('div');
             card.className = 'card';
             card.dataset.id = order.id;
-            card.dataset.status = order.status; // Armazena o status atual no card
+            card.dataset.status = order.status;
 
             const contractColors = {
-                'Contrato N° 03/2024': '#e67e22', // UFPEL
-                'Contrato Nº 138/2024': '#2ecc71', // Capão do Leão
-                'Contrato Nº 10/2025': '#f1c40f', // Exército
+                'Contrato N° 03/2024': '#e67e22',
+                'Contrato Nº 138/2024': '#2ecc71',
+                'Contrato Nº 10/2025': '#f1c40f',
             };
             card.style.borderLeftColor = contractColors[order.contrato] || '#3498db';
 
             const isSigned = order.signature_data && typeof order.signature_data === 'string' && order.signature_data.length > 200;
             const signedIcon = `<div class="icon-signed" title="OS Assinada"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/><path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/></svg></div>`;
-            const unsignedIcon = `<div class="icon-unsigned" title="Assinatura pendente">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6c757d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-                                  </div>`;
+            const unsignedIcon = `<div class="icon-unsigned" title="Assinatura pendente"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6c757d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg></div>`;
             
+            const formattedDate = formatDate(order.data_servico || order.data_retirada);
+
             card.innerHTML = `
-                <div class="card-status-icon">
-                    ${isSigned ? signedIcon : unsignedIcon}
-                </div>
-                
+                <div class="card-status-icon">${isSigned ? signedIcon : unsignedIcon}</div>
                 <strong>${order.os_numero || 'N/A'}</strong>
                 <p>${order.equipamento || 'N/A'}</p>
-                <p>Data: ${order.data_servico || order.data_retirada || 'N/A'}</p>
-
+                <p>Data: ${formattedDate}</p>
                 <div class="card-move-action">
                     <div class="card-move-icon" title="Mover cartão">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 6V3L18.5 8.5L13 14V11H4V6H13M20 16V18H4V21H20V16Z"/></svg>
@@ -367,7 +405,7 @@
             const orderId = card.dataset.id;
             const currentStatus = card.dataset.status;
             
-            globalMoveMenu.innerHTML = ''; // Limpa o menu anterior
+            globalMoveMenu.innerHTML = '';
 
             for (const statusKey in statuses) {
                 if (statusKey !== currentStatus) {
@@ -405,15 +443,12 @@
             if (topPos + menuHeight > windowHeight) {
                 topPos = iconRect.top - menuHeight - margin;
             }
-
             if (topPos < 0) {
                 topPos = margin;
             }
-
             if (leftPos + menuWidth > windowWidth) {
                 leftPos = windowWidth - menuWidth - margin;
             }
-            
             if (leftPos < 0) {
                 leftPos = margin;
             }
@@ -432,7 +467,7 @@
                 });
             } catch (error) {
                 console.error("Erro ao atualizar a OS:", error);
-                alert("Ocorreu um erro ao mover o cartão.");
+                showToast("Erro ao mover o cartão.");
             }
         }
 
@@ -448,7 +483,7 @@
                 modalOverlay.style.display = 'flex';
             } catch (error) {
                 console.error("Erro ao abrir detalhes:", error);
-                alert(`Erro ao buscar detalhes: ${error.message}`);
+                showToast(`Erro ao buscar detalhes: ${error.message}`);
             }
         }
 
@@ -460,26 +495,29 @@
             
             let servicosDisplayHtml;
             if (order.servicos_realizados === "Recebimento de equipamento para análise.") {
-                servicosDisplayHtml = `<p><strong>Serviços Realizados:</strong></p><p style="font-style: italic; color: #7f8c8d;">Equipamento recebido para análise. Nenhum serviço realizado ainda.</p>`;
+                servicosDisplayHtml = `<p><strong>Serviços Realizados:</strong></p><p style="font-style: italic; color: #7f8c8d;">Equipamento recebido para análise.</p>`;
             } else {
                 servicosDisplayHtml = `<p><strong>Serviços Realizados:</strong><br>${(order.servicos_realizados || 'Não informado.').replace(/\n/g, '<br>')}</p>`;
             }
 
+            const formattedRetirada = formatDate(order.data_retirada || order.data_servico);
+            const formattedDevolucao = formatDate(order.data_devolucao);
+
             return `
                 <div class="modal-header-container">
                     <h1>Detalhes da OS: ${order.os_numero}</h1>
-                    <button id="modal-close-button" class="modal-close">&times;</button>
+                    <button class="modal-close">&times;</button>
                 </div>
                 <div class="form-section"><h2>Dados do Cliente</h2><p><strong>Contrato:</strong> ${order.contrato||'N/A'}</p><p><strong>Cliente:</strong> ${order.cliente||'N/A'}</p><p><strong>Endereço:</strong> ${order.endereco||'N/A'}</p></div>
                 <div class="form-section"><h2>Dados do Equipamento</h2><p><strong>Equipamento:</strong> ${order.equipamento||'N/A'}</p><p><strong>Marca:</strong> ${order.marca||'N/A'}</p><p><strong>Modelo:</strong> ${order.modelo||'N/A'}</p><p><strong>Serial:</strong> ${order.serial||'N/A'}</p></div>
-                <div class="form-section"><h2>Atendimento</h2><p><strong>Data da Retirada / Serviço:</strong> ${order.data_retirada||order.data_servico||'N/A'}</p><p><strong>Data da Devolução:</strong> ${order.data_devolucao||'N/A'}</p><p><strong>Hora de Chegada:</strong> ${order.hora_chegada||'N/A'}</p><p><strong>Hora de Saída:</strong> ${order.hora_saida||'N/A'}</p><p><strong>Local do Atendimento:</strong> ${order.local_atendimento||'N/A'}</p></div>
+                <div class="form-section"><h2>Atendimento</h2><p><strong>Data da Retirada / Serviço:</strong> ${formattedRetirada}</p><p><strong>Data da Devolução:</strong> ${formattedDevolucao}</p><p><strong>Hora de Chegada:</strong> ${order.hora_chegada||'N/A'}</p><p><strong>Hora de Saída:</strong> ${order.hora_saida||'N/A'}</p><p><strong>Local do Atendimento:</strong> ${order.local_atendimento||'N/A'}</p></div>
                 <div class="form-section">
                     <h2>Serviços e Peças</h2>
                     ${servicosDisplayHtml}
                     <p><strong>Peças Utilizadas:</strong><br>${order.pecas_utilizadas||'Nenhuma'}</p>
                 </div>
                 <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div><div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width:200px;"></div></div></div>
-                <div class="modal-footer"><button class="btn-action btn-edit" onclick="window.switchToEditMode('${order.id}')">Editar OS</button><button class="btn-action btn-pdf" onclick="window.generatePdfFromModal('${order.id}', this)">Gerar PDF</button></div>`;
+                <div class="modal-footer"><button class="btn-action btn-edit" onclick="window.switchToEditMode('${order.id}')">Editar OS</button><button class="btn-action btn-pdf" onclick="window.generatePdfForOrder('${order.id}', this)">Gerar PDF</button></div>`;
         }
         
         window.switchToEditMode = async function(orderId) {
@@ -531,24 +569,33 @@
             return `
                 <div class="modal-header-container">
                     <h1>Editar OS: ${order.os_numero}</h1>
-                    <button id="modal-close-button" class="modal-close">&times;</button>
+                    <button class="modal-close">&times;</button>
                 </div>
-                ${equipmentFields?`<div class="form-section"><h2>Dados do Equipamento</h2>${equipmentFields}</div>`:''}
-                <div class="form-section"><h2>Atendimento</h2>${attendanceFields}</div>
-                <div class="form-section"><h2>Serviços e Peças</h2><div class="form-group"><label for="edit_servicos_realizados">Serviços Realizados:</label><textarea id="edit_servicos_realizados" name="servicos_realizados" rows="4">${order.servicos_realizados||''}</textarea></div><div class="form-group"><label for="edit_pecas_utilizadas">Peças Utilizadas:</label><textarea id="edit_pecas_utilizadas" name="pecas_utilizadas" rows="3">${order.pecas_utilizadas||''}</textarea></div></div>
-                <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div><div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width:200px;"></div></div></div>
-                <div class="modal-footer"><button type="submit" class="btn-action btn-save">Salvar Alterações</button></div></form>`;
+                <form id="edit-os-form">
+                    ${equipmentFields?`<div class="form-section"><h2>Dados do Equipamento</h2>${equipmentFields}</div>`:''}
+                    <div class="form-section"><h2>Atendimento</h2>${attendanceFields}</div>
+                    <div class="form-section"><h2>Serviços e Peças</h2><div class="form-group"><label for="edit_servicos_realizados">Serviços Realizados:</label><textarea id="edit_servicos_realizados" name="servicos_realizados" rows="4">${order.servicos_realizados||''}</textarea></div><div class="form-group"><label for="edit_pecas_utilizadas">Peças Utilizadas:</label><textarea id="edit_pecas_utilizadas" name="pecas_utilizadas" rows="3">${order.pecas_utilizadas||''}</textarea></div></div>
+                    <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div><div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width:200px;"></div></div></div>
+                    <div class="modal-footer"><button type="submit" class="btn-action btn-save">Salvar Alterações</button></div>
+                </form>`;
         }
         
+        // ALTERAÇÃO: Função saveOrderChanges agora usa showToast em vez de alert
         async function saveOrderChanges(orderId) {
             const form = document.getElementById('edit-os-form');
             const updatedData = {};
-            if(form.equipamento_select){updatedData.equipamento=form.equipamento_select.value==='Outro'?form.outro_equipamento.value:form.outro_equipamento.value}
+            if(form.equipamento_select){updatedData.equipamento=form.equipamento_select.value==='Outro'?form.outro_equipamento.value:form.equipamento_select.value}
             if(form.marca)updatedData.marca=form.marca.value;if(form.modelo)updatedData.modelo=form.modelo.value;if(form.serial)updatedData.serial=form.serial.value;if(form.data_servico)updatedData.data_servico=form.data_servico.value;if(form.hora_chegada)updatedData.hora_chegada=form.hora_chegada.value;if(form.hora_saida)updatedData.hora_saida=form.hora_saida.value;if(form.data_retirada)updatedData.data_retirada=form.data_retirada.value;if(form.data_devolucao)updatedData.data_devolucao=form.data_devolucao.value;if(form.local_atendimento)updatedData.local_atendimento=form.local_atendimento.value;if(form.servicos_realizados)updatedData.servicos_realizados=form.servicos_realizados.value;if(form.pecas_utilizadas)updatedData.pecas_utilizadas=form.pecas_utilizadas.value;
+            
             const orderRef = doc(db, "orders", orderId);
-            await updateDoc(orderRef, updatedData);
-            alert('OS atualizada com sucesso!');
-            modalOverlay.style.display = 'none';
+            try {
+                await updateDoc(orderRef, updatedData);
+                showToast('OS atualizada com sucesso!');
+                modalOverlay.style.display = 'none';
+            } catch (error) {
+                console.error("Erro ao salvar alterações:", error);
+                showToast("Erro ao salvar. Tente novamente.");
+            }
         }
 
         const signatureModalDetails = document.getElementById('signature-modal-details');
@@ -677,26 +724,7 @@
             closeSignaturePadDetails();
         });
         
-        function imageToDataUrl(url, quality = 0.7) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.crossOrigin = 'Anonymous';
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0);
-                    resolve(canvas.toDataURL('image/jpeg', quality));
-                };
-                img.onerror = (err) => reject(new Error(`Falha ao carregar a imagem: ${url}. Erro: ${err}`));
-                img.src = url;
-            });
-        }
-
-        window.generatePdfFromModal = async function(orderId, buttonElement) {
+        window.generatePdfForOrder = async function(orderId, buttonElement) {
             buttonElement.disabled = true;
             buttonElement.textContent = 'Gerando...';
             try {
@@ -743,7 +771,7 @@
                 docPDF.text(`Serial: ${order.serial}`, margin, yPosition);
                 yPosition += 10;
                 yPosition = drawSection('Dados do Atendimento', yPosition);
-                docPDF.text(`Data do Serviço: ${order.data_servico || order.data_retirada}`, margin, yPosition);
+                docPDF.text(`Data do Serviço: ${formatDate(order.data_servico || order.data_retirada)}`, margin, yPosition);
                 yPosition += 7;
                 docPDF.text(`Hora de Chegada: ${order.hora_chegada || 'N/A'}`, margin, yPosition);
                 yPosition += 7;
@@ -777,11 +805,30 @@
                 docPDF.save(`OS-${order.os_numero.split(' ')[0]}.pdf`);
             } catch (error) {
                 console.error("Erro ao gerar PDF:", error);
-                alert("Ocorreu um erro ao gerar o PDF.");
+                showToast("Ocorreu um erro ao gerar o PDF.");
             } finally {
                 buttonElement.disabled = false;
                 buttonElement.textContent = 'Gerar PDF';
             }
+        }
+
+        function imageToDataUrl(url, quality = 0.7) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = (err) => reject(new Error(`Falha ao carregar a imagem: ${url}. Erro: ${err}`));
+                img.src = url;
+            });
         }
 
         modalOverlay.addEventListener('click', (e) => {
@@ -797,6 +844,12 @@
         });
 
         board.addEventListener('touchstart', () => {
+            if (globalMoveMenu.classList.contains('show')) {
+                globalMoveMenu.classList.remove('show');
+            }
+        }, { passive: true });
+
+        document.addEventListener('wheel', () => {
             if (globalMoveMenu.classList.contains('show')) {
                 globalMoveMenu.classList.remove('show');
             }
