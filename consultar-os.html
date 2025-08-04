@@ -27,14 +27,16 @@
             <h1 class="text-2xl font-bold text-gray-800 mb-4 text-center">Consultar Ordens de Serviço</h1>
             <input type="text" id="search-box" placeholder="Digite o número da OS, cliente ou equipamento..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
             <ul id="os-list" class="mt-4"></ul>
-            <div class="text-center mt-6">
-                 <a href="index.html" class="text-blue-600 font-semibold hover:underline">❮ Voltar para a Página Inicial</a>
-            </div>
         </main>
     </div>
     <footer class="w-full bg-gray-800 text-white p-5 text-center mt-8">
         <p><strong>BM Medical</strong></p>
     </footer>
+
+    <!-- Botão Voltar Flutuante -->
+    <a href="index.html" class="fixed bottom-6 right-6 bg-gray-800 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-700 transition-colors z-40">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+    </a>
 
     <!-- Modal de Confirmação -->
     <div id="confirmation-modal" class="fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center p-4 hidden z-50">
@@ -95,7 +97,6 @@
                     const isArchived = order.status === 'arquivada';
                     const formattedDate = formatDate(order.data_servico || order.data_retirada);
 
-                    // ALTERAÇÃO: Padding e tamanho da fonte dos botões ajustados
                     const detailsButton = `<button class="px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 btn-details">Detalhes</button>`;
                     const pdfButton = `<button class="px-3 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 btn-pdf">Gerar PDF</button>`;
                     const unarchiveButton = `<button class="px-3 py-2 bg-gray-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75 btn-unarchive">Desarquivar</button>`;

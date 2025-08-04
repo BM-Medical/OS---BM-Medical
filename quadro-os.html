@@ -162,7 +162,22 @@
         .modal-body .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
         .modal-body .form-group { margin-bottom: 15px; }
         .modal-body .form-group label { display: block; font-weight: 500; margin-bottom: 5px; }
-        .modal-body .form-group input, .modal-body .form-group textarea, .modal-body .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        .modal-body .form-group input, .modal-body .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        
+        /* ALTERAÇÃO: Estilos para o textarea com crescimento automático */
+        .modal-body .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+            resize: none; /* Desabilita o redimensionamento manual */
+            overflow-y: hidden; /* Esconde a barra de rolagem até ser necessária */
+            min-height: 80px; /* Altura inicial */
+        }
+
         .modal-footer { display: flex; justify-content: space-between; gap: 15px; margin-top: 20px; align-items: center; }
         .btn-action { text-decoration: none; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: 500; transition: background-color 0.2s ease; }
         .btn-edit { background-color: #f39c12; }
@@ -292,7 +307,6 @@
             return `${day}/${month}/${year}`;
         }
 
-        // Função para mostrar a notificação toast
         function showToast(message) {
             const toast = document.getElementById('toast-notification');
             toast.textContent = message;
@@ -520,6 +534,18 @@
                 <div class="modal-footer"><button class="btn-action btn-edit" onclick="window.switchToEditMode('${order.id}')">Editar OS</button><button class="btn-action btn-pdf" onclick="window.generatePdfForOrder('${order.id}', this)">Gerar PDF</button></div>`;
         }
         
+        // ALTERAÇÃO: Nova função para o crescimento automático do textarea
+        function autoGrowTextarea(element) {
+            element.style.height = 'auto'; // Reseta a altura
+            element.style.height = (element.scrollHeight) + 'px'; // Ajusta para a altura do conteúdo
+            if (element.scrollHeight > 250) { // Limite máximo de altura
+                element.style.overflowY = 'auto';
+                element.style.height = '250px';
+            } else {
+                element.style.overflowY = 'hidden';
+            }
+        }
+
         window.switchToEditMode = async function(orderId) {
             const docRef = doc(db, "orders", orderId);
             const docSnap = await getDoc(docRef);
@@ -531,6 +557,14 @@
                     e.preventDefault();
                     saveOrderChanges(orderId);
                 });
+                
+                // ALTERAÇÃO: Adiciona os listeners para o crescimento automático
+                const textareas = editForm.querySelectorAll('textarea');
+                textareas.forEach(textarea => {
+                    textarea.addEventListener('input', () => autoGrowTextarea(textarea));
+                    autoGrowTextarea(textarea); // Ajusta a altura inicial
+                });
+
                 const equipamentoSelect = editForm.querySelector('#edit_equipamento_select');
                 if (equipamentoSelect) {
                     equipamentoSelect.addEventListener('change', () => {
@@ -574,13 +608,12 @@
                 <form id="edit-os-form">
                     ${equipmentFields?`<div class="form-section"><h2>Dados do Equipamento</h2>${equipmentFields}</div>`:''}
                     <div class="form-section"><h2>Atendimento</h2>${attendanceFields}</div>
-                    <div class="form-section"><h2>Serviços e Peças</h2><div class="form-group"><label for="edit_servicos_realizados">Serviços Realizados:</label><textarea id="edit_servicos_realizados" name="servicos_realizados" rows="4">${order.servicos_realizados||''}</textarea></div><div class="form-group"><label for="edit_pecas_utilizadas">Peças Utilizadas:</label><textarea id="edit_pecas_utilizadas" name="pecas_utilizadas" rows="3">${order.pecas_utilizadas||''}</textarea></div></div>
+                    <div class="form-section"><h2>Serviços e Peças</h2><div class="form-group"><label for="edit_servicos_realizados">Serviços Realizados:</label><textarea id="edit_servicos_realizados" name="servicos_realizados">${order.servicos_realizados||''}</textarea></div><div class="form-group"><label for="edit_pecas_utilizadas">Peças Utilizadas:</label><textarea id="edit_pecas_utilizadas" name="pecas_utilizadas">${order.pecas_utilizadas||''}</textarea></div></div>
                     <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div><div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width:200px;"></div></div></div>
                     <div class="modal-footer"><button type="submit" class="btn-action btn-save">Salvar Alterações</button></div>
                 </form>`;
         }
         
-        // ALTERAÇÃO: Função saveOrderChanges agora usa showToast em vez de alert
         async function saveOrderChanges(orderId) {
             const form = document.getElementById('edit-os-form');
             const updatedData = {};
@@ -808,7 +841,6 @@
                 showToast("Ocorreu um erro ao gerar o PDF.");
             } finally {
                 buttonElement.disabled = false;
-                buttonElement.textContent = 'Gerar PDF';
             }
         }
 
