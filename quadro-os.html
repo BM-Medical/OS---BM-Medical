@@ -34,7 +34,6 @@
         }
 
         .list { background-color: #e9ecef; border-radius: 8px; width: 300px; min-width: 300px; max-height: 100%; display: flex; flex-direction: column; }
-        .list[data-status="arquivada"] { background-color: #d6e9d6; }
         .list-header { padding: 12px 15px; font-weight: 700; font-size: 1rem; border-bottom: 1px solid #ced4da; position: sticky; top: 0; background-color: inherit; z-index: 2; }
         .cards { padding: 10px; flex-grow: 1; min-height: 100px; overflow-y: auto; }
         
@@ -164,7 +163,6 @@
         .modal-body .form-group label { display: block; font-weight: 500; margin-bottom: 5px; }
         .modal-body .form-group input, .modal-body .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         
-        /* ALTERAÇÃO: Estilos para o textarea com crescimento automático */
         .modal-body .form-group textarea {
             width: 100%;
             padding: 10px;
@@ -173,17 +171,19 @@
             font-size: 1rem;
             box-sizing: border-box;
             font-family: 'Inter', sans-serif;
-            resize: none; /* Desabilita o redimensionamento manual */
-            overflow-y: hidden; /* Esconde a barra de rolagem até ser necessária */
-            min-height: 80px; /* Altura inicial */
+            resize: none;
+            overflow-y: hidden;
+            min-height: 80px;
         }
 
-        .modal-footer { display: flex; justify-content: space-between; gap: 15px; margin-top: 20px; align-items: center; }
+        .modal-footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 20px; }
         .btn-action { text-decoration: none; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: 500; transition: background-color 0.2s ease; }
         .btn-edit { background-color: #f39c12; }
         .btn-pdf { background-color: #3498db; }
-        .btn-pdf:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        .btn-pdf:disabled { background-color: #bdc3c7; }
         .btn-save { background-color: #2ecc71; }
+        .btn-finalize { background-color: #27ae60; } /* Verde mais escuro */
+        .btn-archive { background-color: #7f8c8d; } /* Cinza */
         
         .signature-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: center; z-index: 2000; }
         .signature-modal-content { background-color: #fff; padding: 20px; border-radius: 10px; width: 95%; max-width: 600px; text-align: center; display: flex; flex-direction: column; }
@@ -224,6 +224,33 @@
             opacity: 1;
             bottom: 50px;
         }
+        
+        /* Estilos dos novos modais de confirmação */
+        .confirmation-modal-content {
+            background-color: white;
+            padding: 25px;
+            border-radius: 8px;
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+        .confirmation-modal-content h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        .confirmation-modal-content p {
+            margin-bottom: 25px;
+        }
+        .confirmation-modal-content .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .confirmation-modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
 
         @media (max-width: 768px) {
             .board { scroll-snap-type: none; }
@@ -250,7 +277,6 @@
     <!-- Modais -->
     <div id="details-modal" class="modal-overlay">
         <div class="modal-content">
-             <!-- O conteúdo do modal, incluindo o botão de fechar, será injetado aqui -->
             <div id="modal-body" class="modal-body"></div>
         </div>
     </div>
@@ -266,6 +292,34 @@
             </div>
         </div>
     </div>
+    
+    <!-- Modal de Confirmação para Finalizar -->
+    <div id="finalize-modal" class="modal-overlay" style="z-index: 1001;">
+        <div class="confirmation-modal-content">
+            <h3>Finalizar Ordem de Serviço</h3>
+            <div class="form-group">
+                <label for="completion-date">Data de Conclusão</label>
+                <input type="date" id="completion-date" class="form-group-input">
+            </div>
+            <div class="confirmation-modal-buttons">
+                <button type="button" id="cancel-finalize-btn" class="btn-action btn-archive">Cancelar</button>
+                <button type="button" id="confirm-finalize-btn" class="btn-action btn-finalize">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação para Arquivar -->
+    <div id="archive-modal" class="modal-overlay" style="z-index: 1001;">
+        <div class="confirmation-modal-content">
+            <h3>Arquivar Ordem de Serviço</h3>
+            <p>Deseja realmente arquivar (cancelar) esta OS? Esta ação não pode ser desfeita do quadro.</p>
+            <div class="confirmation-modal-buttons">
+                <button type="button" id="cancel-archive-btn" class="btn-action btn-archive">Cancelar</button>
+                <button type="button" id="confirm-archive-btn" class="btn-action btn-edit">Sim, Arquivar</button>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Elemento da Notificação Toast -->
     <div id="toast-notification"></div>
@@ -274,7 +328,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getFirestore, collection, doc, getDoc, updateDoc, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
-        // Configuração do Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
             authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
@@ -286,19 +339,21 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Elementos do DOM
         const board = document.getElementById('board');
         const modalOverlay = document.getElementById('details-modal');
         const modalBody = document.getElementById('modal-body');
         const globalMoveMenu = document.getElementById('global-move-menu');
+        
+        const finalizeModal = document.getElementById('finalize-modal');
+        const archiveModal = document.getElementById('archive-modal');
+        let currentOrderForAction = null;
 
-        // Definição das colunas e seus nomes amigáveis
+        // ALTERAÇÃO: Objeto de status sem a coluna 'arquivada'
         const statuses = {
             'novas': 'Novas OS',
             'em_execucao': 'Em Execução',
             'aguardando_pecas': 'Aguardando Peças',
-            'pronto_entrega': 'Pronto para Entrega',
-            'arquivada': 'Concluídas (Arquivar aqui)'
+            'pronto_entrega': 'Pronto para Entrega'
         };
 
         function formatDate(dateString) {
@@ -316,7 +371,6 @@
             }, 3000);
         }
 
-        // Função para inicializar o quadro, criando as colunas
         function initializeBoard() {
             for (const statusKey in statuses) {
                 const list = document.createElement('div');
@@ -330,7 +384,6 @@
             }
         }
 
-        // Função para escutar as alterações nas OS em tempo real
         function listenToOrders() {
             const q = query(collection(db, "orders"));
             
@@ -345,10 +398,9 @@
                     if (typeof order.position === 'undefined') {
                         order.position = order.createdAt?.toMillis() || Date.now();
                     }
-                    if (order.status && ordersByStatus.hasOwnProperty(order.status)) {
+                    // ALTERAÇÃO: Apenas adiciona OSs com status que existem no quadro
+                    if (order.status && statuses.hasOwnProperty(order.status)) {
                         ordersByStatus[order.status].push(order);
-                    } else {
-                        console.warn(`Ordem de Serviço ${order.id} com status inválido ou ausente: '${order.status}'`);
                     }
                 });
 
@@ -368,7 +420,6 @@
             });
         }
 
-        // Função para criar um cartão de OS
         function createCard(order) {
             const card = document.createElement('div');
             card.className = 'card';
@@ -485,14 +536,13 @@
             }
         }
 
-        // --- LÓGICA DOS MODAIS ---
-        
         async function openDetailsModal(orderId) {
             try {
                 const docRef = doc(db, "orders", orderId);
                 const docSnap = await getDoc(docRef);
                 if (!docSnap.exists()) throw new Error('OS não encontrada');
                 const order = { id: docSnap.id, ...docSnap.data() };
+                currentOrderForAction = order; // Armazena a OS completa para as ações
                 modalBody.innerHTML = generateDetailsView(order);
                 modalOverlay.style.display = 'flex';
             } catch (error) {
@@ -531,14 +581,18 @@
                     <p><strong>Peças Utilizadas:</strong><br>${order.pecas_utilizadas||'Nenhuma'}</p>
                 </div>
                 <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div><div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width:200px;"></div></div></div>
-                <div class="modal-footer"><button class="btn-action btn-edit" onclick="window.switchToEditMode('${order.id}')">Editar OS</button><button class="btn-action btn-pdf" onclick="window.generatePdfForOrder('${order.id}', this)">Gerar PDF</button></div>`;
+                <div class="modal-footer">
+                    <button class="btn-action btn-archive" onclick="window.handleArchiveClick()">Arquivar OS</button>
+                    <button class="btn-action btn-edit" onclick="window.switchToEditMode('${order.id}')">Editar OS</button>
+                    <button class="btn-action btn-pdf" onclick="window.generatePdfForOrder('${order.id}', this)">Gerar PDF</button>
+                    <button class="btn-action btn-finalize" onclick="window.handleFinalizeClick()">Finalizar OS</button>
+                </div>`;
         }
         
-        // ALTERAÇÃO: Nova função para o crescimento automático do textarea
         function autoGrowTextarea(element) {
-            element.style.height = 'auto'; // Reseta a altura
-            element.style.height = (element.scrollHeight) + 'px'; // Ajusta para a altura do conteúdo
-            if (element.scrollHeight > 250) { // Limite máximo de altura
+            element.style.height = 'auto';
+            element.style.height = (element.scrollHeight) + 'px';
+            if (element.scrollHeight > 250) {
                 element.style.overflowY = 'auto';
                 element.style.height = '250px';
             } else {
@@ -558,11 +612,10 @@
                     saveOrderChanges(orderId);
                 });
                 
-                // ALTERAÇÃO: Adiciona os listeners para o crescimento automático
                 const textareas = editForm.querySelectorAll('textarea');
                 textareas.forEach(textarea => {
                     textarea.addEventListener('input', () => autoGrowTextarea(textarea));
-                    autoGrowTextarea(textarea); // Ajusta a altura inicial
+                    autoGrowTextarea(textarea);
                 });
 
                 const equipamentoSelect = editForm.querySelector('#edit_equipamento_select');
@@ -608,7 +661,7 @@
                 <form id="edit-os-form">
                     ${equipmentFields?`<div class="form-section"><h2>Dados do Equipamento</h2>${equipmentFields}</div>`:''}
                     <div class="form-section"><h2>Atendimento</h2>${attendanceFields}</div>
-                    <div class="form-section"><h2>Serviços e Peças</h2><div class="form-group"><label for="edit_servicos_realizados">Serviços Realizados:</label><textarea id="edit_servicos_realizados" name="servicos_realizados">${order.servicos_realizados||''}</textarea></div><div class="form-group"><label for="edit_pecas_utilizadas">Peças Utilizadas:</label><textarea id="edit_pecas_utilizadas" name="pecas_utilizadas">${order.pecas_utilizadas||''}</textarea></div></div>
+                    <div class="form-section"><h2>Serviços e Peças</h2><div class="form-group"><label for="edit_servicos_realizados">Serviços Realizados:</label><textarea id="edit_servicos_realizados">${order.servicos_realizados||''}</textarea></div><div class="form-group"><label for="edit_pecas_utilizadas">Peças Utilizadas:</label><textarea id="edit_pecas_utilizadas">${order.pecas_utilizadas||''}</textarea></div></div>
                     <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div><div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width:200px;"></div></div></div>
                     <div class="modal-footer"><button type="submit" class="btn-action btn-save">Salvar Alterações</button></div>
                 </form>`;
@@ -618,8 +671,11 @@
             const form = document.getElementById('edit-os-form');
             const updatedData = {};
             if(form.equipamento_select){updatedData.equipamento=form.equipamento_select.value==='Outro'?form.outro_equipamento.value:form.equipamento_select.value}
-            if(form.marca)updatedData.marca=form.marca.value;if(form.modelo)updatedData.modelo=form.modelo.value;if(form.serial)updatedData.serial=form.serial.value;if(form.data_servico)updatedData.data_servico=form.data_servico.value;if(form.hora_chegada)updatedData.hora_chegada=form.hora_chegada.value;if(form.hora_saida)updatedData.hora_saida=form.hora_saida.value;if(form.data_retirada)updatedData.data_retirada=form.data_retirada.value;if(form.data_devolucao)updatedData.data_devolucao=form.data_devolucao.value;if(form.local_atendimento)updatedData.local_atendimento=form.local_atendimento.value;if(form.servicos_realizados)updatedData.servicos_realizados=form.servicos_realizados.value;if(form.pecas_utilizadas)updatedData.pecas_utilizadas=form.pecas_utilizadas.value;
-            
+            if(form.marca)updatedData.marca=form.marca.value;if(form.modelo)updatedData.modelo=form.modelo.value;if(form.serial)updatedData.serial=form.serial.value;if(form.data_servico)updatedData.data_servico=form.data_servico.value;if(form.hora_chegada)updatedData.hora_chegada=form.hora_chegada.value;if(form.hora_saida)updatedData.hora_saida=form.hora_saida.value;if(form.data_retirada)updatedData.data_retirada=form.data_retirada.value;if(form.data_devolucao)updatedData.data_devolucao=form.data_devolucao.value;if(form.local_atendimento)updatedData.local_atendimento=form.local_atendimento.value;
+            // Pega os valores dos textareas pelo ID
+            updatedData.servicos_realizados = document.getElementById('edit_servicos_realizados').value;
+            updatedData.pecas_utilizadas = document.getElementById('edit_pecas_utilizadas').value;
+
             const orderRef = doc(db, "orders", orderId);
             try {
                 await updateDoc(orderRef, updatedData);
@@ -631,6 +687,64 @@
             }
         }
 
+        // --- Lógica para Finalizar e Arquivar ---
+
+        window.handleFinalizeClick = () => {
+            const isSigned = currentOrderForAction.signature_data && currentOrderForAction.signature_data.length > 200;
+            if (!isSigned) {
+                showToast("Não é possível finalizar: a OS não está assinada.");
+                return;
+            }
+            const dateInput = document.getElementById('completion-date');
+            dateInput.value = new Date().toISOString().split('T')[0];
+            finalizeModal.style.display = 'flex';
+        };
+
+        window.handleArchiveClick = () => {
+            archiveModal.style.display = 'flex';
+        };
+
+        document.getElementById('cancel-finalize-btn').addEventListener('click', () => finalizeModal.style.display = 'none');
+        document.getElementById('cancel-archive-btn').addEventListener('click', () => archiveModal.style.display = 'none');
+
+        document.getElementById('confirm-finalize-btn').addEventListener('click', async () => {
+            const completionDate = document.getElementById('completion-date').value;
+            if (!completionDate) {
+                showToast("Por favor, selecione uma data de conclusão.");
+                return;
+            }
+            const orderRef = doc(db, "orders", currentOrderForAction.id);
+            try {
+                await updateDoc(orderRef, {
+                    status: 'finalizada',
+                    data_conclusao: completionDate
+                });
+                showToast("OS finalizada com sucesso!");
+                finalizeModal.style.display = 'none';
+                modalOverlay.style.display = 'none';
+            } catch (error) {
+                showToast("Erro ao finalizar a OS.");
+                console.error("Erro ao finalizar:", error);
+            }
+        });
+
+        document.getElementById('confirm-archive-btn').addEventListener('click', async () => {
+            const orderRef = doc(db, "orders", currentOrderForAction.id);
+            try {
+                await updateDoc(orderRef, {
+                    status: 'arquivada'
+                });
+                showToast("OS arquivada com sucesso!");
+                archiveModal.style.display = 'none';
+                modalOverlay.style.display = 'none';
+            } catch (error) {
+                showToast("Erro ao arquivar a OS.");
+                console.error("Erro ao arquivar:", error);
+            }
+        });
+
+
+        // --- Lógica da Assinatura (sem alterações) ---
         const signatureModalDetails = document.getElementById('signature-modal-details');
         const signaturePadDetails = document.getElementById('signature-pad-details');
         const signatureErrorMessageDetails = document.getElementById('signature-error-message-details');

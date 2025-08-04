@@ -15,6 +15,14 @@
             font-family: 'Inter', sans-serif; 
             background-color: #f4f7f6;
         }
+        .filters-enter {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+        }
+        .filters-enter-active {
+            max-height: 500px; /* Altura suficiente para os filtros */
+        }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
@@ -25,7 +33,48 @@
         </header>
         <main class="w-full max-w-lg bg-white p-5 rounded-lg shadow-lg">
             <h1 class="text-2xl font-bold text-gray-800 mb-4 text-center">Consultar Ordens de Serviço</h1>
-            <input type="text" id="search-box" placeholder="Digite o número da OS, cliente ou equipamento..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+
+            <!-- Secção de Filtros -->
+            <button id="toggle-filters-btn" class="w-full mb-4 text-left text-blue-600 font-semibold p-2 rounded-md hover:bg-blue-50">
+                Mostrar/Ocultar Filtros Avançados
+            </button>
+            <div id="filters-section" class="filters-enter">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+                    <div>
+                        <label for="status-filter" class="block text-sm font-medium text-gray-700">Status</label>
+                        <select id="status-filter" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                            <option value="todos">Todos</option>
+                            <option value="abertas">Abertas</option>
+                            <option value="finalizada">Concluídas</option>
+                            <option value="arquivada">Arquivadas</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="contract-filter" class="block text-sm font-medium text-gray-700">Contrato</label>
+                        <select id="contract-filter" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                            <option value="todos">Todos</option>
+                            <option value="Contrato N° 03/2024">Autoclave BAUMER HE-UFPEL</option>
+                            <option value="Contrato Nº 138/2024">Capão do Leão</option>
+                            <option value="Contrato Nº 10/2025">Exército Brasileiro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="date-filter" class="block text-sm font-medium text-gray-700">Data de Abertura</label>
+                        <input type="date" id="date-filter" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="text-search" class="block text-sm font-medium text-gray-700">Nº da OS ou Equipamento</label>
+                        <input type="text" id="text-search" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 mt-4 pt-4 border-t">
+                    <button id="clear-filters-btn" class="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-300">Limpar</button>
+                    <!-- ALTERAÇÃO: Cor do botão alterada para roxo -->
+                    <button id="apply-filters-btn" class="px-4 py-2 bg-purple-600 text-white text-sm font-semibold rounded-lg hover:bg-purple-700">Aplicar Filtros</button>
+                </div>
+            </div>
+            <!-- Fim da Secção de Filtros -->
+
             <ul id="os-list" class="mt-4"></ul>
         </main>
     </div>
@@ -70,6 +119,7 @@
         const cancelBtn = document.getElementById('cancel-btn');
         const confirmBtn = document.getElementById('confirm-btn');
         let currentOrderToUnarchive = null;
+        let allOrders = []; // Array para guardar todas as OSs
 
         function formatDate(dateString) {
             if (!dateString) return 'N/A';
@@ -77,85 +127,175 @@
             return `${day}/${month}/${year}`;
         }
 
-        async function loadOrders() {
+        // ALTERAÇÃO: Nova função para normalizar texto (remover acentos)
+        function normalizeText(text) {
+            if (!text) return '';
+            return text
+                .toString()
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "");
+        }
+
+        async function fetchAllOrders() {
             try {
                 const osList = document.getElementById('os-list');
                 osList.innerHTML = '<li>Carregando...</li>';
                 const ordersRef = collection(db, "orders");
                 const q = query(ordersRef, orderBy("createdAt", "desc"));
                 const querySnapshot = await getDocs(q);
-                osList.innerHTML = '';
-                if (querySnapshot.empty) {
-                    osList.innerHTML = '<li>Nenhuma OS encontrada.</li>';
-                    return;
-                }
-
+                
+                allOrders = [];
                 querySnapshot.forEach((doc) => {
-                    const order = { id: doc.id, ...doc.data() };
-                    const listItem = document.createElement('li');
-                    
-                    const isArchived = order.status === 'arquivada';
-                    const formattedDate = formatDate(order.data_servico || order.data_retirada);
-
-                    const detailsButton = `<button class="px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 btn-details">Detalhes</button>`;
-                    const pdfButton = `<button class="px-3 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 btn-pdf">Gerar PDF</button>`;
-                    const unarchiveButton = `<button class="px-3 py-2 bg-gray-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75 btn-unarchive">Desarquivar</button>`;
-
-                    let actionsHtml = '';
-                    if (isArchived) {
-                        actionsHtml = unarchiveButton + detailsButton + pdfButton;
-                    } else {
-                        actionsHtml = detailsButton + pdfButton;
-                    }
-                    
-                    const cardClasses = isArchived ? 'bg-gray-50' : 'bg-white';
-                    const titleClasses = isArchived ? 'text-gray-500' : 'text-blue-600';
-                    const textClasses = isArchived ? 'text-gray-400' : 'text-gray-500';
-
-                    listItem.innerHTML = `
-                        <div class="rounded-xl shadow-md p-4 mb-4 ${cardClasses}">
-                            <div class="mb-3">
-                                <h2 class="text-lg font-bold ${titleClasses}">OS: ${order.os_numero || 'N/A'} ${isArchived ? '(Arquivada)' : ''}</h2>
-                                <p class="text-sm mt-1 ${textClasses}">Cliente: ${order.cliente || 'N/A'}</p>
-                                <p class="text-sm ${textClasses}">Data: ${formattedDate}</p>
-                            </div>
-                            <div class="border-t border-gray-200 my-2"></div>
-                            <div class="flex justify-end items-center pt-2 space-x-2">
-                                ${actionsHtml}
-                            </div>
-                        </div>
-                    `;
-                    
-                    listItem.querySelector('.btn-details').addEventListener('click', () => {
-                        window.location.href = `detalhe-os.html?id=${order.id}`;
-                    });
-
-                    const pdfBtnElement = listItem.querySelector('.btn-pdf');
-                    if (pdfBtnElement) {
-                        pdfBtnElement.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            generatePdfForOrder(order.id, e.target);
-                        });
-                    }
-
-                    const unarchiveBtnElement = listItem.querySelector('.btn-unarchive');
-                    if (unarchiveBtnElement) {
-                        unarchiveBtnElement.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            currentOrderToUnarchive = { id: order.id, os_numero: order.os_numero, button: e.target };
-                            osNumberModal.textContent = `OS ${order.os_numero}`;
-                            confirmationModal.classList.remove('hidden');
-                        });
-                    }
-
-                    osList.appendChild(listItem);
+                    allOrders.push({ id: doc.id, ...doc.data() });
                 });
+                
+                renderOrders(allOrders);
+
             } catch (error) {
                 console.error('Erro ao carregar Ordens de Serviço:', error);
                 document.getElementById('os-list').innerHTML = '<li>Erro ao carregar dados.</li>';
             }
         }
-        
+
+        function renderOrders(orders) {
+            const osList = document.getElementById('os-list');
+            osList.innerHTML = '';
+            if (orders.length === 0) {
+                osList.innerHTML = '<li>Nenhuma OS encontrada com os filtros aplicados.</li>';
+                return;
+            }
+
+            orders.forEach((order) => {
+                const listItem = document.createElement('li');
+                
+                const isArchived = order.status === 'arquivada';
+                const isFinalizada = order.status === 'finalizada';
+                const formattedDate = formatDate(order.data_servico || order.data_retirada);
+
+                const detailsButton = `<button class="px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 btn-details">Detalhes</button>`;
+                const pdfButton = `<button class="px-3 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 btn-pdf">Gerar PDF</button>`;
+                const unarchiveButton = `<button class="px-3 py-2 bg-gray-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75 btn-unarchive">Desarquivar</button>`;
+
+                let actionsHtml = '';
+                let statusText = '';
+                let cardClasses = 'bg-white';
+                let titleClasses = 'text-blue-600';
+                let textClasses = 'text-gray-500';
+
+                if (isFinalizada) {
+                    actionsHtml = detailsButton + pdfButton;
+                    statusText = '(Concluída)';
+                    titleClasses = 'text-green-600';
+                } else if (isArchived) {
+                    actionsHtml = unarchiveButton + detailsButton + pdfButton;
+                    statusText = '(Arquivada)';
+                    cardClasses = 'bg-gray-50';
+                    titleClasses = 'text-gray-500';
+                    textClasses = 'text-gray-400';
+                } else {
+                    actionsHtml = detailsButton + pdfButton;
+                }
+
+                listItem.innerHTML = `
+                    <div class="rounded-xl shadow-md p-4 mb-4 ${cardClasses}">
+                        <div class="mb-3">
+                            <h2 class="text-lg font-bold ${titleClasses}">OS: ${order.os_numero || 'N/A'} ${statusText}</h2>
+                            <p class="text-sm mt-1 ${textClasses}">Cliente: ${order.cliente || 'N/A'}</p>
+                            <p class="text-sm ${textClasses}">Data: ${formattedDate}</p>
+                        </div>
+                        <div class="border-t border-gray-200 my-2"></div>
+                        <div class="flex justify-end items-center pt-2 space-x-2">
+                            ${actionsHtml}
+                        </div>
+                    </div>
+                `;
+                
+                listItem.querySelector('.btn-details').addEventListener('click', () => {
+                    window.location.href = `detalhe-os.html?id=${order.id}`;
+                });
+
+                const pdfBtnElement = listItem.querySelector('.btn-pdf');
+                if (pdfBtnElement) {
+                    pdfBtnElement.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        generatePdfForOrder(order.id, e.target);
+                    });
+                }
+
+                const unarchiveBtnElement = listItem.querySelector('.btn-unarchive');
+                if (unarchiveBtnElement) {
+                    unarchiveBtnElement.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        currentOrderToUnarchive = { id: order.id, os_numero: order.os_numero, button: e.target };
+                        osNumberModal.textContent = `OS ${order.os_numero}`;
+                        confirmationModal.classList.remove('hidden');
+                    });
+                }
+
+                osList.appendChild(listItem);
+            });
+        }
+
+        function applyFilters() {
+            const status = document.getElementById('status-filter').value;
+            const contract = document.getElementById('contract-filter').value;
+            const date = document.getElementById('date-filter').value;
+            const text = document.getElementById('text-search').value; // Pega o texto original
+
+            let filteredOrders = allOrders;
+
+            // Filtro de Status
+            if (status !== 'todos') {
+                if (status === 'abertas') {
+                    const closedStatus = ['finalizada', 'arquivada'];
+                    filteredOrders = filteredOrders.filter(order => !closedStatus.includes(order.status));
+                } else {
+                    filteredOrders = filteredOrders.filter(order => order.status === status);
+                }
+            }
+
+            // Filtro de Contrato
+            if (contract !== 'todos') {
+                filteredOrders = filteredOrders.filter(order => order.contrato === contract);
+            }
+
+            // Filtro de Data
+            if (date) {
+                filteredOrders = filteredOrders.filter(order => {
+                    const orderDate = order.data_servico || order.data_retirada;
+                    return orderDate === date;
+                });
+            }
+
+            // Filtro de Texto (com normalização)
+            if (text) {
+                const normalizedText = normalizeText(text);
+                filteredOrders = filteredOrders.filter(order => 
+                    (normalizeText(order.os_numero).includes(normalizedText)) ||
+                    (normalizeText(order.equipamento).includes(normalizedText))
+                );
+            }
+
+            renderOrders(filteredOrders);
+        }
+
+        document.getElementById('apply-filters-btn').addEventListener('click', applyFilters);
+
+        document.getElementById('clear-filters-btn').addEventListener('click', () => {
+            document.getElementById('status-filter').value = 'todos';
+            document.getElementById('contract-filter').value = 'todos';
+            document.getElementById('date-filter').value = '';
+            document.getElementById('text-search').value = '';
+            renderOrders(allOrders);
+        });
+
+        const toggleBtn = document.getElementById('toggle-filters-btn');
+        const filtersSection = document.getElementById('filters-section');
+        toggleBtn.addEventListener('click', () => {
+            filtersSection.classList.toggle('filters-enter-active');
+        });
+
         async function unarchiveOrder(orderInfo) {
             orderInfo.button.disabled = true;
             const orderRef = doc(db, "orders", orderInfo.id);
@@ -164,7 +304,7 @@
                     status: 'novas',
                     position: Date.now()
                 });
-                await loadOrders();
+                await fetchAllOrders(); // Recarrega e re-renderiza tudo
             } catch (error) {
                 console.error("Erro ao desarquivar a OS:", error);
                 alert("Ocorreu um erro ao desarquivar a OS.");
@@ -204,21 +344,9 @@
             }
         }, { passive: true });
 
-        function filterOrders() {
-            const searchTerm = document.getElementById('search-box').value.toLowerCase();
-            const osItems = document.querySelectorAll('#os-list li');
-            osItems.forEach(item => {
-                const text = item.textContent.toLowerCase();
-                if (text.includes(searchTerm)) {
-                    item.style.display = 'block';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-        }
-        document.getElementById('search-box').addEventListener('keyup', filterOrders);
-        window.onload = loadOrders;
+        window.onload = fetchAllOrders;
 
+        // --- Funções de PDF (sem alteração) ---
         function imageToDataUrl(url, quality = 0.7) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
