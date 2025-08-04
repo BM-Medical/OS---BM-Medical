@@ -11,8 +11,18 @@
     <script src="auth-guard.js" type="module"></script>
     <style>
         body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background-color: #e9ecef; color: #333; }
-        .os-container { max-width: 850px; margin: 30px auto; padding: 40px; background-color: #fff; border: 1px solid #dee2e6; box-shadow: 0 0 15px rgba(0,0,0,0.05); }
-        .os-header { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-bottom: 15px; margin-bottom: 20px; }
+        
+        .os-container { 
+            max-width: 850px; 
+            margin: 30px auto; 
+            padding: 40px;
+            background-color: #fff; 
+            border: 1px solid #dee2e6; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.05);
+            box-sizing: border-box;
+        }
+
+        .os-header { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-bottom: 15px; margin-bottom: 20px; align-items: center; }
         .my-info { text-align: right; font-size: 0.9rem; }
         .my-info p { margin: 2px 0; }
         .my-info strong { font-weight: 700; }
@@ -25,11 +35,57 @@
         .signature-grid { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 50px; text-align: center; }
         .signature-box img { max-height: 80px; margin-bottom: 10px; }
         .signature-line { border-top: 1px solid #000; margin: 0 20px; padding-top: 5px; font-weight: 500; }
+        
+        /* Layout original dos botões para desktop */
         .actions-footer { text-align: center; margin-top: 40px; display: flex; justify-content: center; gap: 20px; }
         .btn-action { text-decoration: none; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: 500; transition: background-color 0.2s ease; font-size: 1rem; }
         .btn-back { background-color: #7f8c8d; }
         .btn-pdf { background-color: #3498db; }
         .btn-pdf:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+
+        /* Media queries para responsividade em telemóveis */
+        @media (max-width: 768px) {
+            body {
+                padding-bottom: 20px; /* Garante espaço no final da página */
+            }
+            .os-container {
+                margin: 0;
+                padding: 20px;
+                border: none;
+                box-shadow: none;
+                max-width: 100%;
+            }
+            .os-header {
+                grid-template-columns: 1fr; /* Coluna única */
+                text-align: center;
+            }
+            .logo-container {
+                margin-bottom: 20px;
+            }
+            .my-info {
+                text-align: center;
+                font-size: 0.8rem;
+            }
+            .os-title {
+                font-size: 1.2rem;
+            }
+            .details-grid, .signature-grid {
+                grid-template-columns: 1fr; /* Coluna única */
+                gap: 20px 0;
+            }
+            .signature-box {
+                margin-bottom: 20px;
+            }
+            /* Altera o layout dos botões apenas no telemóvel */
+            .actions-footer {
+                flex-direction: column;
+                padding: 0; /* Remove padding extra no telemóvel */
+            }
+            .btn-action {
+                width: 100%;
+                box-sizing: border-box; /* Garante que padding não aumente a largura */
+            }
+        }
     </style>
 </head>
 <body>
@@ -55,6 +111,7 @@
             <div class="section" id="parts-data"></div>
             <div class="section" id="signature-data"></div>
         </main>
+        <!-- Botões de volta para dentro do container principal -->
         <div class="actions-footer">
             <a href="consultar-os.html" class="btn-action btn-back">❮ Voltar para a Consulta</a>
             <button type="button" id="pdf-button" class="btn-action btn-pdf">Gerar PDF</button>
@@ -75,7 +132,6 @@
         const db = getFirestore(app);
         let currentOrderData = null;
 
-        // Função auxiliar para formatar a data
         function formatDate(dateString) {
             if (!dateString) return 'N/A';
             const [year, month, day] = dateString.split('-');
@@ -115,7 +171,6 @@
                 const order = docSnap.data();
                 currentOrderData = order;
                 
-                // Formata as datas antes de exibi-las
                 const formattedRetirada = formatDate(order.data_retirada || order.data_servico);
                 const formattedDevolucao = formatDate(order.data_devolucao);
 
@@ -156,7 +211,6 @@
                 const margin = 15;
                 const signatureDataUrl = order.signature_data;
 
-                // Formata a data para o PDF
                 const formattedDatePdf = formatDate(order.data_servico || order.data_retirada);
 
                 function drawSection(title, yPos) {
