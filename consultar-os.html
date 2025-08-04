@@ -95,9 +95,10 @@
                     const isArchived = order.status === 'arquivada';
                     const formattedDate = formatDate(order.data_servico || order.data_retirada);
 
-                    const detailsButton = `<button class="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 btn-details">Detalhes</button>`;
-                    const pdfButton = `<button class="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 btn-pdf">Gerar PDF</button>`;
-                    const unarchiveButton = `<button class="px-4 py-2 bg-gray-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75 btn-unarchive">Desarquivar</button>`;
+                    // ALTERAÇÃO: Padding e tamanho da fonte dos botões ajustados
+                    const detailsButton = `<button class="px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 btn-details">Detalhes</button>`;
+                    const pdfButton = `<button class="px-3 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 btn-pdf">Gerar PDF</button>`;
+                    const unarchiveButton = `<button class="px-3 py-2 bg-gray-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75 btn-unarchive">Desarquivar</button>`;
 
                     let actionsHtml = '';
                     if (isArchived) {
@@ -118,7 +119,7 @@
                                 <p class="text-sm ${textClasses}">Data: ${formattedDate}</p>
                             </div>
                             <div class="border-t border-gray-200 my-2"></div>
-                            <div class="flex justify-end items-center pt-2 space-x-3">
+                            <div class="flex justify-end items-center pt-2 space-x-2">
                                 ${actionsHtml}
                             </div>
                         </div>
@@ -196,7 +197,6 @@
             }
         }, { passive: true });
 
-        // MELHORIA: Adiciona evento para fechar o modal com a roda do mouse
         document.addEventListener('wheel', () => {
             if (!confirmationModal.classList.contains('hidden')) {
                 closeModal();
