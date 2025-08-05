@@ -69,7 +69,6 @@
                 </div>
                 <div class="flex justify-end space-x-3 mt-4 pt-4 border-t">
                     <button id="clear-filters-btn" class="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-300">Limpar</button>
-                    <!-- ALTERAÇÃO: Cor do botão alterada para roxo -->
                     <button id="apply-filters-btn" class="px-4 py-2 bg-purple-600 text-white text-sm font-semibold rounded-lg hover:bg-purple-700">Aplicar Filtros</button>
                 </div>
             </div>
@@ -127,7 +126,6 @@
             return `${day}/${month}/${year}`;
         }
 
-        // ALTERAÇÃO: Nova função para normalizar texto (remover acentos)
         function normalizeText(text) {
             if (!text) return '';
             return text
@@ -241,7 +239,8 @@
             const status = document.getElementById('status-filter').value;
             const contract = document.getElementById('contract-filter').value;
             const date = document.getElementById('date-filter').value;
-            const text = document.getElementById('text-search').value; // Pega o texto original
+            // ALTERAÇÃO: Adiciona .trim() para remover espaços
+            const text = document.getElementById('text-search').value.trim();
 
             let filteredOrders = allOrders;
 
