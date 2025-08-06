@@ -118,7 +118,7 @@
         const cancelBtn = document.getElementById('cancel-btn');
         const confirmBtn = document.getElementById('confirm-btn');
         let currentOrderToUnarchive = null;
-        let allOrders = []; // Array para guardar todas as OSs
+        let allOrders = []; 
 
         function formatDate(dateString) {
             if (!dateString) return 'N/A';
@@ -239,12 +239,10 @@
             const status = document.getElementById('status-filter').value;
             const contract = document.getElementById('contract-filter').value;
             const date = document.getElementById('date-filter').value;
-            // ALTERAÇÃO: Adiciona .trim() para remover espaços
             const text = document.getElementById('text-search').value.trim();
 
             let filteredOrders = allOrders;
 
-            // Filtro de Status
             if (status !== 'todos') {
                 if (status === 'abertas') {
                     const closedStatus = ['finalizada', 'arquivada'];
@@ -254,12 +252,10 @@
                 }
             }
 
-            // Filtro de Contrato
             if (contract !== 'todos') {
                 filteredOrders = filteredOrders.filter(order => order.contrato === contract);
             }
 
-            // Filtro de Data
             if (date) {
                 filteredOrders = filteredOrders.filter(order => {
                     const orderDate = order.data_servico || order.data_retirada;
@@ -267,7 +263,6 @@
                 });
             }
 
-            // Filtro de Texto (com normalização)
             if (text) {
                 const normalizedText = normalizeText(text);
                 filteredOrders = filteredOrders.filter(order => 
@@ -303,7 +298,7 @@
                     status: 'novas',
                     position: Date.now()
                 });
-                await fetchAllOrders(); // Recarrega e re-renderiza tudo
+                await fetchAllOrders(); 
             } catch (error) {
                 console.error("Erro ao desarquivar a OS:", error);
                 alert("Ocorreu um erro ao desarquivar a OS.");
@@ -331,21 +326,9 @@
             }
         });
 
-        confirmationModal.addEventListener('touchstart', (e) => {
-            if (e.target === confirmationModal) {
-                closeModal();
-            }
-        }, { passive: true });
-
-        document.addEventListener('wheel', () => {
-            if (!confirmationModal.classList.contains('hidden')) {
-                closeModal();
-            }
-        }, { passive: true });
-
         window.onload = fetchAllOrders;
 
-        // --- Funções de PDF (sem alteração) ---
+        // --- Funções de PDF ---
         function imageToDataUrl(url, quality = 0.7) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
@@ -367,6 +350,7 @@
 
         async function generatePdfForOrder(orderId, buttonElement) {
             buttonElement.disabled = true;
+            buttonElement.textContent = 'Gerando...';
             try {
                 const logoDataUrl = await imageToDataUrl('./images/logo.png', 0.9);
                 const techSigDataUrl = await imageToDataUrl('./images/assinatura-tecnico.png', 0.7);
@@ -374,82 +358,173 @@
                 const docSnap = await getDoc(docRef);
                 if (!docSnap.exists()) { throw new Error('OS não encontrada.'); }
                 const order = docSnap.data();
+                
                 const { jsPDF } = window.jspdf;
                 const docPDF = new jsPDF();
                 const pageHeight = docPDF.internal.pageSize.height;
                 const pageWidth = docPDF.internal.pageSize.width;
                 const margin = 15;
-                const signatureDataUrl = order.signature_data;
-                function drawSection(title, yPos) {
-                    docPDF.setFontSize(11).setFont(undefined, 'bold');
-                    docPDF.text(title, margin, yPos);
-                    docPDF.setLineWidth(0.2).line(margin, yPos + 2, pageWidth - margin, yPos + 2);
-                    return yPos + 8;
-                }
-                docPDF.addImage(logoDataUrl, 'JPEG', margin, 12, 80, 32);
-                docPDF.setFontSize(10).setFont(undefined, 'bold');
-                docPDF.text('BM MEDICAL', pageWidth - margin, 15, { align: 'right' });
+                let yPosition = 10;
+
+                // --- Cabeçalho ---
+                docPDF.addImage(logoDataUrl, 'JPEG', margin, yPosition, 72, 32);
                 docPDF.setFontSize(8).setFont(undefined, 'normal');
-                docPDF.text('Manutenção Hospitalar', pageWidth - margin, 20, { align: 'right' });
-                docPDF.text('CNPJ: 48.673.158/0001-59', pageWidth - margin, 25, { align: 'right' });
-                docPDF.text('Av. Duque de Caxias, 915-B403, Pelotas-RS', pageWidth - margin, 30, { align: 'right' });
-                docPDF.text('Fone: (51) 99377-5933', pageWidth - margin, 35, { align: 'right' });
-                docPDF.setFontSize(16).setFont(undefined, 'bold');
-                docPDF.text(`Ordem de Serviço: ${order.os_numero}`, pageWidth / 2, 55, { align: 'center' });
-                let yPosition = 65;
-                yPosition = drawSection('Dados do Cliente', yPosition);
-                docPDF.setFontSize(10).setFont(undefined, 'normal');
-                docPDF.text(`Contrato: ${order.contrato || 'N/A'}`, margin, yPosition);
-                yPosition += 5;
-                docPDF.text(`Cliente: ${order.cliente || 'N/A'}`, margin, yPosition);
-                yPosition += 10;
-                yPosition = drawSection('Dados do Equipamento', yPosition);
-                docPDF.text(`Equipamento: ${order.equipamento}`, margin, yPosition);
-                yPosition += 7;
-                docPDF.text(`Modelo: ${order.modelo}`, margin, yPosition);
-                yPosition += 7;
-                docPDF.text(`Serial: ${order.serial}`, margin, yPosition);
-                yPosition += 10;
-                yPosition = drawSection('Dados do Atendimento', yPosition);
-                docPDF.text(`Data do Serviço: ${order.data_servico || order.data_retirada}`, margin, yPosition);
-                yPosition += 7;
-                docPDF.text(`Hora de Chegada: ${order.hora_chegada || 'N/A'}`, margin, yPosition);
-                yPosition += 7;
-                docPDF.text(`Hora de Saída: ${order.hora_saida || 'N/A'}`, margin, yPosition);
-                yPosition += 10;
-                yPosition = drawSection('Serviços Realizados', yPosition);
-                const servicosLines = docPDF.splitTextToSize(order.servicos_realizados || '', pageWidth - (margin * 2));
-                docPDF.text(servicosLines, margin, yPosition);
-                yPosition += (servicosLines.length * 5) + 10;
-                yPosition = drawSection('Peças Utilizadas', yPosition);
-                const pecasLines = docPDF.splitTextToSize(order.pecas_utilizadas || 'Nenhuma', pageWidth - (margin * 2));
-                docPDF.text(pecasLines, margin, yPosition);
-                const signatureY = pageHeight - 70;
-                const signatureHeight = 30;
-                const signatureWidth = 70;
-                const roleY = signatureY + signatureHeight + 10;
-                const lineY = roleY - 5;
-                if (signatureDataUrl && signatureDataUrl.length > 200) {
-                    docPDF.addImage(signatureDataUrl, 'JPEG', 20, signatureY, signatureWidth, signatureHeight);
+                docPDF.text('BM MEDICAL', pageWidth - margin, yPosition + 5, { align: 'right' });
+                docPDF.text('Manutenção Hospitalar', pageWidth - margin, yPosition + 9, { align: 'right' });
+                docPDF.text('CNPJ: 48.673.158/0001-59', pageWidth - margin, yPosition + 13, { align: 'right' });
+                docPDF.text('Av. Duque de Caxias, 915-B403, Pelotas-RS', pageWidth - margin, yPosition + 17, { align: 'right' });
+                docPDF.text('Fone: (51) 99377-5933', pageWidth - margin, yPosition + 21, { align: 'right' });
+                yPosition += 38;
+
+                // --- Título da OS ---
+                docPDF.setFontSize(20).setFont(undefined, 'bold');
+                docPDF.text(`OS ${order.os_numero}`, pageWidth / 2, yPosition, { align: 'center' });
+                yPosition += 8;
+
+                if (order.tipo_manutencao) {
+                    docPDF.setFontSize(12).setFont(undefined, 'normal');
+                    const typeText = order.tipo_manutencao === 'preventiva' ? 'MP - Manutenção Preventiva' : 'MC - Manutenção Corretiva';
+                    docPDF.text(typeText, pageWidth / 2, yPosition, { align: 'center' });
                 }
-                docPDF.setLineWidth(0.3);
-                docPDF.line(20, lineY, 20 + signatureWidth, lineY);
-                docPDF.setFontSize(10).setFont(undefined, 'normal');
-                docPDF.text('Responsável do Setor', 55, roleY, { align: 'center' });
-                const techSignatureX = pageWidth - 20 - signatureWidth;
+                yPosition += 12;
+
+                // --- Função para desenhar seções ---
+                const drawSection = (title, contentCallback) => {
+                    const startY = yPosition;
+                    const contentY = startY + 10;
+                    
+                    const finalY = contentCallback(contentY, true); 
+                    const contentHeight = finalY - contentY;
+                    const boxHeight = contentHeight + 18; 
+                    
+                    docPDF.setDrawColor('#e0e0e0').setFillColor('#ffffff');
+                    docPDF.roundedRect(margin, startY - 5, pageWidth - (margin * 2), boxHeight, 3, 3, 'FD');
+                    
+                    docPDF.setFontSize(14).setTextColor('#3498db').setFont(undefined, 'bold');
+                    docPDF.text(title, margin + 4, startY);
+                    docPDF.setDrawColor('#3498db').setLineWidth(0.5).line(margin + 4, startY + 2, pageWidth - margin - 4, startY + 2);
+
+                    docPDF.setFontSize(12).setTextColor('#000000').setFont(undefined, 'normal');
+                    contentCallback(contentY, false);
+
+                    yPosition = startY + boxHeight + 3;
+                };
+
+                // --- Seções ---
+                drawSection('Dados do Cliente', (currentY, isDryRun) => {
+                    let y = currentY;
+                    if (!isDryRun) {
+                        docPDF.setFont(undefined, 'bold').text('Contrato:', margin + 4, y);
+                        docPDF.setFont(undefined, 'normal').text(order.contrato || 'N/A', margin + 27, y);
+                        y += 6;
+                        docPDF.setFont(undefined, 'bold').text('Cliente:', margin + 4, y);
+                        docPDF.setFont(undefined, 'normal').text(order.cliente || 'N/A', margin + 27, y);
+                        y += 6;
+                        docPDF.setFont(undefined, 'bold').text('Endereço:', margin + 4, y);
+                        docPDF.setFont(undefined, 'normal').text(order.endereco || 'N/A', margin + 27, y);
+                    }
+                    return y + 18;
+                });
+
+                drawSection('Dados do Equipamento', (currentY, isDryRun) => {
+                    let y = currentY;
+                    const equipLines = docPDF.splitTextToSize(order.equipamento || 'N/A', pageWidth - margin * 2 - 40);
+                    if (!isDryRun) {
+                        docPDF.setFont(undefined, 'bold').text('Equipamento:', margin + 4, y);
+                        docPDF.setFont(undefined, 'normal').text(equipLines, margin + 34, y);
+                    }
+                    y += 6 * equipLines.length;
+
+                    if(!isDryRun) {
+                        docPDF.setFont(undefined, 'bold').text('Marca:', margin + 4, y);
+                        docPDF.setFont(undefined, 'normal').text(order.marca || 'N/A', margin + 19, y);
+                        docPDF.setFont(undefined, 'bold').text('Modelo:', margin + 70, y);
+                        docPDF.setFont(undefined, 'normal').text(order.modelo || 'N/A', margin + 87, y);
+                        docPDF.setFont(undefined, 'bold').text('Serial:', margin + 130, y);
+                        docPDF.setFont(undefined, 'normal').text(order.serial || 'N/A', margin + 144, y);
+                    }
+                    return y + 6;
+                });
+                
+                drawSection('Atendimento', (currentY, isDryRun) => {
+                    const ufpelContract = 'Contrato N° 03/2024';
+                    const capaoContract = 'Contrato Nº 138/2024';
+                    const exercitoContract = 'Contrato Nº 10/2025';
+                    let y = currentY;
+
+                    if (order.contrato === ufpelContract) {
+                        if (!isDryRun) {
+                            docPDF.setFont(undefined, 'bold').text('Data do Serviço:', margin + 4, y);
+                            docPDF.setFont(undefined, 'normal').text(formatDate(order.data_servico), margin + 35, y);
+                            y += 6;
+                            docPDF.setFont(undefined, 'bold').text('Hora de Chegada:', margin + 4, y);
+                            docPDF.setFont(undefined, 'normal').text(order.hora_chegada || 'N/A', margin + 35, y);
+                            docPDF.setFont(undefined, 'bold').text('Hora de Saída:', margin + 80, y);
+                            docPDF.setFont(undefined, 'normal').text(order.hora_saida || 'N/A', margin + 105, y);
+                            y += 6;
+                            docPDF.setFont(undefined, 'bold').text('Local:', margin + 4, y);
+                            docPDF.setFont(undefined, 'normal').text('CME / HE-UFPEL', margin + 20, y);
+                        }
+                        y += 18; 
+                    } else if (order.contrato === capaoContract || order.contrato === exercitoContract) {
+                        if (!isDryRun) {
+                            docPDF.setFont(undefined, 'bold').text('Data da Retirada:', margin + 4, y);
+                            docPDF.setFont(undefined, 'normal').text(formatDate(order.data_retirada), margin + 40, y);
+                            docPDF.setFont(undefined, 'bold').text('Data da Devolução:', margin + 80, y);
+                            docPDF.setFont(undefined, 'normal').text(formatDate(order.data_devolucao), margin + 120, y);
+                            y += 6;
+                            docPDF.setFont(undefined, 'bold').text('Local:', margin + 4, y);
+                            docPDF.setFont(undefined, 'normal').text(order.local_atendimento || 'N/A', margin + 19, y);
+                        }
+                        y += 12; 
+                    }
+                    return y;
+                });
+
+                drawSection('Descrição dos Serviços Realizados', (currentY, isDryRun) => {
+                    const text = order.servicos_realizados || 'Não informado.';
+                    const lines = docPDF.splitTextToSize(text, pageWidth - (margin * 2) - 8);
+                    if (!isDryRun) docPDF.text(lines, margin + 4, currentY);
+                    return currentY + (lines.length * 6);
+                });
+
+                drawSection('Peças Utilizadas', (currentY, isDryRun) => {
+                    const text = order.pecas_utilizadas || 'Nenhuma.';
+                    const lines = docPDF.splitTextToSize(text, pageWidth - (margin * 2) - 8);
+                    if (!isDryRun) docPDF.text(lines, margin + 4, currentY);
+                    return currentY + (lines.length * 6);
+                });
+
+                // --- Assinaturas (no final da página) ---
+                const signatureY = pageHeight - 60;
+                const signatureHeight = 25;
+                const signatureWidth = 60;
+                const roleY = signatureY + signatureHeight + 2;
+                const lineY = roleY - 3;
+                
+                if (order.signature_data && order.signature_data.length > 200) {
+                    docPDF.addImage(order.signature_data, 'JPEG', margin + 15, signatureY, signatureWidth, signatureHeight);
+                }
+                docPDF.setDrawColor('#333333').setLineWidth(0.3);
+                docPDF.line(margin + 10, lineY, margin + 10 + signatureWidth + 10, lineY);
+                docPDF.setFontSize(9).setFont(undefined, 'normal');
+                docPDF.text('Responsável do Setor', margin + 45, roleY, { align: 'center' });
+
+                const techSignatureX = pageWidth - margin - 15 - signatureWidth;
                 docPDF.addImage(techSigDataUrl, 'JPEG', techSignatureX, signatureY, signatureWidth, signatureHeight);
-                docPDF.setLineWidth(0.3);
-                docPDF.line(techSignatureX, lineY, techSignatureX + signatureWidth, lineY);
-                docPDF.setFontSize(10).setFont(undefined, 'normal');
-                docPDF.text('Responsável Técnico da Empresa', pageWidth - 55, roleY, { align: 'center' });
+                docPDF.line(techSignatureX - 5, lineY, techSignatureX + signatureWidth + 5, lineY);
+                docPDF.text('Responsável Técnico da Empresa', techSignatureX + (signatureWidth/2), roleY, { align: 'center' });
+
                 docPDF.save(`OS-${order.os_numero.split(' ')[0]}.pdf`);
             } catch (error) {
                 console.error("Erro ao gerar PDF:", error);
                 alert("Ocorreu um erro ao gerar o PDF.");
             } finally {
                 buttonElement.disabled = false;
+                buttonElement.textContent = 'Gerar PDF';
             }
         }
+
     </script>
 </body>
 </html>
