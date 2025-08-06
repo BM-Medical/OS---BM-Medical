@@ -193,7 +193,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, runTransaction, collection, addDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, runTransaction, collection, addDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
@@ -334,32 +334,31 @@
 
         async function fetchAndSetOsNumber() {
             const osInput = document.getElementById('os_numero');
-            const isPreventiva = document.getElementById('preventiva').checked;
-            const type = isPreventiva ? 'preventiva' : 'corretiva';
-            const contract = 'ufpel';
-            
             osInput.value = 'Gerando...';
 
-            try {
-                const counterRef = doc(db, "counters", contract);
-                const docSnap = await getDoc(counterRef);
+            const contractId = 'ufpel';
+            const contractNumber = '03.24';
+            const currentYear = new Date().getFullYear();
+            
+            // Referência para o contador específico do contrato e ano
+            const counterRef = doc(db, "counters", `${contractId}_${currentYear}`);
 
-                let nextNumber;
-                if (docSnap.exists() && docSnap.data()[type]) {
-                    nextNumber = docSnap.data()[type] + 1;
-                } else {
-                    nextNumber = 202501; 
+            try {
+                const docSnap = await getDoc(counterRef);
+                let nextNumber = 1; // Começa em 1 se não existir
+
+                if (docSnap.exists()) {
+                    nextNumber = (docSnap.data().sequence || 0) + 1;
                 }
-                
-                osInput.value = `${nextNumber} - ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+
+                const paddedNextNumber = String(nextNumber).padStart(3, '0');
+                osInput.value = `CT${contractNumber}-${currentYear}${paddedNextNumber}`;
+
             } catch (error) {
                 console.error("Erro ao buscar o número da OS:", error);
                 osInput.value = 'Erro ao carregar';
             }
         }
-
-        document.getElementById('preventiva').addEventListener('change', fetchAndSetOsNumber);
-        document.getElementById('corretiva').addEventListener('change', fetchAndSetOsNumber);
         
         const form = document.getElementById('os-form');
         form.addEventListener('submit', async (e) => {
@@ -392,14 +391,26 @@
                     createdAt: new Date()
                 };
 
-                const contract = 'ufpel';
-                const type = osData.tipo_manutencao;
-                const osNumberOnly = parseInt(osData.os_numero.split(' ')[0], 10);
-                const counterRef = doc(db, "counters", contract);
+                const contractId = 'ufpel';
+                const currentYear = new Date().getFullYear();
+                const counterRef = doc(db, "counters", `${contractId}_${currentYear}`);
 
+                // Transação para garantir que o número seja único
                 await runTransaction(db, async (transaction) => {
-                    await addDoc(collection(db, "orders"), osData);
-                    transaction.set(counterRef, { [type]: osNumberOnly }, { merge: true });
+                    const counterDoc = await transaction.get(counterRef);
+                    let nextNumber = 1;
+                    if (counterDoc.exists()) {
+                        nextNumber = (counterDoc.data().sequence || 0) + 1;
+                    }
+                    
+                    // Atualiza o número da OS para garantir que é o mais recente
+                    const paddedNextNumber = String(nextNumber).padStart(3, '0');
+                    osData.os_numero = `CT03.24-${currentYear}${paddedNextNumber}`;
+                    
+                    // CORREÇÃO: Cria uma referência para um novo documento e usa transaction.set
+                    const newOrderRef = doc(collection(db, "orders"));
+                    transaction.set(newOrderRef, osData);
+                    transaction.set(counterRef, { sequence: nextNumber }, { merge: true });
                 });
                 
                 window.location.href = 'confirmacao-os.html';

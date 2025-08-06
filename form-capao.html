@@ -40,7 +40,6 @@
         .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; margin-top: 40px; }
         .footer p { margin: 5px 10px; }
         
-        /* Checkbox de Recebimento */
         .checkbox-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
         .checkbox-group label { margin-bottom: 0; font-weight: normal; }
 
@@ -81,6 +80,10 @@
                 <div class="form-section">
                     <h2>Detalhes do Atendimento</h2>
                     <div class="form-group">
+                        <label for="os_numero">Número da OS:</label>
+                        <input type="text" id="os_numero" name="os_numero" readonly placeholder="Buscando...">
+                    </div>
+                     <div class="form-group">
                         <label>Tipo de Manutenção:</label>
                         <div class="radio-group">
                             <input type="radio" id="preventiva" name="tipo_manutencao" value="preventiva" checked>
@@ -88,10 +91,6 @@
                             <input type="radio" id="corretiva" name="tipo_manutencao" value="corretiva">
                             <label for="corretiva">Corretiva</label>
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="os_numero">Número da OS:</label>
-                        <input type="text" id="os_numero" name="os_numero" readonly placeholder="Buscando...">
                     </div>
                 </div>
                 <div class="form-section">
@@ -231,7 +230,7 @@
     </footer>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, runTransaction, collection, addDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, runTransaction, collection, addDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
             authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
@@ -380,31 +379,34 @@
                 outroEquipamentoInput.required = false;
             }
         });
+        
         async function fetchAndSetOsNumber() {
             const osInput = document.getElementById('os_numero');
-            const isPreventiva = document.getElementById('preventiva').checked;
-            const type = isPreventiva ? 'preventiva' : 'corretiva';
-            const contract = 'capao_do_leao';
             osInput.value = 'Gerando...';
+
+            const contractId = 'capao_do_leao';
+            const contractNumber = '138.24';
+            const currentYear = new Date().getFullYear();
+            
+            const counterRef = doc(db, "counters", contractId);
+
             try {
-                const counterRef = doc(db, "counters", contract);
                 const docSnap = await getDoc(counterRef);
-                let nextNumber;
-                if (docSnap.exists() && docSnap.data()[type]) {
-                    nextNumber = docSnap.data()[type] + 1;
-                } else {
-                    nextNumber = 1001;
+                let nextNumber = 1; 
+
+                if (docSnap.exists()) {
+                    nextNumber = (docSnap.data().sequence || 0) + 1;
                 }
-                osInput.value = `${nextNumber} - ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+
+                const paddedNextNumber = String(nextNumber).padStart(3, '0');
+                osInput.value = `CT${contractNumber}-${currentYear}${paddedNextNumber}`;
+
             } catch (error) {
                 console.error("Erro ao buscar o número da OS:", error);
                 osInput.value = 'Erro ao carregar';
             }
         }
-        document.getElementById('preventiva').addEventListener('change', fetchAndSetOsNumber);
-        document.getElementById('corretiva').addEventListener('change', fetchAndSetOsNumber);
 
-        // Lógica do Checkbox de Recebimento
         const recebimentoCheck = document.getElementById('recebimento_check');
         const servicosTextarea = document.getElementById('servicos_realizados');
         
@@ -433,7 +435,6 @@
                     equipamentoValor = formData.get('outro_equipamento');
                 }
                 
-                // CORREÇÃO: Garante que o valor correto seja salvo
                 const servicosRealizadosValue = recebimentoCheck.checked 
                     ? "Recebimento de equipamento para análise." 
                     : servicosTextarea.value;
@@ -450,7 +451,7 @@
                     modelo: formData.get('modelo'),
                     serial: formData.get('serial'),
                     tipo_manutencao: formData.get('tipo_manutencao'),
-                    os_numero: formData.get('os_numero'),
+                    os_numero: formData.get('os_numero'), // O número já está no formato correto
                     data_retirada: formData.get('data_retirada'),
                     data_devolucao: formData.get('data_devolucao'),
                     servicos_realizados: servicosRealizadosValue,
@@ -459,14 +460,27 @@
                     status: 'novas',
                     createdAt: new Date()
                 };
-                const contract = 'capao_do_leao';
-                const type = osData.tipo_manutencao;
-                const osNumberOnly = parseInt(osData.os_numero.split(' ')[0], 10);
-                const counterRef = doc(db, "counters", contract);
+                
+                const contractId = 'capao_do_leao';
+                const counterRef = doc(db, "counters", contractId);
+
                 await runTransaction(db, async (transaction) => {
-                    await addDoc(collection(db, "orders"), osData);
-                    transaction.set(counterRef, { [type]: osNumberOnly }, { merge: true });
+                    const counterDoc = await transaction.get(counterRef);
+                    let nextNumber = 1;
+                    if (counterDoc.exists()) {
+                        nextNumber = (counterDoc.data().sequence || 0) + 1;
+                    }
+                    
+                    const contractNumber = '138.24';
+                    const currentYear = new Date().getFullYear();
+                    const paddedNextNumber = String(nextNumber).padStart(3, '0');
+                    osData.os_numero = `CT${contractNumber}-${currentYear}${paddedNextNumber}`;
+                    
+                    const newOrderRef = doc(collection(db, "orders"));
+                    transaction.set(newOrderRef, osData);
+                    transaction.set(counterRef, { sequence: nextNumber }, { merge: true });
                 });
+
                 window.location.href = 'confirmacao-os.html';
             } catch (error) {
                 console.error("Erro ao salvar a OS: ", error);

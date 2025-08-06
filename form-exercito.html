@@ -40,7 +40,6 @@
         .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; margin-top: 40px; }
         .footer p { margin: 5px 10px; }
         
-        /* Checkbox de Recebimento */
         .checkbox-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
         .checkbox-group label { margin-bottom: 0; font-weight: normal; }
 
@@ -78,9 +77,12 @@
         <main class="main-content">
             <h1>Formulário de Nova OS</h1>
             <form id="os-form">
-                <!-- Seções do formulário (sem alterações) -->
                 <div class="form-section">
                     <h2>Detalhes do Atendimento</h2>
+                    <div class="form-group">
+                        <label for="os_numero">Número da OS:</label>
+                        <input type="text" id="os_numero" name="os_numero" readonly placeholder="Buscando...">
+                    </div>
                     <div class="form-group">
                         <label>Tipo de Manutenção:</label>
                         <div class="radio-group">
@@ -89,10 +91,6 @@
                             <input type="radio" id="corretiva" name="tipo_manutencao" value="corretiva">
                             <label for="corretiva">Corretiva</label>
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="os_numero">Número da OS:</label>
-                        <input type="text" id="os_numero" name="os_numero" readonly placeholder="Buscando...">
                     </div>
                 </div>
                 <div class="form-section">
@@ -149,6 +147,17 @@
                     <div class="form-group">
                         <label for="data_devolucao">Data da Devolução:</label>
                         <input type="date" id="data_devolucao" name="data_devolucao">
+                    </div>
+                    <div class="form-group">
+                        <label for="local_atendimento">Local:</label>
+                        <select id="local_atendimento" name="local_atendimento" required>
+                            <option value="" disabled selected>Selecione um local</option>
+                            <option value="GO 1">GO 1</option>
+                            <option value="GO 2">GO 2</option>
+                            <option value="GO 3">GO 3</option>
+                            <option value="GO 4">GO 4</option>
+                            <option value="PMGuPel">PMGuPel</option>
+                        </select>
                     </div>
                 </div>
                 <div class="form-section">
@@ -216,7 +225,7 @@
     </footer>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, runTransaction, collection, addDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, runTransaction, collection, addDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
             authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
@@ -365,31 +374,34 @@
                 outroEquipamentoInput.required = false;
             }
         });
+        
         async function fetchAndSetOsNumber() {
             const osInput = document.getElementById('os_numero');
-            const isPreventiva = document.getElementById('preventiva').checked;
-            const type = isPreventiva ? 'preventiva' : 'corretiva';
-            const contract = 'exercito';
             osInput.value = 'Gerando...';
+
+            const contractId = 'exercito';
+            const contractNumber = '10.25';
+            const currentYear = new Date().getFullYear();
+            
+            const counterRef = doc(db, "counters", contractId);
+
             try {
-                const counterRef = doc(db, "counters", contract);
                 const docSnap = await getDoc(counterRef);
-                let nextNumber;
-                if (docSnap.exists() && docSnap.data()[type]) {
-                    nextNumber = docSnap.data()[type] + 1;
-                } else {
-                    nextNumber = 3001;
+                let nextNumber = 1;
+
+                if (docSnap.exists()) {
+                    nextNumber = (docSnap.data().sequence || 0) + 1;
                 }
-                osInput.value = `${nextNumber} - ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+
+                const paddedNextNumber = String(nextNumber).padStart(3, '0');
+                osInput.value = `CT${contractNumber}-${currentYear}${paddedNextNumber}`;
+
             } catch (error) {
                 console.error("Erro ao buscar o número da OS:", error);
                 osInput.value = 'Erro ao carregar';
             }
         }
-        document.getElementById('preventiva').addEventListener('change', fetchAndSetOsNumber);
-        document.getElementById('corretiva').addEventListener('change', fetchAndSetOsNumber);
 
-        // Lógica do Checkbox de Recebimento
         const recebimentoCheck = document.getElementById('recebimento_check');
         const servicosTextarea = document.getElementById('servicos_realizados');
         
@@ -418,7 +430,6 @@
                     equipamentoValor = formData.get('outro_equipamento');
                 }
 
-                // Garante que o valor correto seja salvo
                 const servicosRealizadosValue = recebimentoCheck.checked 
                     ? "Recebimento de equipamento para análise." 
                     : servicosTextarea.value;
@@ -429,6 +440,7 @@
                     razao_social: "Nono Batalhão de Infantaria Motorizado",
                     cnpj: "09.590.648/0001-30",
                     endereco: "Av. Duque de Caxias, 344, Pelotas - RS",
+                    local_atendimento: formData.get('local_atendimento'),
                     equipamento: equipamentoValor,
                     marca: formData.get('marca'),
                     modelo: formData.get('modelo'),
@@ -443,13 +455,25 @@
                     status: 'novas',
                     createdAt: new Date()
                 };
-                const contract = 'exercito';
-                const type = osData.tipo_manutencao;
-                const osNumberOnly = parseInt(osData.os_numero.split(' ')[0], 10);
-                const counterRef = doc(db, "counters", contract);
+                
+                const contractId = 'exercito';
+                const counterRef = doc(db, "counters", contractId);
+                
                 await runTransaction(db, async (transaction) => {
-                    await addDoc(collection(db, "orders"), osData);
-                    transaction.set(counterRef, { [type]: osNumberOnly }, { merge: true });
+                    const counterDoc = await transaction.get(counterRef);
+                    let nextNumber = 1;
+                    if (counterDoc.exists()) {
+                        nextNumber = (counterDoc.data().sequence || 0) + 1;
+                    }
+                    
+                    const contractNumber = '10.25';
+                    const currentYear = new Date().getFullYear();
+                    const paddedNextNumber = String(nextNumber).padStart(3, '0');
+                    osData.os_numero = `CT${contractNumber}-${currentYear}${paddedNextNumber}`;
+                    
+                    const newOrderRef = doc(collection(db, "orders"));
+                    transaction.set(newOrderRef, osData);
+                    transaction.set(counterRef, { sequence: nextNumber }, { merge: true });
                 });
                 window.location.href = 'confirmacao-os.html';
             } catch (error) {
