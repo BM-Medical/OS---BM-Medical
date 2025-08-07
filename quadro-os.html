@@ -994,8 +994,11 @@
                 console.warn("Não foi possível ativar o modo paisagem/tela cheia.", err);
             } finally {
                 signatureModalDetails.style.display = 'flex';
-                resizeCanvasDetails();
-                saveSignatureStateDetails();
+                // AJUSTE: Atrasar o redimensionamento para garantir que o modal esteja visível
+                setTimeout(() => {
+                    resizeCanvasDetails();
+                    saveSignatureStateDetails();
+                }, 0);
             }
         }
 
