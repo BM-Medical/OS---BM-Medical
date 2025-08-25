@@ -20,7 +20,7 @@
         .filter-group { display: flex; flex-direction: column; }
         .filter-group label { font-weight: 500; margin-bottom: 8px; font-size: 0.9rem; }
         .filter-group select, .filter-group input { padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; }
-        .btn { background-color: #3498db; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: background-color 0.2s ease; }
+        .btn { background-color: #3498db; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: background-color: 0.2s ease; }
         .btn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
         .actions-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
         #os-list { list-style: none; padding: 0; margin: 0; }
@@ -29,9 +29,7 @@
         .os-info input[type="checkbox"] { width: 20px; height: 20px; }
         .os-details-text strong { font-size: 1.1rem; color: #333; display: block; }
         .os-details-text span { font-size: 0.9rem; color: #777; }
-        .os-status { padding: 5px 10px; border-radius: 15px; font-size: 0.8rem; font-weight: 700; }
-        .status-ok { background-color: #2ecc71; color: white; }
-        .status-pending { background-color: #f39c12; color: white; }
+        .os-status { padding: 5px 10px; border-radius: 15px; font-size: 0.8rem; font-weight: 700; background-color: #2ecc71; color: white; }
         .back-link { display: inline-block; margin-top: 30px; color: #3498db; text-decoration: none; font-weight: 500; }
         .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; margin-top: 40px; }
         #loading-message { text-align: center; padding: 20px; font-size: 1.1rem; color: #777; }
@@ -55,7 +53,7 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label for="month-filter">Mês</label>
+                    <label for="month-filter">Mês de Finalização</label>
                     <input type="month" id="month-filter">
                 </div>
                 <button id="search-btn" class="btn">Buscar</button>
@@ -83,7 +81,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getFirestore, collection, getDocs, doc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
@@ -113,15 +111,6 @@
         selectAllCheckbox.addEventListener('change', handleSelectAll);
         generatePdfBtn.addEventListener('click', generateCombinedPdf);
 
-        function formatDate(dateObject) {
-            if (!dateObject) return 'N/A';
-            const date = dateObject.toDate ? dateObject.toDate() : new Date(dateObject);
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            return `${day}/${month}/${year}`;
-        }
-        
         function formatDateString(dateString) {
             if (!dateString) return 'N/A';
             const [year, month, day] = dateString.split('-');
@@ -135,14 +124,12 @@
             selectAllCheckbox.checked = false;
 
             const contract = document.getElementById('contract-filter').value;
-            const [year, month] = document.getElementById('month-filter').value.split('-').map(Number);
-
-            const startDate = new Date(year, month - 1, 1);
-            const endDate = new Date(year, month, 1);
+            const selectedMonth = document.getElementById('month-filter').value; // YYYY-MM
 
             try {
                 const ordersRef = collection(db, "orders");
-                const q = query(ordersRef, where("contrato", "==", contract));
+                // ATUALIZAÇÃO: Busca todas as OS do contrato que estão finalizadas
+                const q = query(ordersRef, where("contrato", "==", contract), where("status", "==", "finalizada"));
 
                 const querySnapshot = await getDocs(q);
                 let results = [];
@@ -150,14 +137,14 @@
                     results.push({ id: doc.id, ...doc.data() });
                 });
 
+                // ATUALIZAÇÃO: Filtra os resultados pela data de conclusão (data_conclusao)
                 const filteredAndSorted = results.filter(order => {
-                    if (!order.createdAt || typeof order.createdAt.toDate !== 'function') return false;
-                    const orderDate = order.createdAt.toDate();
-                    return orderDate >= startDate && orderDate < endDate;
+                    // Verifica se o campo data_conclusao existe e começa com o mês selecionado
+                    return order.data_conclusao && order.data_conclusao.startsWith(selectedMonth);
                 }).sort((a, b) => (a.os_numero || '').localeCompare(b.os_numero || ''));
 
                 if (filteredAndSorted.length === 0) {
-                    osList.innerHTML = '<li>Nenhuma OS encontrada para este período.</li>';
+                    osList.innerHTML = '<li>Nenhuma OS finalizada encontrada para este período.</li>';
                 } else {
                     filteredAndSorted.forEach(order => {
                         renderOsItem(order);
@@ -176,21 +163,20 @@
 
         function renderOsItem(order) {
             const listItem = document.createElement('li');
-            const isSigned = order.signature_data && order.signature_data.length > 200;
-            const statusClass = isSigned ? 'status-ok' : 'status-pending';
-            const statusText = isSigned ? 'Pronta para o Relatório' : 'Pendente de Assinatura';
             
-            const formattedDate = formatDate(order.createdAt);
+            // ATUALIZAÇÃO: Exibe a data de finalização
+            const formattedDate = formatDateString(order.data_conclusao);
+            const statusText = `Finalizada em: ${formattedDate}`;
 
             listItem.innerHTML = `
                 <div class="os-info">
-                    <input type="checkbox" class="os-checkbox" data-id="${order.id}" data-order='${JSON.stringify(order)}' ${isSigned ? '' : 'disabled'}>
+                    <input type="checkbox" class="os-checkbox" data-id="${order.id}" data-order='${JSON.stringify(order)}'>
                     <div class="os-details-text">
                         <strong>OS: ${order.os_numero}</strong>
-                        <span>${order.equipamento} - Data: ${formattedDate}</span>
+                        <span>${order.equipamento}</span>
                     </div>
                 </div>
-                <span class="os-status ${statusClass}">${statusText}</span>
+                <span class="os-status">${statusText}</span>
             `;
             osList.appendChild(listItem);
             listItem.querySelector('.os-checkbox').addEventListener('change', updateGeneratePdfButtonState);
@@ -241,16 +227,12 @@
             generatePdfBtn.textContent = 'Gerar PDF Compilado';
         }
 
-        // =======================================================================
-        // ATUALIZAÇÃO: Função de PDF substituída pela versão de 'detalhe-os.html'
-        // =======================================================================
         async function addOrderToPdf(docPDF, order, logoDataUrl, techSigDataUrl) {
             const pageHeight = docPDF.internal.pageSize.height;
             const pageWidth = docPDF.internal.pageSize.width;
             const margin = 15;
             let yPosition = 10;
 
-            // --- Cabeçalho ---
             docPDF.addImage(logoDataUrl, 'JPEG', margin, yPosition, 72, 32);
             docPDF.setFontSize(8).setFont(undefined, 'normal');
             docPDF.text('BM MEDICAL', pageWidth - margin, yPosition + 5, { align: 'right' });
@@ -260,7 +242,6 @@
             docPDF.text('Fone: (51) 99377-5933', pageWidth - margin, yPosition + 21, { align: 'right' });
             yPosition += 38;
 
-            // --- Título da OS ---
             docPDF.setFontSize(20).setFont(undefined, 'bold');
             docPDF.text(`OS ${order.os_numero}`, pageWidth / 2, yPosition, { align: 'center' });
             yPosition += 8;
@@ -272,36 +253,29 @@
             }
             yPosition += 12;
 
-            // --- Função para desenhar seções ---
             const drawSection = (title, contentCallback) => {
-                // Simula o desenho para calcular a altura
                 const dryRunFinalY = contentCallback(0, true);
                 const contentHeight = dryRunFinalY;
                 const boxHeight = contentHeight + 18;
 
-                // Verifica se há espaço na página
-                if (yPosition + boxHeight > pageHeight - 30) { // Deixa uma margem inferior
+                if (yPosition + boxHeight > pageHeight - 30) {
                     docPDF.addPage();
-                    yPosition = 20; // Posição inicial em nova página
+                    yPosition = 20;
                 }
-
-                const startY = yPosition;
-                const contentY = startY + 10;
                 
                 docPDF.setDrawColor('#e0e0e0').setFillColor('#ffffff');
-                docPDF.roundedRect(margin, startY - 5, pageWidth - (margin * 2), boxHeight, 3, 3, 'FD');
+                docPDF.roundedRect(margin, yPosition - 5, pageWidth - (margin * 2), boxHeight, 3, 3, 'FD');
                 
                 docPDF.setFontSize(14).setTextColor('#3498db').setFont(undefined, 'bold');
-                docPDF.text(title, margin + 4, startY);
-                docPDF.setDrawColor('#3498db').setLineWidth(0.5).line(margin + 4, startY + 2, pageWidth - margin - 4, startY + 2);
+                docPDF.text(title, margin + 4, yPosition);
+                docPDF.setDrawColor('#3498db').setLineWidth(0.5).line(margin + 4, yPosition + 2, pageWidth - margin - 4, yPosition + 2);
 
                 docPDF.setFontSize(12).setTextColor('#000000').setFont(undefined, 'normal');
-                contentCallback(contentY, false); // Desenha de verdade
+                contentCallback(yPosition + 10, false);
 
-                yPosition = startY + boxHeight + 3;
+                yPosition += boxHeight + 3;
             };
 
-            // --- Seções ---
             drawSection('Dados do Cliente', (currentY, isDryRun) => {
                 let y = currentY;
                 if (!isDryRun) {
@@ -386,7 +360,6 @@
                 return currentY + (lines.length * 6);
             });
 
-            // --- Assinaturas (no final da página) ---
             const signatureY = pageHeight - 60;
             const signatureHeight = 25;
             const signatureWidth = 60;

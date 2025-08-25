@@ -148,6 +148,24 @@
         .btn-pdf { background-color: #3498db; }
         .btn-pdf:disabled { background-color: #bdc3c7; }
 
+        .history-list { list-style: none; padding: 0; margin: 0; }
+        .history-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.95rem;
+        }
+        .history-list li:last-child {
+            border-bottom: none;
+        }
+        .history-list strong {
+            color: #333;
+        }
+        .history-list span {
+            color: #777;
+        }
+
         @media (max-width: 768px) {
             .page-container { padding: 10px; }
             .header-container, .form-section { padding: 15px; }
@@ -183,6 +201,20 @@
             if (!dateString) return 'N/A';
             const [year, month, day] = dateString.split('-');
             return `${day}/${month}/${year}`;
+        }
+
+        function formatTimestampForHistory(timestamp) {
+            if (!timestamp) return 'N/A';
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            if (isNaN(date.getTime())) return 'Data inválida';
+
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            
+            return `${day}/${month}/${year} às ${hours}:${minutes}`;
         }
 
         function renderPage(order) {
@@ -229,6 +261,29 @@
                 servicosRealizadosHtml = `<p style="font-style: italic; color: #7f8c8d;">Equipamento recebido para análise. Nenhum serviço realizado ainda.</p>`;
             } else {
                 servicosRealizadosHtml = `<p>${(order.servicos_realizados || 'Não informado.').replace(/\n/g, '<br>')}</p>`;
+            }
+
+            let historyHtml = '';
+            if (order.createdAt || order.signedAt || order.data_conclusao || order.archivedAt) {
+                let historyItems = '';
+                if (order.createdAt) {
+                    historyItems += `<li><strong>Criada:</strong> <span>${formatTimestampForHistory(order.createdAt)}</span></li>`;
+                }
+                if (order.signedAt) {
+                    historyItems += `<li><strong>Assinada:</strong> <span>${formatTimestampForHistory(order.signedAt)}</span></li>`;
+                }
+                if (order.status === 'finalizada' && order.data_conclusao) {
+                    const finalDate = new Date(order.data_conclusao + 'T12:00:00');
+                    historyItems += `<li><strong>Finalizada:</strong> <span>${formatTimestampForHistory(finalDate)}</span></li>`;
+                }
+                if (order.archivedAt) {
+                    historyItems += `<li><strong>Arquivada:</strong> <span>${formatTimestampForHistory(order.archivedAt)}</span></li>`;
+                }
+                historyHtml = `
+                    <div class="form-section">
+                        <h2>Histórico de Eventos</h2>
+                        <ul class="history-list">${historyItems}</ul>
+                    </div>`;
             }
 
             const pageHtml = `
@@ -300,6 +355,9 @@
                             </div>
                         </div>
                     </div>
+
+                    ${historyHtml}
+
                 </main>
 
                 <div class="actions-footer">

@@ -100,7 +100,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getFirestore, collection, getDocs, doc, getDoc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, getDoc, updateDoc, query, orderBy, arrayUnion } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
         
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
@@ -294,9 +294,11 @@
             orderInfo.button.disabled = true;
             const orderRef = doc(db, "orders", orderInfo.id);
             try {
+                const historyEntry = { action: 'Desarquivada', timestamp: new Date(), details: 'A OS foi restaurada para o quadro.' };
                 await updateDoc(orderRef, {
                     status: 'novas',
-                    position: Date.now()
+                    position: Date.now(),
+                    history: arrayUnion(historyEntry)
                 });
                 await fetchAllOrders(); 
             } catch (error) {

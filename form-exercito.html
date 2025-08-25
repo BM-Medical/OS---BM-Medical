@@ -32,7 +32,7 @@
         .signature-image-container { height: 120px; width: 300px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 5px; }
         .signature-image-container img { max-height: 120px; max-width: 100%; }
         .signature-line { padding-top: 8px; font-weight: 500; font-size: 0.9rem; width: 100%; }
-        .btn-submit { display: block; width: 100%; padding: 15px; margin-top: 30px; background-color: #2ecc71; color: white; border: none; border-radius: 6px; font-size: 1.2rem; font-weight: 700; cursor: pointer; transition: background-color 0.3s ease; }
+        .btn-submit { display: block; width: 100%; padding: 15px; margin-top: 30px; background-color: #2ecc71; color: white; border: none; border-radius: 6px; font-size: 1.2rem; font-weight: 700; cursor: pointer; transition: background-color: 0.3s ease; }
         .btn-submit:hover { background-color: #27ae60; }
         .btn-submit:disabled { background-color: #bdc3c7; cursor: not-allowed; }
         .back-link { display: inline-block; margin-top: 30px; color: #3498db; text-decoration: none; font-weight: 500; }
@@ -42,6 +42,11 @@
         
         .checkbox-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
         .checkbox-group label { margin-bottom: 0; font-weight: normal; }
+
+        .signature-area.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
 
         .signature-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: center; z-index: 2000; }
         .signature-modal-content { background-color: #fff; padding: 20px; border-radius: 10px; width: 95%; max-width: 600px; text-align: center; display: flex; flex-direction: column; }
@@ -179,24 +184,30 @@
                 </div>
                 <div class="form-section">
                     <h2>Assinaturas</h2>
-                    <div class="signature-grid">
-                        <div class="signature-box">
-                            <label>Assinatura do Responsável do Setor:</label>
-                            <div id="signature-container">
-                                <div id="signature-placeholder" class="signature-placeholder">Clique para assinar</div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="desconsiderar-assinatura-check" checked>
+                        <label for="desconsiderar-assinatura-check">Desconsiderar Assinatura</label>
+                    </div>
+                    <div class="signature-area">
+                        <div class="signature-grid">
+                            <div class="signature-box">
+                                <label>Assinatura do Responsável do Setor:</label>
+                                <div id="signature-container">
+                                    <div id="signature-placeholder" class="signature-placeholder">Clique para assinar</div>
+                                </div>
+                                <input type="hidden" id="signature-data" name="signature_data">
+                                 <div class="signature-line">
+                                     Responsável do Setor
+                                 </div>
                             </div>
-                            <input type="hidden" id="signature-data" name="signature_data">
-                             <div class="signature-line">
-                                 Responsável do Setor
-                             </div>
-                        </div>
-                        <div class="signature-box">
-                            <div class="signature-image-container">
-                                <img id="tech-signature-img" src="./images/assinatura-tecnico.png" alt="Assinatura do Responsável Técnico">
+                            <div class="signature-box">
+                                <div class="signature-image-container">
+                                    <img id="tech-signature-img" src="./images/assinatura-tecnico.png" alt="Assinatura do Responsável Técnico">
+                                </div>
+                                <div class="signature-line">
+                                     Responsável Técnico da Empresa
+                                 </div>
                             </div>
-                            <div class="signature-line">
-                                 Responsável Técnico da Empresa
-                             </div>
                         </div>
                     </div>
                 </div>
@@ -443,9 +454,30 @@
             }
         });
 
+        const desconsiderarAssinaturaCheck = document.getElementById('desconsiderar-assinatura-check');
+        const signatureArea = document.querySelector('.signature-area');
+
+        desconsiderarAssinaturaCheck.addEventListener('change', () => {
+            const placeholder = document.getElementById('signature-placeholder');
+            if (desconsiderarAssinaturaCheck.checked) {
+                signatureArea.classList.add('disabled');
+                signatureDataInput.value = '';
+                placeholder.innerHTML = 'Assinatura não necessária';
+            } else {
+                signatureArea.classList.remove('disabled');
+                placeholder.innerHTML = 'Clique para assinar';
+            }
+        });
+
         const form = document.getElementById('os-form');
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            if (!desconsiderarAssinaturaCheck.checked && !signatureDataInput.value) {
+                alert("Por favor, adicione a assinatura do responsável ou marque a opção para desconsiderar.");
+                return;
+            }
+
             const submitButton = form.querySelector('.btn-submit');
             submitButton.disabled = true;
             submitButton.textContent = 'Salvando...';
@@ -459,6 +491,8 @@
                 const servicosRealizadosValue = recebimentoCheck.checked 
                     ? "Recebimento de equipamento para análise." 
                     : servicosTextarea.value;
+                
+                const signatureValue = formData.get('signature_data');
 
                 const osData = {
                     contrato: "Contrato Nº 10/2025",
@@ -477,10 +511,23 @@
                     data_devolucao: formData.get('data_devolucao'),
                     servicos_realizados: servicosRealizadosValue,
                     pecas_utilizadas: formData.get('pecas_utilizadas'),
-                    signature_data: formData.get('signature_data'),
+                    signature_data: signatureValue,
                     status: 'novas',
                     createdAt: new Date()
                 };
+
+                // **NOVA ALTERAÇÃO: Adiciona o histórico inicial**
+                osData.history = [{ action: 'Criada', timestamp: new Date(), details: 'OS aberta no sistema.' }];
+
+                if (desconsiderarAssinaturaCheck.checked) {
+                    osData.assinaturaDesconsiderada = true;
+                    osData.history.push({ action: 'Assinada', timestamp: new Date(), details: 'OS criada com dispensa de assinatura.' });
+                }
+
+                if (signatureValue && signatureValue.length > 200) {
+                    osData.signedAt = new Date();
+                    osData.history.push({ action: 'Assinada', timestamp: new Date(), details: 'OS criada com assinatura.' });
+                }
                 
                 const contractId = 'exercito';
                 const counterRef = doc(db, "counters", contractId);
@@ -513,6 +560,7 @@
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('data_retirada').value = today;
             fetchAndSetOsNumber();
+            desconsiderarAssinaturaCheck.dispatchEvent(new Event('change'));
         };
     </script>
 </body>

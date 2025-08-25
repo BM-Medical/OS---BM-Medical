@@ -17,27 +17,59 @@
         }
         body { font-family: 'Inter', sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
         .board-container { display: flex; flex-direction: column; height: 100vh; }
-        .board-header { 
-            padding: 15px 20px; 
-            background-color: #fff; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
-            display: flex; 
-            align-items: center; 
-            gap: 20px; 
-            position: sticky; 
-            top: 0; 
+        
+        /* CABEÇALHO ATUALIZADO */
+        .board-header {
+            padding: 10px 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px; 
+            position: sticky;
+            top: 0;
             z-index: 10;
         }
-        .board-header img { height: 40px; }
-        .board-header h1 { font-size: 1.5rem; margin: 0; flex-grow: 1; }
-        .board-header .logout-button { background-color: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: 500; margin-left: auto; }
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+        .header-left img {
+            height: 50px; 
+        }
+        .header-center {
+            flex-grow: 1; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .header-center h1 {
+            font-size: 1.5rem;
+            margin: 0;
+            text-align: center;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+        }
+        .logout-button {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+        }
         
         /* ESTILOS DA LEGENDA */
         .header-legend {
             display: flex;
             align-items: center;
             gap: 15px;
-            margin-left: 20px;
+            margin-top: 5px;
         }
         .legend-item {
             display: flex;
@@ -65,9 +97,72 @@
         }
 
         .list { background-color: #e9ecef; border-radius: 8px; width: 300px; min-width: 300px; max-height: 100%; display: flex; flex-direction: column; }
-        .list-header { padding: 12px 15px; font-weight: 700; font-size: 1rem; border-bottom: 1px solid #ced4da; position: sticky; top: 0; background-color: inherit; z-index: 2; }
+        .list-header { 
+            padding: 12px 15px; 
+            font-weight: 700; 
+            font-size: 1rem; 
+            border-bottom: 1px solid #ced4da; 
+            position: sticky; 
+            top: 0; 
+            background-color: inherit; 
+            z-index: 2;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
         .cards { padding: 10px; flex-grow: 1; min-height: 100px; overflow-y: auto; }
         
+        /* NOVO BOTÃO DE ADICIONAR OS */
+        .add-os-container {
+            position: relative;
+        }
+        .add-os-button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            line-height: 28px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+        .add-os-button:hover {
+            background-color: #2980b9;
+        }
+        .new-os-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: white;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100;
+            padding: 5px 0;
+            min-width: 250px;
+            margin-top: 5px;
+        }
+        .new-os-menu.show {
+            display: block;
+        }
+        .new-os-menu a {
+            display: block;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #333;
+            text-decoration: none;
+            font-weight: normal;
+        }
+        .new-os-menu a:hover {
+            background-color: #f5f5f5;
+        }
+
         /* ESTILOS DO CARTÃO (CARD) */
         .card { 
             background-color: #fff; 
@@ -231,7 +326,8 @@
         }
 
         .modal-footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 20px; }
-        .btn-action { text-decoration: none; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: 500; transition: background-color 0.2s ease; }
+        .btn-action { text-decoration: none; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: 500; transition: background-color: 0.2s ease; }
+        .btn-history { background-color: #34495e; }
         .btn-edit { background-color: #f39c12; }
         .btn-pdf { background-color: #3498db; }
         .btn-pdf:disabled { background-color: #bdc3c7; }
@@ -239,7 +335,6 @@
         .btn-finalize { background-color: #27ae60; }
         .btn-archive { background-color: #7f8c8d; }
         
-        /* AJUSTE: Copiado o bloco de CSS dos forms para garantir consistência */
         .signature-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: center; z-index: 2000; }
         .signature-modal-content { background-color: #fff; padding: 20px; border-radius: 10px; width: 95%; max-width: 600px; text-align: center; display: flex; flex-direction: column; }
         .signature-modal-content canvas { border: 2px dashed #ccc; border-radius: 6px; cursor: crosshair; width: 100%; height: 250px; }
@@ -309,34 +404,47 @@
             gap: 10px;
         }
 
+        .history-list { list-style: none; padding: 0; margin: 0; }
+        .history-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .history-list li:last-child {
+            border-bottom: none;
+        }
+        .history-list strong {
+            color: #333;
+        }
+        .history-list span {
+            color: #777;
+            font-size: 0.9em;
+            text-align: right;
+        }
+
         /* ESTILOS RESPONSIVOS PARA CELULAR */
         @media (max-width: 768px) {
             .board-header {
                 flex-wrap: wrap;
-                padding: 10px 15px;
-            }
-            .header-top {
-                display: flex;
                 justify-content: space-between;
-                align-items: center;
-                width: 100%;
-                margin-bottom: 15px;
+                padding: 15px;
             }
-            .header-top img {
-                height: auto;
-                max-width: 180px; 
+            .header-left img {
+                height: 40px;
             }
-            .header-bottom {
-                width: 100%;
+            .header-center {
+                width: 100%; /* Ocupa a largura total para quebrar a linha */
+                order: 1; /* Garante que ele vá para baixo do logo e botão */
+                margin-top: 10px;
                 text-align: center;
             }
-            .board-header h1 {
-                font-size: 1.25rem;
-                margin-bottom: 10px;
-            }
-            .header-legend {
-                justify-content: center;
-                margin-left: 0;
+            .header-center h1 {
+                font-size: 1.2rem;
+                margin-bottom: 8px;
             }
             .board { scroll-snap-type: none; }
             .list { scroll-snap-align: none; }
@@ -346,11 +454,10 @@
 <body>
     <div class="board-container">
         <header class="board-header">
-            <div class="header-top">
+            <div class="header-left">
                 <a href="index.html"><img src="./images/logo.png" alt="Logo BM Medical"></a>
-                <button id="logout-button" class="logout-button">Sair</button>
             </div>
-            <div class="header-bottom">
+            <div class="header-center">
                 <h1>Quadro de Ordens de Serviço</h1>
                 <div class="header-legend">
                     <div class="legend-item">
@@ -366,6 +473,9 @@
                         Exército
                     </div>
                 </div>
+            </div>
+            <div class="header-right">
+                <button id="logout-button" class="logout-button">Sair</button>
             </div>
         </header>
 
@@ -424,13 +534,25 @@
         </div>
     </div>
 
+    <div id="history-modal" class="modal-overlay" style="z-index: 1002;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header-container">
+                <div class="modal-header-top">
+                    <h1>Histórico da OS</h1>
+                    <button class="modal-close-history">&times;</button>
+                </div>
+            </div>
+            <div id="history-modal-body"></div>
+        </div>
+    </div>
+
 
     <!-- Elemento da Notificação Toast -->
     <div id="toast-notification"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getFirestore, collection, doc, getDoc, updateDoc, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getFirestore, collection, doc, getDoc, updateDoc, onSnapshot, query, where, orderBy, deleteField, arrayUnion } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
@@ -450,6 +572,8 @@
         
         const finalizeModal = document.getElementById('finalize-modal');
         const archiveModal = document.getElementById('archive-modal');
+        const historyModal = document.getElementById('history-modal');
+        const historyModalBody = document.getElementById('history-modal-body');
         let currentOrderForAction = null;
 
         const statuses = {
@@ -463,6 +587,20 @@
             if (!dateString) return 'N/A';
             const [year, month, day] = dateString.split('-');
             return `${day}/${month}/${year}`;
+        }
+
+        function formatTimestampForHistory(timestamp) {
+            if (!timestamp) return 'N/A';
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            if (isNaN(date.getTime())) return 'Data inválida';
+
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            
+            return `${day}/${month}/${year} às ${hours}:${minutes}`;
         }
 
         function showToast(message) {
@@ -479,8 +617,26 @@
                 const list = document.createElement('div');
                 list.className = 'list';
                 list.dataset.status = statusKey;
+
+                let headerTitle = `<span>${statuses[statusKey]}</span>`;
+                let headerContent = headerTitle;
+
+                if (statusKey === 'novas') {
+                    headerContent = `
+                        ${headerTitle}
+                        <div class="add-os-container">
+                            <button id="add-os-btn" class="add-os-button" title="Criar nova OS">+</button>
+                            <div id="new-os-menu" class="new-os-menu">
+                                <a href="form-ufpel.html">Contrato Autoclave BAUMER HE-UFPEL</a>
+                                <a href="form-capao.html">Contrato Capão do Leão</a>
+                                <a href="form-exercito.html">Contrato Exército Brasileiro</a>
+                            </div>
+                        </div>
+                    `;
+                }
+
                 list.innerHTML = `
-                    <div class="list-header">${statuses[statusKey]}</div>
+                    <div class="list-header">${headerContent}</div>
                     <div class="cards"></div>
                 `;
                 board.appendChild(list);
@@ -542,8 +698,7 @@
                 card.style.borderLeftColor = color || '#3498db'; // Fallback
             }
 
-
-            const isSigned = order.signature_data && typeof order.signature_data === 'string' && order.signature_data.length > 200;
+            const isSigned = (order.signature_data && order.signature_data.length > 200) || order.assinaturaDesconsiderada === true;
             const signedIcon = `<div class="icon-signed" title="OS Assinada"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/><path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/></svg></div>`;
             const unsignedIcon = `<div class="icon-unsigned" title="Assinatura pendente"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6c757d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg></div>`;
             
@@ -644,12 +799,26 @@
         async function moveCardToStatus(orderId, newStatus) {
             const orderRef = doc(db, "orders", orderId);
             try {
+                const docSnap = await getDoc(orderRef);
+                if (!docSnap.exists()) {
+                    throw new Error("OS não encontrada para mover.");
+                }
+                const oldStatus = docSnap.data().status;
+
+                const historyEntry = {
+                    action: 'Movida',
+                    details: `De "${statuses[oldStatus] || oldStatus}" para "${statuses[newStatus]}"`,
+                    timestamp: new Date()
+                };
+
                 await updateDoc(orderRef, { 
                     status: newStatus, 
-                    position: Date.now() 
+                    position: Date.now(),
+                    history: arrayUnion(historyEntry)
                 });
+                showToast(`OS movida para "${statuses[newStatus]}"`);
             } catch (error) {
-                console.error("Erro ao atualizar a OS:", error);
+                console.error("Erro ao mover a OS:", error);
                 showToast("Erro ao mover o cartão.");
             }
         }
@@ -712,7 +881,6 @@
                     <p><strong>Local do Atendimento:</strong> ${order.local_atendimento || 'N/A'}</p>
                 `;
             } else {
-                // Fallback for any other contract
                 attendanceHtml = `
                     <p><strong>Data da Retirada / Serviço:</strong> ${formattedRetirada}</p>
                     <p><strong>Data da Devolução:</strong> ${formattedDevolucao}</p>
@@ -740,6 +908,7 @@
                 </div>
                 <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div><div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width:200px;"></div></div></div>
                 <div class="modal-footer">
+                    <button id="modal-btn-history" class="btn-action btn-history">Histórico</button>
                     <button id="modal-btn-archive" class="btn-action btn-archive">Arquivar OS</button>
                     <button id="modal-btn-edit" class="btn-action btn-edit">Editar OS</button>
                     <button id="modal-btn-pdf" class="btn-action btn-pdf">Gerar PDF</button>
@@ -748,6 +917,7 @@
         }
 
         function addModalEventListeners(order) {
+            document.getElementById('modal-btn-history').addEventListener('click', () => openHistoryModal(order));
             document.getElementById('modal-btn-archive').addEventListener('click', handleArchiveClick);
             document.getElementById('modal-btn-edit').addEventListener('click', () => switchToEditMode(order.id));
             document.getElementById('modal-btn-pdf').addEventListener('click', (e) => generatePdfForOrder(order.id, e.target));
@@ -793,6 +963,36 @@
                         equipamentoSelect.dispatchEvent(new Event('change'));
                     }
                 }
+
+                const desconsiderarCheck = editForm.querySelector('#edit-desconsiderar-assinatura-check');
+                if (desconsiderarCheck) {
+                    const signatureArea = editForm.querySelector('.signature-area');
+                    const signatureDataInput = editForm.querySelector('#edit_signature_data');
+                    
+                    const updateSignatureArea = () => {
+                        if (desconsiderarCheck.checked) {
+                            signatureArea.style.opacity = '0.5';
+                            signatureArea.style.pointerEvents = 'none';
+                        } else {
+                            signatureArea.style.opacity = '1';
+                            signatureArea.style.pointerEvents = 'auto';
+                        }
+                    };
+
+                    desconsiderarCheck.addEventListener('change', () => {
+                        if (desconsiderarCheck.checked) {
+                            signatureDataInput.value = ''; // Limpa a assinatura se marcar
+                            const placeholder = document.getElementById('signature-placeholder-details');
+                            if (placeholder) {
+                                placeholder.innerHTML = 'Assinatura não necessária';
+                            } else {
+                                document.getElementById('signature-container-details').innerHTML = `<div id="signature-placeholder-details" class="signature-placeholder">Assinatura não necessária</div>`;
+                            }
+                        }
+                        updateSignatureArea();
+                    });
+                    updateSignatureArea(); 
+                }
             }
         }
 
@@ -807,6 +1007,16 @@
             const ufpelContract = 'Contrato N° 03/2024';
             const capaoContract = 'Contrato Nº 138/2024';
             const exercitoContract = 'Contrato Nº 10/2025';
+
+            let desconsiderarCheckboxHtml = '';
+            if (order.contrato === exercitoContract) {
+                const isChecked = order.assinaturaDesconsiderada === true;
+                desconsiderarCheckboxHtml = `
+                    <div class="checkbox-group" style="margin-bottom: 20px;">
+                        <input type="checkbox" id="edit-desconsiderar-assinatura-check" ${isChecked ? 'checked' : ''}>
+                        <label for="edit-desconsiderar-assinatura-check">Desconsiderar Assinatura</label>
+                    </div>`;
+            }
 
             if (order.contrato === ufpelContract) {
                  attendanceFields = `<div class="form-group"><label for="edit_data_servico">Data do Serviço:</label><input type="date" id="edit_data_servico" name="data_servico" value="${order.data_servico||''}"></div><div class="form-group"><label for="edit_hora_chegada">Hora de Chegada:</label><input type="time" id="edit_hora_chegada" name="hora_chegada" value="${order.hora_chegada||''}"></div><div class="form-group"><label for="edit_hora_saida">Hora de Saída:</label><input type="time" id="edit_hora_saida" name="hora_saida" value="${order.hora_saida||''}"></div>`;
@@ -839,7 +1049,16 @@
                     ${equipmentFields?`<div class="form-section"><h2>Dados do Equipamento</h2>${equipmentFields}</div>`:''}
                     <div class="form-section"><h2>Atendimento</h2>${attendanceFields}</div>
                     <div class="form-section"><h2>Serviços e Peças</h2><div class="form-group"><label for="edit_servicos_realizados">Serviços Realizados:</label><textarea id="edit_servicos_realizados">${order.servicos_realizados||''}</textarea></div><div class="form-group"><label for="edit_pecas_utilizadas">Peças Utilizadas:</label><textarea id="edit_pecas_utilizadas">${order.pecas_utilizadas||''}</textarea></div></div>
-                    <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div><div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width:200px;"></div></div></div>
+                    <div class="form-section">
+                        <h2>Assinaturas</h2>
+                        ${desconsiderarCheckboxHtml}
+                        <div class="signature-area">
+                            <div class="signature-grid">
+                                <div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div>
+                                <div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width:200px;"></div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="modal-footer"><button type="submit" class="btn-action btn-save">Salvar Alterações</button></div>
                 </form>`;
         }
@@ -847,8 +1066,9 @@
         async function saveOrderChanges(orderId) {
             const form = document.getElementById('edit-os-form');
             const updatedData = {};
-            
-            if(form.equipamento_select){updatedData.equipamento=form.equipamento_select.value==='Outro'?form.outro_equipamento.value:form.equipamento_select.value}
+            const historyEntries = [];
+
+            if(form.equipamento_select){updatedData.equipamento=form.equipamento_select.value==='Outro'?form.outro_equipamento.value:form.outro_equipamento.value}
             if(form.marca)updatedData.marca=form.marca.value;if(form.modelo)updatedData.modelo=form.modelo.value;if(form.serial)updatedData.serial=form.serial.value;if(form.data_servico)updatedData.data_servico=form.data_servico.value;if(form.hora_chegada)updatedData.hora_chegada=form.hora_chegada.value;if(form.hora_saida)updatedData.hora_saida=form.hora_saida.value;if(form.data_retirada)updatedData.data_retirada=form.data_retirada.value;if(form.data_devolucao)updatedData.data_devolucao=form.data_devolucao.value;if(form.local_atendimento)updatedData.local_atendimento=form.local_atendimento.value;
             updatedData.servicos_realizados = document.getElementById('edit_servicos_realizados').value;
             updatedData.pecas_utilizadas = document.getElementById('edit_pecas_utilizadas').value;
@@ -857,6 +1077,34 @@
             if (signatureInput) {
                 updatedData.signature_data = signatureInput.value;
             }
+
+            const desconsiderarCheck = form.querySelector('#edit-desconsiderar-assinatura-check');
+            if (desconsiderarCheck) {
+                if (desconsiderarCheck.checked) {
+                    updatedData.assinaturaDesconsiderada = true;
+                    updatedData.signature_data = ''; 
+                } else {
+                    updatedData.assinaturaDesconsiderada = false;
+                }
+            }
+            
+            const wasSigned = (currentOrderForAction.signature_data && currentOrderForAction.signature_data.length > 200) || currentOrderForAction.assinaturaDesconsiderada === true;
+            const isNowSigned = (updatedData.signature_data && updatedData.signature_data.length > 200) || updatedData.assinaturaDesconsiderada === true;
+
+            if (isNowSigned && !wasSigned) {
+                updatedData.signedAt = new Date();
+                historyEntries.push({ action: 'Assinada', details: 'Assinatura adicionada/confirmada.', timestamp: new Date() });
+            } else if (!isNowSigned && wasSigned) {
+                updatedData.signedAt = deleteField();
+                historyEntries.push({ action: 'Assinatura Removida', details: 'Assinatura removida/desconsiderada.', timestamp: new Date() });
+            }
+
+            if (updatedData.signature_data && updatedData.signature_data.length > 200) {
+                 updatedData.assinaturaDesconsiderada = false;
+            }
+
+            historyEntries.push({ action: 'Editada', details: 'Os dados da OS foram alterados.', timestamp: new Date() });
+            updatedData.history = arrayUnion(...historyEntries);
 
             const orderRef = doc(db, "orders", orderId);
             try {
@@ -869,11 +1117,11 @@
             }
         }
 
-        // --- Lógica para Finalizar e Arquivar ---
-
         function handleFinalizeClick() {
             const isSigned = currentOrderForAction.signature_data && currentOrderForAction.signature_data.length > 200;
-            if (!isSigned) {
+            const signatureWasDisregarded = currentOrderForAction.assinaturaDesconsiderada === true;
+
+            if (!isSigned && !signatureWasDisregarded) {
                 showToast("Não é possível finalizar: a OS não está assinada.");
                 return;
             }
@@ -897,9 +1145,11 @@
             }
             const orderRef = doc(db, "orders", currentOrderForAction.id);
             try {
+                const historyEntry = { action: 'Finalizada', timestamp: new Date(), details: `Concluída em ${formatDate(completionDate)}` };
                 await updateDoc(orderRef, {
                     status: 'finalizada',
-                    data_conclusao: completionDate
+                    data_conclusao: completionDate,
+                    history: arrayUnion(historyEntry)
                 });
                 showToast("OS finalizada com sucesso!");
                 finalizeModal.style.display = 'none';
@@ -913,8 +1163,11 @@
         document.getElementById('confirm-archive-btn').addEventListener('click', async () => {
             const orderRef = doc(db, "orders", currentOrderForAction.id);
             try {
+                const historyEntry = { action: 'Arquivada', timestamp: new Date(), details: 'A OS foi arquivada (cancelada).' };
                 await updateDoc(orderRef, {
-                    status: 'arquivada'
+                    status: 'arquivada',
+                    archivedAt: new Date(),
+                    history: arrayUnion(historyEntry)
                 });
                 showToast("OS arquivada com sucesso!");
                 archiveModal.style.display = 'none';
@@ -995,7 +1248,6 @@
                 console.warn("Não foi possível ativar o modo paisagem/tela cheia.", err);
             } finally {
                 signatureModalDetails.style.display = 'flex';
-                // AJUSTE: Atrasar o redimensionamento para garantir que o modal esteja visível
                 setTimeout(() => {
                     resizeCanvasDetails();
                     saveSignatureStateDetails();
@@ -1081,16 +1333,48 @@
             closeSignaturePadDetails();
         });
         
+        function openHistoryModal(order) {
+            let historyHtml = '<p>Nenhum histórico de eventos para esta OS.</p>';
+
+            if (order.history && order.history.length > 0) {
+                const sortedHistory = order.history.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+
+                historyHtml = '<ul class="history-list">';
+                sortedHistory.forEach(event => {
+                    const eventDate = formatTimestampForHistory(event.timestamp);
+                    historyHtml += `
+                        <li>
+                            <div>
+                                <strong>${event.action}</strong>
+                                ${event.details ? `<p style="font-size: 0.85em; color: #666;">${event.details}</p>` : ''}
+                            </div>
+                            <span>${eventDate}</span>
+                        </li>`;
+                });
+                historyHtml += '</ul>';
+            }
+            
+            historyModalBody.innerHTML = historyHtml;
+            historyModal.style.display = 'flex';
+        }
+
+        historyModal.addEventListener('click', (e) => {
+            if (e.target === historyModal || e.target.classList.contains('modal-close-history')) {
+                historyModal.style.display = 'none';
+            }
+        });
+        
         async function generatePdfForOrder(orderId, buttonElement) {
             buttonElement.disabled = true;
             buttonElement.textContent = 'Gerando...';
             try {
-                const logoDataUrl = await imageToDataUrl('./images/logo.png', 0.9);
-                const techSigDataUrl = await imageToDataUrl('./images/assinatura-tecnico.png', 0.7);
                 const docRef = doc(db, "orders", orderId);
                 const docSnap = await getDoc(docRef);
                 if (!docSnap.exists()) throw new Error('OS não encontrada.');
                 const order = docSnap.data();
+                
+                const logoDataUrl = await imageToDataUrl('./images/logo.png', 0.9);
+                const techSigDataUrl = await imageToDataUrl('./images/assinatura-tecnico.png', 0.7);
                 const { jsPDF } = window.jspdf;
                 const docPDF = new jsPDF();
                 const pageHeight = docPDF.internal.pageSize.height;
@@ -1098,7 +1382,7 @@
                 const margin = 15;
                 let yPosition = 10;
 
-                // --- Cabeçalho ---
+                // --- Cabeçalho e Título (Comum a todos) ---
                 docPDF.addImage(logoDataUrl, 'JPEG', margin, yPosition, 72, 32);
                 docPDF.setFontSize(8).setFont(undefined, 'normal');
                 docPDF.text('BM MEDICAL', pageWidth - margin, yPosition + 5, { align: 'right' });
@@ -1107,12 +1391,9 @@
                 docPDF.text('Av. Duque de Caxias, 915-B403, Pelotas-RS', pageWidth - margin, yPosition + 17, { align: 'right' });
                 docPDF.text('Fone: (51) 99377-5933', pageWidth - margin, yPosition + 21, { align: 'right' });
                 yPosition += 38;
-
-                // --- Título da OS ---
                 docPDF.setFontSize(20).setFont(undefined, 'bold');
                 docPDF.text(`OS ${order.os_numero}`, pageWidth / 2, yPosition, { align: 'center' });
                 yPosition += 8;
-
                 if (order.tipo_manutencao) {
                     docPDF.setFontSize(12).setFont(undefined, 'normal');
                     const typeText = order.tipo_manutencao === 'preventiva' ? 'MP - Manutenção Preventiva' : 'MC - Manutenção Corretiva';
@@ -1120,29 +1401,23 @@
                 }
                 yPosition += 12;
 
-                // --- Função para desenhar seções ---
                 const drawSection = (title, contentCallback) => {
                     const startY = yPosition;
                     const contentY = startY + 10;
-                    
                     const finalY = contentCallback(contentY, true); 
                     const contentHeight = finalY - contentY;
                     const boxHeight = contentHeight + 18; 
-                    
                     docPDF.setDrawColor('#e0e0e0').setFillColor('#ffffff');
                     docPDF.roundedRect(margin, startY - 5, pageWidth - (margin * 2), boxHeight, 3, 3, 'FD');
-                    
                     docPDF.setFontSize(14).setTextColor('#3498db').setFont(undefined, 'bold');
                     docPDF.text(title, margin + 4, startY);
                     docPDF.setDrawColor('#3498db').setLineWidth(0.5).line(margin + 4, startY + 2, pageWidth - margin - 4, startY + 2);
-
                     docPDF.setFontSize(12).setTextColor('#000000').setFont(undefined, 'normal');
                     contentCallback(contentY, false);
-
                     yPosition = startY + boxHeight + 3;
                 };
 
-                // --- Seções ---
+                // --- Seções Comuns ---
                 drawSection('Dados do Cliente', (currentY, isDryRun) => {
                     let y = currentY;
                     if (!isDryRun) {
@@ -1166,7 +1441,6 @@
                         docPDF.setFont(undefined, 'normal').text(equipLines, margin + 34, y);
                     }
                     y += 6 * equipLines.length;
-
                     if(!isDryRun) {
                         docPDF.setFont(undefined, 'bold').text('Marca:', margin + 4, y);
                         docPDF.setFont(undefined, 'normal').text(order.marca || 'N/A', margin + 19, y);
@@ -1178,27 +1452,27 @@
                     return y + 6;
                 });
                 
+                // --- SEÇÃO CONDICIONAL DE ATENDIMENTO ---
                 drawSection('Dados do Atendimento', (currentY, isDryRun) => {
-                    const ufpelContract = 'Contrato N° 03/2024';
-                    const capaoContract = 'Contrato Nº 138/2024';
-                    const exercitoContract = 'Contrato Nº 10/2025';
+                    const ufpelContractId = 'Contrato N° 03/2024';
                     let y = currentY;
-
-                    if (order.contrato === ufpelContract) {
+                    if (order.contrato === ufpelContractId) {
+                        // Lógica para o contrato da Autoclave (UFPEL)
                         if (!isDryRun) {
                             docPDF.setFont(undefined, 'bold').text('Data do Serviço:', margin + 4, y);
-                            docPDF.setFont(undefined, 'normal').text(formatDate(order.data_servico), margin + 35, y);
+                            docPDF.setFont(undefined, 'normal').text(formatDate(order.data_servico), margin + 39, y);
                             y += 6;
                             docPDF.setFont(undefined, 'bold').text('Hora de Chegada:', margin + 4, y);
-                            docPDF.setFont(undefined, 'normal').text(order.hora_chegada || 'N/A', margin + 35, y);
+                            docPDF.setFont(undefined, 'normal').text(order.hora_chegada || 'N/A', margin + 42, y);
                             docPDF.setFont(undefined, 'bold').text('Hora de Saída:', margin + 80, y);
-                            docPDF.setFont(undefined, 'normal').text(order.hora_saida || 'N/A', margin + 105, y);
+                            docPDF.setFont(undefined, 'normal').text(order.hora_saida || 'N/A', margin + 111, y);
                             y += 6;
                             docPDF.setFont(undefined, 'bold').text('Local:', margin + 4, y);
-                            docPDF.setFont(undefined, 'normal').text('CME / HE-UFPEL', margin + 20, y);
+                            docPDF.setFont(undefined, 'normal').text('CME / HE-UFPEL', margin + 18, y);
                         }
-                        y += 6;
-                    } else if (order.contrato === capaoContract || order.contrato === exercitoContract) {
+                        return y + 18;
+                    } else {
+                        // Lógica para os outros contratos
                         if (!isDryRun) {
                             docPDF.setFont(undefined, 'bold').text('Data da Retirada:', margin + 4, y);
                             docPDF.setFont(undefined, 'normal').text(formatDate(order.data_retirada), margin + 40, y);
@@ -1208,11 +1482,11 @@
                             docPDF.setFont(undefined, 'bold').text('Local:', margin + 4, y);
                             docPDF.setFont(undefined, 'normal').text(order.local_atendimento || 'N/A', margin + 19, y);
                         }
-                        y += 12;
+                        return y + 12;
                     }
-                    return y;
                 });
 
+                // --- Seções Comuns (continuação) ---
                 drawSection('Descrição dos Serviços Realizados', (currentY, isDryRun) => {
                     const text = order.servicos_realizados || 'Não informado.';
                     const lines = docPDF.splitTextToSize(text, pageWidth - (margin * 2) - 8);
@@ -1227,13 +1501,12 @@
                     return currentY + (lines.length * 6);
                 });
 
-                // --- Assinaturas (no final da página) ---
+                // --- Assinaturas (Comum a todos) ---
                 const signatureY = pageHeight - 60;
                 const signatureHeight = 25;
                 const signatureWidth = 60;
                 const roleY = signatureY + signatureHeight + 2;
                 const lineY = roleY - 3;
-                
                 if (order.signature_data && order.signature_data.length > 200) {
                     docPDF.addImage(order.signature_data, 'JPEG', margin + 15, signatureY, signatureWidth, signatureHeight);
                 }
@@ -1241,13 +1514,13 @@
                 docPDF.line(margin + 10, lineY, margin + 10 + signatureWidth + 10, lineY);
                 docPDF.setFontSize(9).setFont(undefined, 'normal');
                 docPDF.text('Responsável do Setor', margin + 45, roleY, { align: 'center' });
-
                 const techSignatureX = pageWidth - margin - 15 - signatureWidth;
                 docPDF.addImage(techSigDataUrl, 'JPEG', techSignatureX, signatureY, signatureWidth, signatureHeight);
                 docPDF.line(techSignatureX - 5, lineY, techSignatureX + signatureWidth + 5, lineY);
                 docPDF.text('Responsável Técnico da Empresa', techSignatureX + (signatureWidth/2), roleY, { align: 'center' });
 
                 docPDF.save(`OS-${order.os_numero.split(' ')[0]}.pdf`);
+
             } catch (error) {
                 console.error("Erro ao gerar PDF:", error);
                 showToast("Ocorreu um erro ao gerar o PDF.");
@@ -1302,6 +1575,29 @@
         
         initializeBoard();
         listenToOrders();
+
+        // Lógica para o novo botão de adicionar OS
+        // É preciso esperar o initializeBoard() criar o botão
+        setTimeout(() => {
+            const addOsBtn = document.getElementById('add-os-btn');
+            const newOsMenu = document.getElementById('new-os-menu');
+
+            if (addOsBtn && newOsMenu) {
+                addOsBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Impede que o clique feche o menu imediatamente
+                    newOsMenu.classList.toggle('show');
+                });
+            }
+
+            // Fecha o menu se clicar fora
+            window.addEventListener('click', (e) => {
+                if (newOsMenu && newOsMenu.classList.contains('show')) {
+                    if (!newOsMenu.contains(e.target) && e.target !== addOsBtn) {
+                        newOsMenu.classList.remove('show');
+                    }
+                }
+            });
+        }, 0);
 
     </script>
 </body>

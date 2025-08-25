@@ -1,48 +1,68 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+// Auth Guard — versão Editada (sem top-level await)
+// Mantém sessão até clicar em "Sair" e protege rotas.
+// IMPORTANTE: carregar com <script type="module" src="auth-guard.js"></script>
 
-// A sua configuração do Firebase
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signOut,
+  setPersistence,
+  browserLocalPersistence,
+} from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+
 const firebaseConfig = {
-    apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
-    authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
-    projectId: "ordem-de-servicos---bm-medical",
-    storageBucket: "ordem-de-servicos---bm-medical.firebasestorage.app",
-    messagingSenderId: "92355637827",
-    appId: "1:92355637827:web:850b89afa5054781475af6"
+  apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
+  authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
+  projectId: "ordem-de-servicos---bm-medical",
+  storageBucket: "ordem-de-servicos---bm-medical.firebasestorage.app",
+  messagingSenderId: "92355637827",
+  appId: "1:92355637827:web:850b89afa5054781475af6",
 };
 
-const app = initializeApp(firebaseConfig);
+// Evita "App already exists" quando importado em várias páginas
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-/**
- * Esta função verifica o estado de autenticação do utilizador.
- * Se o utilizador não estiver autenticado, ele é redirecionado para a página de login.
- */
-onAuthStateChanged(auth, (user) => {
-    if (!user && !window.location.pathname.endsWith('login.html')) {
-        console.log("Utilizador não autenticado. A redirecionar para o login...");
-        window.location.href = 'login.html';
-    }
+// Define persistência LOCAL (sessão só termina ao clicar Sair)
+setPersistence(auth, browserLocalPersistence).catch((err) => {
+  console.error("[auth-guard] Falha ao definir persistência:", err);
 });
 
-/**
- * Função de logout que será chamada pelo botão.
- */
+const isLoginPage = () => /(^|\/)login\.html($|\?|#)/i.test(location.pathname);
+
+// Protege rotas
+onAuthStateChanged(auth, (user) => {
+  if (!user && !isLoginPage()) {
+    console.info("[auth-guard] Usuário não autenticado. Redirecionando para login...");
+    location.href = "login.html";
+    return;
+  }
+  if (user && isLoginPage()) {
+    console.info("[auth-guard] Sessão ativa. Redirecionando para a home...");
+    location.href = "index.html";
+  }
+});
+
+// Logout helper
 async function logout() {
-    try {
-        await signOut(auth);
-        console.log("Logout bem-sucedido.");
-        window.location.href = 'login.html';
-    } catch (error) {
-        console.error("Erro ao fazer logout:", error);
-    }
+  try {
+    await signOut(auth);
+    console.info("[auth-guard] Logout realizado.");
+    location.href = "login.html";
+  } catch (err) {
+    console.error("[auth-guard] Erro ao sair:", err);
+    alert("Erro ao sair. Tente novamente.");
+  }
 }
 
-// Procura por um botão com id="logout-button" e anexa o evento de clique.
-// Isto é mais robusto do que usar onclick="" no HTML.
-document.addEventListener('DOMContentLoaded', () => {
-    const logoutButton = document.getElementById('logout-button');
-    if (logoutButton) {
-        logoutButton.addEventListener('click', logout);
-    }
+// Vincula o botão de sair quando existir
+addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("logout-button");
+  if (btn) {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      logout();
+    });
+  }
 });
