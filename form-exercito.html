@@ -21,7 +21,7 @@
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; font-weight: 500; margin-bottom: 8px; color: #555; }
         .form-group input[type="text"], .form-group input[type="date"], .form-group input[type="time"], .form-group textarea, .form-group select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        .form-group input[readonly], .form-group textarea:disabled { background-color: #e9ecef; cursor: not-allowed; }
+        .form-group input[readonly], .form-group textarea:disabled, .form-group select:disabled { background-color: #e9ecef; cursor: not-allowed; }
         .form-group textarea { resize: vertical; min-height: 120px; }
         .radio-group { display: flex; gap: 20px; align-items: center; }
         .radio-group label { font-weight: normal; margin-bottom: 0; }
@@ -39,15 +39,9 @@
         .back-link:hover { text-decoration: underline; }
         .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; margin-top: 40px; }
         .footer p { margin: 5px 10px; }
-        
         .checkbox-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
         .checkbox-group label { margin-bottom: 0; font-weight: normal; }
-
-        .signature-area.disabled {
-            opacity: 0.5;
-            pointer-events: none;
-        }
-
+        .signature-area.disabled { opacity: 0.5; pointer-events: none; }
         .signature-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: center; z-index: 2000; }
         .signature-modal-content { background-color: #fff; padding: 20px; border-radius: 10px; width: 95%; max-width: 600px; text-align: center; display: flex; flex-direction: column; }
         .signature-modal-content canvas { border: 2px dashed #ccc; border-radius: 6px; cursor: crosshair; width: 100%; height: 250px; }
@@ -60,11 +54,9 @@
         #signature-error-message { color: #e74c3c; font-weight: 500; margin-top: 10px; display: none; }
         .signature-placeholder { border: 2px dashed #ccc; border-radius: 6px; padding: 20px; text-align: center; cursor: pointer; color: #7f8c8d; }
         .signature-thumbnail { max-width: 200px; max-height: 100px; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; }
-
         .signature-modal-overlay:fullscreen { background-color: #fff; }
         .signature-modal-overlay:fullscreen .signature-modal-content { height: 100%; width: 100%; max-width: none; border-radius: 0; padding: 15px; box-sizing: border-box; }
         .signature-modal-overlay:fullscreen .signature-modal-content canvas { flex-grow: 1; height: auto; }
-
         @media (max-width: 768px) {
             .main-content { padding: 15px; }
             .header img { max-width: 80%; }
@@ -114,34 +106,42 @@
                     <div class="form-group">
                         <label for="equipamento_select">Equipamento:</label>
                         <select id="equipamento_select" name="equipamento_select" required>
-                            <option value="" disabled selected>Selecione um equipamento</option>
-                            <option value="Micromotor Odontológico">Micromotor Odontológico</option>
-                            <option value="Caneta de Alta Rotação">Caneta de Alta Rotação</option>
-                            <option value="Autoclave de Bancada">Autoclave de Bancada</option>
-                            <option value="Contra-Ângulo">Contra-Ângulo</option>
-                            <option value="Ultrassom Com Jato De Bicarbonato">Ultrassom Com Jato De Bicarbonato</option>
-                            <option value="Compressor Odontológico">Compressor Odontológico</option>
-                            <option value="Cadeira Odontológica">Cadeira Odontológica</option>
-                            <option value="Raio-X Odontológico">Raio-X Odontológico</option>
-                            <option value="Mocho Odontológico">Mocho Odontológico</option>
-                            <option value="Outro">Outro</option>
+                            <option value="" disabled selected>Carregando...</option>
                         </select>
                     </div>
-                    <div class="form-group" id="outro_equipamento_group" style="display: none;">
-                        <label for="outro_equipamento">Qual equipamento?</label>
-                        <input type="text" id="outro_equipamento" name="outro_equipamento">
+                    <div id="manual_equipment_name" class="form-group" style="display: none;">
+                        <label for="equipamento_manual">Qual equipamento?</label>
+                        <input type="text" id="equipamento_manual" name="equipamento_manual">
                     </div>
                      <div class="form-group">
-                        <label for="marca">Marca:</label>
-                        <input type="text" id="marca" name="marca" required>
+                        <label for="marca_select">Marca:</label>
+                        <select id="marca_select" name="marca_select" required disabled>
+                            <option value="" disabled selected>Selecione um equipamento</option>
+                        </select>
+                    </div>
+                    <div id="manual_brand_name" class="form-group" style="display: none;">
+                        <label for="marca_manual">Qual marca?</label>
+                        <input type="text" id="marca_manual" name="marca_manual">
                     </div>
                      <div class="form-group">
-                        <label for="modelo">Modelo:</label>
-                        <input type="text" id="modelo" name="modelo" required>
+                        <label for="modelo_select">Modelo:</label>
+                        <select id="modelo_select" name="modelo_select" required disabled>
+                           <option value="" disabled selected>Selecione uma marca</option>
+                        </select>
+                    </div>
+                    <div id="manual_model_name" class="form-group" style="display: none;">
+                        <label for="modelo_manual">Qual modelo?</label>
+                        <input type="text" id="modelo_manual" name="modelo_manual">
                     </div>
                      <div class="form-group">
-                        <label for="serial">Serial:</label>
-                        <input type="text" id="serial" name="serial">
+                        <label for="serial_select">Número de Série:</label>
+                        <select id="serial_select" name="serial_select" disabled>
+                            <option value="" disabled selected>Selecione um modelo</option>
+                        </select>
+                    </div>
+                    <div id="manual_serial_name" class="form-group" style="display: none;">
+                        <label for="serial_manual">Qual número de série?</label>
+                        <input type="text" id="serial_manual" name="serial_manual">
                     </div>
                 </div>
                 <div class="form-section">
@@ -232,13 +232,10 @@
     </div>
     <footer class="footer">
         <p><strong>BM Medical</strong></p>
-        <p>CNPJ: 48.673.158/0001-59</p>
-        <p>Endereço: Av. Duque de Caxias, 915-B403, Pelotas-RS</p>
-        <p>Telefone: (51) 99377-5933 | Email: contato@nomedaempresa.com.br</p>
     </footer>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, runTransaction, collection, addDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, runTransaction, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
             authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
@@ -249,6 +246,170 @@
         };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+
+        // --- LÓGICA DO INVENTÁRIO HÍBRIDO ---
+        let inventory = [];
+        const contractId = "Contrato Nº 10/2025";
+
+        const equipmentSelect = document.getElementById('equipamento_select');
+        const manualEquipmentNameDiv = document.getElementById('manual_equipment_name');
+        const equipmentManualInput = document.getElementById('equipamento_manual');
+        
+        const brandSelect = document.getElementById('marca_select');
+        const manualBrandNameDiv = document.getElementById('manual_brand_name');
+        const brandManualInput = document.getElementById('marca_manual');
+
+        const modelSelect = document.getElementById('modelo_select');
+        const manualModelNameDiv = document.getElementById('manual_model_name');
+        const modelManualInput = document.getElementById('modelo_manual');
+
+        const serialSelect = document.getElementById('serial_select');
+        const manualSerialNameDiv = document.getElementById('manual_serial_name');
+        const serialManualInput = document.getElementById('serial_manual');
+        
+        const locationSelect = document.getElementById('local_atendimento');
+
+        async function loadInventory() {
+            try {
+                const q = query(collection(db, "equipment_inventory"), where("contract", "==", contractId));
+                const querySnapshot = await getDocs(q);
+                inventory = querySnapshot.docs.map(doc => doc.data());
+                populateEquipmentSelect();
+            } catch (error) {
+                console.error("Erro ao carregar inventário: ", error);
+                equipmentSelect.innerHTML = `<option value="" disabled selected>Erro ao carregar</option>`;
+            }
+        }
+
+        function populateSelectWithOptions(selectElement, options, defaultText) {
+            selectElement.innerHTML = `<option value="" disabled selected>${defaultText}</option>`;
+            options.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt;
+                option.textContent = opt;
+                selectElement.appendChild(option);
+            });
+            const otherOption = document.createElement('option');
+            otherOption.value = 'Outro';
+            otherOption.textContent = 'Outro (Digitar Manualmente)';
+            selectElement.appendChild(otherOption);
+        }
+
+        function populateEquipmentSelect() {
+            const equipmentNames = [...new Set(inventory.map(item => item.name))].sort();
+            populateSelectWithOptions(equipmentSelect, equipmentNames, "Selecione um equipamento");
+        }
+
+        function resetAndDisable(select, manualDiv, manualInput) {
+            select.innerHTML = '';
+            select.disabled = true;
+            manualDiv.style.display = 'none';
+            manualInput.value = '';
+            manualInput.required = false;
+        }
+
+        equipmentSelect.addEventListener('change', () => {
+            const selected = equipmentSelect.value;
+            resetAndDisable(brandSelect, manualBrandNameDiv, brandManualInput);
+            resetAndDisable(modelSelect, manualModelNameDiv, modelManualInput);
+            resetAndDisable(serialSelect, manualSerialNameDiv, serialManualInput);
+            locationSelect.disabled = false;
+            locationSelect.value = '';
+
+            if (selected === 'Outro') {
+                manualEquipmentNameDiv.style.display = 'block';
+                equipmentManualInput.required = true;
+                
+                brandSelect.innerHTML = `<option value="Outro" selected>Outro (Digitar Manualmente)</option>`;
+                brandSelect.disabled = false;
+                brandSelect.dispatchEvent(new Event('change'));
+
+            } else {
+                manualEquipmentNameDiv.style.display = 'none';
+                equipmentManualInput.required = false;
+                
+                const brands = [...new Set(inventory.filter(item => item.name === selected).map(item => item.brand))].sort();
+                populateSelectWithOptions(brandSelect, brands, "Selecione a marca");
+                brandSelect.disabled = false;
+            }
+        });
+
+        brandSelect.addEventListener('change', () => {
+            const selected = brandSelect.value;
+            resetAndDisable(modelSelect, manualModelNameDiv, modelManualInput);
+            resetAndDisable(serialSelect, manualSerialNameDiv, serialManualInput);
+            locationSelect.disabled = false;
+            locationSelect.value = '';
+
+            if (selected === 'Outro') {
+                manualBrandNameDiv.style.display = 'block';
+                brandManualInput.required = true;
+
+                modelSelect.innerHTML = `<option value="Outro" selected>Outro (Digitar Manualmente)</option>`;
+                modelSelect.disabled = false;
+                modelSelect.dispatchEvent(new Event('change'));
+
+            } else {
+                manualBrandNameDiv.style.display = 'none';
+                brandManualInput.required = false;
+
+                const models = [...new Set(inventory.filter(item => item.name === equipmentSelect.value && item.brand === selected).map(item => item.model))].sort();
+                populateSelectWithOptions(modelSelect, models, "Selecione o modelo");
+                modelSelect.disabled = false;
+            }
+        });
+
+        modelSelect.addEventListener('change', () => {
+            const selected = modelSelect.value;
+            resetAndDisable(serialSelect, manualSerialNameDiv, serialManualInput);
+            locationSelect.disabled = false;
+            locationSelect.value = '';
+
+            if (selected === 'Outro') {
+                manualModelNameDiv.style.display = 'block';
+                modelManualInput.required = true;
+                
+                serialSelect.innerHTML = `<option value="Outro" selected>Outro (Digitar Manualmente)</option>`;
+                serialSelect.disabled = false;
+                serialSelect.dispatchEvent(new Event('change'));
+
+            } else {
+                manualModelNameDiv.style.display = 'none';
+                modelManualInput.required = false;
+
+                const serials = [...new Set(inventory.filter(item => item.name === equipmentSelect.value && item.brand === brandSelect.value && item.model === selected).map(item => item.serial))].sort();
+                populateSelectWithOptions(serialSelect, serials, "Selecione o N/S");
+                serialSelect.disabled = false;
+            }
+        });
+
+        serialSelect.addEventListener('change', () => {
+            const selected = serialSelect.value;
+            locationSelect.disabled = false;
+            locationSelect.value = '';
+
+            if (selected === 'Outro') {
+                manualSerialNameDiv.style.display = 'block';
+                serialManualInput.required = true;
+            } else {
+                manualSerialNameDiv.style.display = 'none';
+                serialManualInput.required = false;
+
+                const uniqueItem = inventory.find(item => 
+                    item.name === equipmentSelect.value && 
+                    (item.brand === brandSelect.value || brandSelect.value === 'Outro') && 
+                    (item.model === modelSelect.value || modelSelect.value === 'Outro') && 
+                    item.serial === selected
+                );
+
+                if (uniqueItem && uniqueItem.location) {
+                    locationSelect.value = uniqueItem.location;
+                    locationSelect.disabled = true;
+                }
+            }
+        });
+
+        // --- FIM DA LÓGICA DO INVENTÁRIO ---
         
         const signatureModal = document.getElementById('signature-modal');
         const signatureContainer = document.getElementById('signature-container');
@@ -399,28 +560,15 @@
             closeSignaturePad();
         });
         
-        const equipamentoSelect = document.getElementById('equipamento_select');
-        const outroEquipamentoGroup = document.getElementById('outro_equipamento_group');
-        const outroEquipamentoInput = document.getElementById('outro_equipamento');
-        equipamentoSelect.addEventListener('change', () => {
-            if (equipamentoSelect.value === 'Outro') {
-                outroEquipamentoGroup.style.display = 'block';
-                outroEquipamentoInput.required = true;
-            } else {
-                outroEquipamentoGroup.style.display = 'none';
-                outroEquipamentoInput.required = false;
-            }
-        });
-        
         async function fetchAndSetOsNumber() {
             const osInput = document.getElementById('os_numero');
             osInput.value = 'Gerando...';
 
-            const contractId = 'exercito';
+            const counterDocId = 'exercito';
             const contractNumber = '10.25';
             const currentYear = new Date().getFullYear();
             
-            const counterRef = doc(db, "counters", contractId);
+            const counterRef = doc(db, "counters", counterDocId);
 
             try {
                 const docSnap = await getDoc(counterRef);
@@ -483,10 +631,6 @@
             submitButton.textContent = 'Salvando...';
             try {
                 const formData = new FormData(form);
-                let equipamentoValor = formData.get('equipamento_select');
-                if (equipamentoValor === 'Outro') {
-                    equipamentoValor = formData.get('outro_equipamento');
-                }
 
                 const servicosRealizadosValue = recebimentoCheck.checked 
                     ? "Recebimento de equipamento para análise." 
@@ -501,10 +645,10 @@
                     cnpj: "09.590.648/0001-30",
                     endereco: "Av. Duque de Caxias, 344, Pelotas - RS",
                     local_atendimento: formData.get('local_atendimento'),
-                    equipamento: equipamentoValor,
-                    marca: formData.get('marca'),
-                    modelo: formData.get('modelo'),
-                    serial: formData.get('serial'),
+                    equipamento: formData.get('equipamento_select') === 'Outro' ? formData.get('equipamento_manual') : formData.get('equipamento_select'),
+                    marca: formData.get('marca_select') === 'Outro' ? formData.get('marca_manual') : formData.get('marca_select'),
+                    modelo: formData.get('modelo_select') === 'Outro' ? formData.get('modelo_manual') : formData.get('modelo_select'),
+                    serial: formData.get('serial_select') === 'Outro' ? formData.get('serial_manual') : formData.get('serial_select'),
                     tipo_manutencao: formData.get('tipo_manutencao'),
                     os_numero: formData.get('os_numero'),
                     data_retirada: formData.get('data_retirada'),
@@ -516,7 +660,6 @@
                     createdAt: new Date()
                 };
 
-                // **NOVA ALTERAÇÃO: Adiciona o histórico inicial**
                 osData.history = [{ action: 'Criada', timestamp: new Date(), details: 'OS aberta no sistema.' }];
 
                 if (desconsiderarAssinaturaCheck.checked) {
@@ -529,8 +672,8 @@
                     osData.history.push({ action: 'Assinada', timestamp: new Date(), details: 'OS criada com assinatura.' });
                 }
                 
-                const contractId = 'exercito';
-                const counterRef = doc(db, "counters", contractId);
+                const counterDocId = 'exercito';
+                const counterRef = doc(db, "counters", counterDocId);
                 
                 await runTransaction(db, async (transaction) => {
                     const counterDoc = await transaction.get(counterRef);
@@ -561,6 +704,7 @@
             document.getElementById('data_retirada').value = today;
             fetchAndSetOsNumber();
             desconsiderarAssinaturaCheck.dispatchEvent(new Event('change'));
+            loadInventory();
         };
     </script>
 </body>
