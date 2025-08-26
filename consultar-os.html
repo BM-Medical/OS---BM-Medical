@@ -370,12 +370,13 @@
 
                 // --- Cabeçalho ---
                 docPDF.addImage(logoDataUrl, 'JPEG', margin, yPosition, 72, 32);
-                docPDF.setFontSize(8).setFont(undefined, 'normal');
-                docPDF.text('BM MEDICAL', pageWidth - margin, yPosition + 5, { align: 'right' });
-                docPDF.text('Manutenção Hospitalar', pageWidth - margin, yPosition + 9, { align: 'right' });
-                docPDF.text('CNPJ: 48.673.158/0001-59', pageWidth - margin, yPosition + 13, { align: 'right' });
-                docPDF.text('Av. Duque de Caxias, 915-B403, Pelotas-RS', pageWidth - margin, yPosition + 17, { align: 'right' });
-                docPDF.text('Fone: (51) 99377-5933', pageWidth - margin, yPosition + 21, { align: 'right' });
+                docPDF.setFontSize(9).setFont(undefined, 'bold');
+                docPDF.text('BM MEDICAL Engenharia Clínica', pageWidth - margin, yPosition + 5, { align: 'right' });
+		docPDF.setFontSize(8).setFont(undefined, 'normal');
+                docPDF.text('CNPJ: 48.673.158/0001-59', pageWidth - margin, yPosition + 9, { align: 'right' });
+                docPDF.text('Av. Duque de Caxias, 915-B403, Pelotas-RS', pageWidth - margin, yPosition + 13, { align: 'right' });
+                docPDF.text('Fone: (51) 99377-5933', pageWidth - margin, yPosition + 17, { align: 'right' });
+		docPDF.text('central.bmmedical@outlook.com', pageWidth - margin, yPosition + 21, { align: 'right' });
                 yPosition += 38;
 
                 // --- Título da OS ---
@@ -448,27 +449,27 @@
                     return y + 6;
                 });
                 
+                // ATUALIZAÇÃO INÍCIO: Código padronizado
                 drawSection('Atendimento', (currentY, isDryRun) => {
-                    const ufpelContract = 'Contrato N° 03/2024';
-                    const capaoContract = 'Contrato Nº 138/2024';
-                    const exercitoContract = 'Contrato Nº 10/2025';
+                    const ufpelContractId = 'Contrato N° 03/2024';
                     let y = currentY;
-
-                    if (order.contrato === ufpelContract) {
+                    if (order.contrato === ufpelContractId) {
+                        // Lógica para o contrato da Autoclave (UFPEL)
                         if (!isDryRun) {
                             docPDF.setFont(undefined, 'bold').text('Data do Serviço:', margin + 4, y);
-                            docPDF.setFont(undefined, 'normal').text(formatDate(order.data_servico), margin + 35, y);
+                            docPDF.setFont(undefined, 'normal').text(formatDate(order.data_servico), margin + 39, y);
                             y += 6;
                             docPDF.setFont(undefined, 'bold').text('Hora de Chegada:', margin + 4, y);
-                            docPDF.setFont(undefined, 'normal').text(order.hora_chegada || 'N/A', margin + 35, y);
+                            docPDF.setFont(undefined, 'normal').text(order.hora_chegada || 'N/A', margin + 42, y);
                             docPDF.setFont(undefined, 'bold').text('Hora de Saída:', margin + 80, y);
-                            docPDF.setFont(undefined, 'normal').text(order.hora_saida || 'N/A', margin + 105, y);
+                            docPDF.setFont(undefined, 'normal').text(order.hora_saida || 'N/A', margin + 111, y);
                             y += 6;
                             docPDF.setFont(undefined, 'bold').text('Local:', margin + 4, y);
-                            docPDF.setFont(undefined, 'normal').text('CME / HE-UFPEL', margin + 20, y);
+                            docPDF.setFont(undefined, 'normal').text('CME / HE-UFPEL', margin + 18, y);
                         }
-                        y += 18; 
-                    } else if (order.contrato === capaoContract || order.contrato === exercitoContract) {
+                        return y + 18;
+                    } else {
+                        // Lógica para os outros contratos
                         if (!isDryRun) {
                             docPDF.setFont(undefined, 'bold').text('Data da Retirada:', margin + 4, y);
                             docPDF.setFont(undefined, 'normal').text(formatDate(order.data_retirada), margin + 40, y);
@@ -478,10 +479,10 @@
                             docPDF.setFont(undefined, 'bold').text('Local:', margin + 4, y);
                             docPDF.setFont(undefined, 'normal').text(order.local_atendimento || 'N/A', margin + 19, y);
                         }
-                        y += 12; 
+                        return y + 12;
                     }
-                    return y;
                 });
+                // ATUALIZAÇÃO FIM
 
                 drawSection('Descrição dos Serviços Realizados', (currentY, isDryRun) => {
                     const text = order.servicos_realizados || 'Não informado.';
@@ -494,11 +495,11 @@
                     const text = order.pecas_utilizadas || 'Nenhuma.';
                     const lines = docPDF.splitTextToSize(text, pageWidth - (margin * 2) - 8);
                     if (!isDryRun) docPDF.text(lines, margin + 4, currentY);
-                    return currentY + (lines.length * 6);
+                    return currentY + (lines.length * 5);
                 });
 
                 // --- Assinaturas (no final da página) ---
-                const signatureY = pageHeight - 60;
+                const signatureY = pageHeight - 40;
                 const signatureHeight = 25;
                 const signatureWidth = 60;
                 const roleY = signatureY + signatureHeight + 2;
@@ -509,7 +510,7 @@
                 }
                 docPDF.setDrawColor('#333333').setLineWidth(0.3);
                 docPDF.line(margin + 10, lineY, margin + 10 + signatureWidth + 10, lineY);
-                docPDF.setFontSize(9).setFont(undefined, 'normal');
+                docPDF.setFontSize(9).setFont(undefined, 'bold');
                 docPDF.text('Responsável do Setor', margin + 45, roleY, { align: 'center' });
 
                 const techSignatureX = pageWidth - margin - 15 - signatureWidth;

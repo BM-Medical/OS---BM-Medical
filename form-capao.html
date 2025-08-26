@@ -56,6 +56,7 @@
         .signature-modal-overlay:fullscreen { background-color: #fff; }
         .signature-modal-overlay:fullscreen .signature-modal-content { height: 100%; width: 100%; max-width: none; border-radius: 0; padding: 15px; box-sizing: border-box; }
         .signature-modal-overlay:fullscreen .signature-modal-content canvas { flex-grow: 1; height: auto; }
+        .uppercase-input { text-transform: uppercase; }
         @media (max-width: 768px) {
             .main-content { padding: 15px; }
             .header img { max-width: 80%; }
@@ -110,7 +111,7 @@
                     </div>
                     <div id="manual_equipment_name" class="form-group" style="display: none;">
                         <label for="equipamento_manual">Qual equipamento?</label>
-                        <input type="text" id="equipamento_manual" name="equipamento_manual">
+                        <input type="text" id="equipamento_manual" name="equipamento_manual" class="uppercase-input">
                     </div>
                      <div class="form-group">
                         <label for="marca_select">Marca:</label>
@@ -120,7 +121,7 @@
                     </div>
                     <div id="manual_brand_name" class="form-group" style="display: none;">
                         <label for="marca_manual">Qual marca?</label>
-                        <input type="text" id="marca_manual" name="marca_manual">
+                        <input type="text" id="marca_manual" name="marca_manual" class="uppercase-input">
                     </div>
                      <div class="form-group">
                         <label for="modelo_select">Modelo:</label>
@@ -130,7 +131,7 @@
                     </div>
                     <div id="manual_model_name" class="form-group" style="display: none;">
                         <label for="modelo_manual">Qual modelo?</label>
-                        <input type="text" id="modelo_manual" name="modelo_manual">
+                        <input type="text" id="modelo_manual" name="modelo_manual" class="uppercase-input">
                     </div>
                      <div class="form-group">
                         <label for="serial_select">Número de Série:</label>
@@ -140,7 +141,7 @@
                     </div>
                     <div id="manual_serial_name" class="form-group" style="display: none;">
                         <label for="serial_manual">Qual número de série?</label>
-                        <input type="text" id="serial_manual" name="serial_manual">
+                        <input type="text" id="serial_manual" name="serial_manual" class="uppercase-input">
                     </div>
                 </div>
                 <div class="form-section">
@@ -316,7 +317,6 @@
                 manualEquipmentNameDiv.style.display = 'block';
                 equipmentManualInput.required = true;
                 
-                // Libera os campos seguintes para digitação manual
                 brandSelect.innerHTML = `<option value="Outro" selected>Outro (Digitar Manualmente)</option>`;
                 brandSelect.disabled = false;
                 brandSelect.dispatchEvent(new Event('change'));
@@ -404,6 +404,13 @@
                     locationSelect.disabled = true;
                 }
             }
+        });
+        
+        // Aplica a transformação para caixa alta
+        [equipmentManualInput, brandManualInput, modelManualInput, serialManualInput].forEach(input => {
+            input.addEventListener('input', () => {
+                input.value = input.value.toUpperCase();
+            });
         });
 
         // --- FIM DA LÓGICA DO INVENTÁRIO ---
