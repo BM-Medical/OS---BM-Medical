@@ -644,7 +644,10 @@
         }
 
         function listenToOrders() {
-            const q = query(collection(db, "orders"));
+            // OTIMIZAÇÃO: A consulta agora busca apenas OS com status ativos.
+            // Isso reduz drasticamente o número de leituras iniciais e o tráfego de dados em tempo real.
+            const activeStatuses = ['novas', 'em_execucao', 'aguardando_pecas', 'pronto_entrega'];
+            const q = query(collection(db, "orders"), where("status", "in", activeStatuses));
             
             onSnapshot(q, (snapshot) => {
                 const ordersByStatus = {};
@@ -1384,13 +1387,12 @@
 
                 // --- Cabeçalho e Título (Comum a todos) ---
                 docPDF.addImage(logoDataUrl, 'JPEG', margin, yPosition, 72, 32);
-                docPDF.setFontSize(9).setFont(undefined, 'bold');
-                docPDF.text('BM MEDICAL Engenharia Clínica', pageWidth - margin, yPosition + 5, { align: 'right' });
-		docPDF.setFontSize(8).setFont(undefined, 'normal');
-                docPDF.text('CNPJ: 48.673.158/0001-59', pageWidth - margin, yPosition + 9, { align: 'right' });
-                docPDF.text('Av. Duque de Caxias, 915-B403, Pelotas-RS', pageWidth - margin, yPosition + 13, { align: 'right' });
-                docPDF.text('Fone: (51) 99377-5933', pageWidth - margin, yPosition + 17, { align: 'right' });
-		docPDF.text('central.bmmedical@outlook.com', pageWidth - margin, yPosition + 21, { align: 'right' });
+                docPDF.setFontSize(8).setFont(undefined, 'normal');
+                docPDF.text('BM MEDICAL', pageWidth - margin, yPosition + 5, { align: 'right' });
+                docPDF.text('Manutenção Hospitalar', pageWidth - margin, yPosition + 9, { align: 'right' });
+                docPDF.text('CNPJ: 48.673.158/0001-59', pageWidth - margin, yPosition + 13, { align: 'right' });
+                docPDF.text('Av. Duque de Caxias, 915-B403, Pelotas-RS', pageWidth - margin, yPosition + 17, { align: 'right' });
+                docPDF.text('Fone: (51) 99377-5933', pageWidth - margin, yPosition + 21, { align: 'right' });
                 yPosition += 38;
                 docPDF.setFontSize(20).setFont(undefined, 'bold');
                 docPDF.text(`OS ${order.os_numero}`, pageWidth / 2, yPosition, { align: 'center' });
@@ -1499,11 +1501,11 @@
                     const text = order.pecas_utilizadas || 'Nenhuma.';
                     const lines = docPDF.splitTextToSize(text, pageWidth - (margin * 2) - 8);
                     if (!isDryRun) docPDF.text(lines, margin + 4, currentY);
-                    return currentY + (lines.length * 5);
+                    return currentY + (lines.length * 6);
                 });
 
                 // --- Assinaturas (Comum a todos) ---
-                const signatureY = pageHeight - 40;
+                const signatureY = pageHeight - 60;
                 const signatureHeight = 25;
                 const signatureWidth = 60;
                 const roleY = signatureY + signatureHeight + 2;
@@ -1513,7 +1515,7 @@
                 }
                 docPDF.setDrawColor('#333333').setLineWidth(0.3);
                 docPDF.line(margin + 10, lineY, margin + 10 + signatureWidth + 10, lineY);
-                docPDF.setFontSize(9).setFont(undefined, 'bold');
+                docPDF.setFontSize(9).setFont(undefined, 'normal');
                 docPDF.text('Responsável do Setor', margin + 45, roleY, { align: 'center' });
                 const techSignatureX = pageWidth - margin - 15 - signatureWidth;
                 docPDF.addImage(techSigDataUrl, 'JPEG', techSignatureX, signatureY, signatureWidth, signatureHeight);
@@ -1529,25 +1531,6 @@
                 buttonElement.disabled = false;
                 buttonElement.textContent = 'Gerar PDF';
             }
-        }
-
-        function imageToDataUrl(url, quality = 0.7) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.crossOrigin = 'Anonymous';
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0);
-                    resolve(canvas.toDataURL('image/jpeg', quality));
-                };
-                img.onerror = (err) => reject(new Error(`Falha ao carregar a imagem: ${url}. Erro: ${err}`));
-                img.src = url;
-            });
         }
 
         modalOverlay.addEventListener('click', (e) => {

@@ -267,10 +267,28 @@
         const locationSelect = document.getElementById('local_atendimento');
 
         async function loadInventory() {
+            // Chave única para o cache deste contrato
+            const cacheKey = `inventory_${contractId}`;
+            
             try {
+                // 1. Tenta carregar do cache da sessão primeiro
+                const cachedInventory = sessionStorage.getItem(cacheKey);
+                if (cachedInventory) {
+                    console.log("Carregando inventário do cache da sessão.");
+                    inventory = JSON.parse(cachedInventory);
+                    populateEquipmentSelect();
+                    return; // Encerra a função se os dados vieram do cache
+                }
+
+                // 2. Se não houver cache, busca no Firestore
+                console.log("Buscando inventário do Firestore (primeira vez na sessão).");
                 const q = query(collection(db, "equipment_inventory"), where("contract", "==", contractId));
                 const querySnapshot = await getDocs(q);
                 inventory = querySnapshot.docs.map(doc => doc.data());
+
+                // 3. Salva o resultado no cache para os próximos carregamentos na mesma sessão
+                sessionStorage.setItem(cacheKey, JSON.stringify(inventory));
+                
                 populateEquipmentSelect();
             } catch (error) {
                 console.error("Erro ao carregar inventário: ", error);
