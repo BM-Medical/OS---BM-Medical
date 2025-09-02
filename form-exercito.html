@@ -180,10 +180,10 @@
                         <label for="local_atendimento">Local:</label>
                         <select id="local_atendimento" name="local_atendimento" required>
                             <option value="" disabled selected>Selecione um local</option>
-                            <option value="GO 1">GO 1</option>
-                            <option value="GO 2">GO 2</option>
-                            <option value="GO 3">GO 3</option>
-                            <option value="GO 4">GO 4</option>
+                            <option value="GO1">GO 1</option>
+                            <option value="GO2">GO 2</option>
+                            <option value="GO3">GO 3</option>
+                            <option value="GO4">GO 4</option>
                             <option value="PMGuPel">PMGuPel</option>
                         </select>
                     </div>
@@ -305,20 +305,18 @@
         const manualSerialNameDiv = document.getElementById('manual_serial_name');
         const serialManualInput = document.getElementById('serial_manual');
         
+        // --- CORREÇÃO: Variável que faltava ser declarada ---
+        const desconsiderarAssinaturaCheck = document.getElementById('desconsiderar-assinatura-check');
+
         const locationSelect = document.getElementById('local_atendimento');
 
         async function loadInventory() {
             const cacheKey = `inventory_${contractId}`;
             try {
-                const cachedInventory = sessionStorage.getItem(cacheKey);
-                if (cachedInventory) {
-                    console.log("Carregando inventário do cache da sessão.");
-                    inventory = JSON.parse(cachedInventory);
-                    populateEquipmentSelect();
-                    return;
-                }
-                console.log("Buscando inventário do Firestore (primeira vez na sessão).");
-                const q = query(collection(db, "equipment_inventory"), where("contract", "==", contractId));
+                // Forçar a limpeza do cache para garantir dados atualizados
+                sessionStorage.removeItem(cacheKey);
+                console.log("Buscando inventário do Firestore.");
+                const q = query(collection(db, "inventory_equipment"), where("contract", "==", contractId));
                 const querySnapshot = await getDocs(q);
                 inventory = querySnapshot.docs.map(doc => doc.data());
                 sessionStorage.setItem(cacheKey, JSON.stringify(inventory));
@@ -432,31 +430,38 @@
         });
 
         serialSelect.addEventListener('change', () => {
-            const selected = serialSelect.value;
-            locationSelect.disabled = false;
+            const selectedSerial = serialSelect.value;
             locationSelect.value = '';
+            locationSelect.disabled = false;
 
-            if (selected === 'Outro') {
+            if (selectedSerial === 'Outro') {
                 manualSerialNameDiv.style.display = 'block';
                 serialManualInput.required = true;
-            } else {
-                manualSerialNameDiv.style.display = 'none';
-                serialManualInput.required = false;
+                return;
+            }
+            
+            manualSerialNameDiv.style.display = 'none';
+            serialManualInput.required = false;
 
-                const uniqueItem = inventory.find(item => 
-                    item.name === equipmentSelect.value && 
-                    (item.brand === brandSelect.value || brandSelect.value === 'Outro') && 
-                    (item.model === modelSelect.value || modelSelect.value === 'Outro') && 
-                    item.serial === selected
-                );
+            if (!selectedSerial) {
+                return;
+            }
 
-                if (uniqueItem && uniqueItem.location) {
-                    locationSelect.value = uniqueItem.location;
-                    locationSelect.disabled = true;
+            const uniqueItem = inventory.find(item =>
+                item.name === equipmentSelect.value &&
+                item.brand === brandSelect.value &&
+                item.model === modelSelect.value &&
+                item.serial === selectedSerial
+            );
+
+            if (uniqueItem && uniqueItem.location) {
+                locationSelect.value = uniqueItem.location;
+                if (locationSelect.value !== uniqueItem.location) {
+                    console.warn('O local "' + uniqueItem.location + '" não foi encontrado nas opções do formulário.');
                 }
             }
         });
-        
+
         [equipmentManualInput, brandManualInput, modelManualInput, serialManualInput].forEach(input => {
             input.addEventListener('input', () => {
                 input.value = input.value.toUpperCase();
@@ -655,8 +660,7 @@
                 servicosTextarea.required = true;
             }
         });
-
-        const desconsiderarAssinaturaCheck = document.getElementById('desconsiderar-assinatura-check');
+        
         const signatureArea = document.querySelector('.signature-area');
 
         desconsiderarAssinaturaCheck.addEventListener('change', () => {
@@ -699,10 +703,10 @@
                     cnpj: "09.590.648/0001-30",
                     endereco: "Av. Duque de Caxias, 344, Pelotas - RS",
                     local_atendimento: formData.get('local_atendimento'),
-                    equipamento: formData.get('equipamento_select') === 'Outro' ? formData.get('equipamento_manual') : formData.get('equipamento_select'),
-                    marca: formData.get('marca_select') === 'Outro' ? formData.get('marca_manual') : formData.get('marca_manual'),
-                    modelo: formData.get('modelo_select') === 'Outro' ? formData.get('modelo_manual') : formData.get('modelo_manual'),
-                    serial: formData.get('serial_select') === 'Outro' ? formData.get('serial_manual') : formData.get('serial_select'),
+                    equipamento: formData.get('equipamento_select') === 'Outro' ? formData.get('equipamento_manual').toUpperCase() : formData.get('equipamento_select'),
+                    marca: formData.get('marca_select') === 'Outro' ? formData.get('marca_manual').toUpperCase() : formData.get('marca_select'),
+                    modelo: formData.get('modelo_select') === 'Outro' ? formData.get('modelo_manual').toUpperCase() : formData.get('modelo_select'),
+                    serial: formData.get('serial_select') === 'Outro' ? formData.get('serial_manual').toUpperCase() : formData.get('serial_select'),
                     tipo_manutencao: formData.get('tipo_manutencao'),
                     os_numero: formData.get('os_numero'),
                     data_retirada: formData.get('data_retirada'),

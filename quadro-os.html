@@ -644,8 +644,6 @@
         }
 
         function listenToOrders() {
-            // OTIMIZAÇÃO: A consulta agora busca apenas OS com status ativos.
-            // Isso reduz drasticamente o número de leituras iniciais e o tráfego de dados em tempo real.
             const activeStatuses = ['novas', 'em_execucao', 'aguardando_pecas', 'pronto_entrega'];
             const q = query(collection(db, "orders"), where("status", "in", activeStatuses));
             
@@ -688,9 +686,9 @@
             card.dataset.status = order.status;
 
             const contractColors = {
-                'Contrato N° 03/2024': '#2980b9',     // UFPEL -> Azul Royal
-                'Contrato Nº 138/2024': '#f39c12',    // Capão do Leão -> Laranja Energia
-                'Contrato Nº 10/2025': 'gradient',   // Exército -> Gradiente
+                'Contrato N° 03/2024': '#2980b9',
+                'Contrato Nº 138/2024': '#f39c12',
+                'Contrato Nº 10/2025': 'gradient',
             };
             
             const color = contractColors[order.contrato];
@@ -698,7 +696,7 @@
             if (color === 'gradient') {
                 card.style.borderImage = 'repeating-linear-gradient(to bottom, #2F4F2F, #2F4F2F 25%, #8B4513 25%, #8B4513 50%, #6B8E23 50%, #6B8E23 75%, #556B2F 75%, #556B2F 100%) 1';
             } else {
-                card.style.borderLeftColor = color || '#3498db'; // Fallback
+                card.style.borderLeftColor = color || '#3498db';
             }
 
             const isSigned = (order.signature_data && order.signature_data.length > 200) || order.assinaturaDesconsiderada === true;
@@ -919,11 +917,12 @@
                 </div>`;
         }
 
-        function addModalEventListeners(order) {
+function addModalEventListeners(order) {
             document.getElementById('modal-btn-history').addEventListener('click', () => openHistoryModal(order));
             document.getElementById('modal-btn-archive').addEventListener('click', handleArchiveClick);
             document.getElementById('modal-btn-edit').addEventListener('click', () => switchToEditMode(order.id));
-            document.getElementById('modal-btn-pdf').addEventListener('click', (e) => generatePdfForOrder(order.id, e.target));
+            // CORREÇÃO: Passa o objeto 'order' completo para a função do PDF
+            document.getElementById('modal-btn-pdf').addEventListener('click', (e) => generatePdfForOrder(order, e.target));
             document.getElementById('modal-btn-finalize').addEventListener('click', handleFinalizeClick);
         }
         
@@ -1367,17 +1366,34 @@
             }
         });
         
-        async function generatePdfForOrder(orderId, buttonElement) {
+        function imageToDataUrl(url, quality = 0.7) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = (err) => reject(new Error(`Falha ao carregar a imagem: ${url}. Erro: ${err}`));
+                img.src = url;
+            });
+        }
+
+async function generatePdfForOrder(order, buttonElement) {
             buttonElement.disabled = true;
             buttonElement.textContent = 'Gerando...';
             try {
-                const docRef = doc(db, "orders", orderId);
-                const docSnap = await getDoc(docRef);
-                if (!docSnap.exists()) throw new Error('OS não encontrada.');
-                const order = docSnap.data();
-                
+                if (!order) throw new Error('Dados da OS não encontrados.');
+
                 const logoDataUrl = await imageToDataUrl('./images/logo.png', 0.9);
                 const techSigDataUrl = await imageToDataUrl('./images/assinatura-tecnico.png', 0.7);
+                
                 const { jsPDF } = window.jspdf;
                 const docPDF = new jsPDF();
                 const pageHeight = docPDF.internal.pageSize.height;
@@ -1385,18 +1401,20 @@
                 const margin = 15;
                 let yPosition = 10;
 
-                // --- Cabeçalho e Título (Comum a todos) ---
                 docPDF.addImage(logoDataUrl, 'JPEG', margin, yPosition, 72, 32);
+                docPDF.setFontSize(9).setFont(undefined, 'bold');
+                docPDF.text('BM MEDICAL Engenharia Clínica', pageWidth - margin, yPosition + 5, { align: 'right' });
                 docPDF.setFontSize(8).setFont(undefined, 'normal');
-                docPDF.text('BM MEDICAL', pageWidth - margin, yPosition + 5, { align: 'right' });
-                docPDF.text('Manutenção Hospitalar', pageWidth - margin, yPosition + 9, { align: 'right' });
-                docPDF.text('CNPJ: 48.673.158/0001-59', pageWidth - margin, yPosition + 13, { align: 'right' });
-                docPDF.text('Av. Duque de Caxias, 915-B403, Pelotas-RS', pageWidth - margin, yPosition + 17, { align: 'right' });
-                docPDF.text('Fone: (51) 99377-5933', pageWidth - margin, yPosition + 21, { align: 'right' });
+                docPDF.text('CNPJ: 48.673.158/0001-59', pageWidth - margin, yPosition + 9, { align: 'right' });
+                docPDF.text('Av. Duque de Caxias, 915-B403, Pelotas-RS', pageWidth - margin, yPosition + 13, { align: 'right' });
+                docPDF.text('Fone: (51) 99377-5933', pageWidth - margin, yPosition + 17, { align: 'right' });
+                docPDF.text('central.bmmedical@outlook.com', pageWidth - margin, yPosition + 21, { align: 'right' });
                 yPosition += 38;
+
                 docPDF.setFontSize(20).setFont(undefined, 'bold');
                 docPDF.text(`OS ${order.os_numero}`, pageWidth / 2, yPosition, { align: 'center' });
                 yPosition += 8;
+
                 if (order.tipo_manutencao) {
                     docPDF.setFontSize(12).setFont(undefined, 'normal');
                     const typeText = order.tipo_manutencao === 'preventiva' ? 'MP - Manutenção Preventiva' : 'MC - Manutenção Corretiva';
@@ -1405,35 +1423,45 @@
                 yPosition += 12;
 
                 const drawSection = (title, contentCallback) => {
-                    const startY = yPosition;
-                    const contentY = startY + 10;
-                    const finalY = contentCallback(contentY, true); 
-                    const contentHeight = finalY - contentY;
-                    const boxHeight = contentHeight + 18; 
+                    const dryRunFinalY = contentCallback(0, true);
+                    const contentHeight = dryRunFinalY; // Corrigido para usar a altura retornada
+                    const boxHeight = contentHeight + 18;
+
+                    if (yPosition + boxHeight > pageHeight - 50) { // Adiciona margem inferior
+                        docPDF.addPage();
+                        yPosition = 20;
+                    }
+                    
                     docPDF.setDrawColor('#e0e0e0').setFillColor('#ffffff');
-                    docPDF.roundedRect(margin, startY - 5, pageWidth - (margin * 2), boxHeight, 3, 3, 'FD');
+                    docPDF.roundedRect(margin, yPosition - 5, pageWidth - (margin * 2), boxHeight, 3, 3, 'FD');
+                    
                     docPDF.setFontSize(14).setTextColor('#3498db').setFont(undefined, 'bold');
-                    docPDF.text(title, margin + 4, startY);
-                    docPDF.setDrawColor('#3498db').setLineWidth(0.5).line(margin + 4, startY + 2, pageWidth - margin - 4, startY + 2);
+                    docPDF.text(title, margin + 4, yPosition);
+                    docPDF.setDrawColor('#3498db').setLineWidth(0.5).line(margin + 4, yPosition + 2, pageWidth - margin - 4, yPosition + 2);
+
                     docPDF.setFontSize(12).setTextColor('#000000').setFont(undefined, 'normal');
-                    contentCallback(contentY, false);
-                    yPosition = startY + boxHeight + 3;
+                    contentCallback(yPosition + 10, false);
+
+                    yPosition += boxHeight + 3;
                 };
 
-                // --- Seções Comuns ---
                 drawSection('Dados do Cliente', (currentY, isDryRun) => {
                     let y = currentY;
                     if (!isDryRun) {
                         docPDF.setFont(undefined, 'bold').text('Contrato:', margin + 4, y);
                         docPDF.setFont(undefined, 'normal').text(order.contrato || 'N/A', margin + 27, y);
-                        y += 6;
+                    }
+                    y += 6;
+                    if (!isDryRun) {
                         docPDF.setFont(undefined, 'bold').text('Cliente:', margin + 4, y);
                         docPDF.setFont(undefined, 'normal').text(order.cliente || 'N/A', margin + 27, y);
-                        y += 6;
+                    }
+                    y += 6;
+                    if (!isDryRun) {
                         docPDF.setFont(undefined, 'bold').text('Endereço:', margin + 4, y);
                         docPDF.setFont(undefined, 'normal').text(order.endereco || 'N/A', margin + 27, y);
                     }
-                    return y + 18;
+                    return (y - currentY) + 6;
                 });
 
                 drawSection('Dados do Equipamento', (currentY, isDryRun) => {
@@ -1452,81 +1480,84 @@
                         docPDF.setFont(undefined, 'bold').text('Serial:', margin + 130, y);
                         docPDF.setFont(undefined, 'normal').text(order.serial || 'N/A', margin + 144, y);
                     }
-                    return y + 6;
+                    return (y - currentY) + 6;
                 });
                 
-                // --- SEÇÃO CONDICIONAL DE ATENDIMENTO ---
-                drawSection('Dados do Atendimento', (currentY, isDryRun) => {
+                // NOVA VERSÃO CORRIGIDA DESTA SEÇÃO
+                drawSection('Atendimento', (currentY, isDryRun) => {
                     const ufpelContractId = 'Contrato N° 03/2024';
                     let y = currentY;
                     if (order.contrato === ufpelContractId) {
-                        // Lógica para o contrato da Autoclave (UFPEL)
                         if (!isDryRun) {
                             docPDF.setFont(undefined, 'bold').text('Data do Serviço:', margin + 4, y);
                             docPDF.setFont(undefined, 'normal').text(formatDate(order.data_servico), margin + 39, y);
-                            y += 6;
+                        }
+                        y += 6;
+                        if (!isDryRun) {
                             docPDF.setFont(undefined, 'bold').text('Hora de Chegada:', margin + 4, y);
                             docPDF.setFont(undefined, 'normal').text(order.hora_chegada || 'N/A', margin + 42, y);
                             docPDF.setFont(undefined, 'bold').text('Hora de Saída:', margin + 80, y);
                             docPDF.setFont(undefined, 'normal').text(order.hora_saida || 'N/A', margin + 111, y);
-                            y += 6;
+                        }
+                        y += 6;
+                        if (!isDryRun) {
                             docPDF.setFont(undefined, 'bold').text('Local:', margin + 4, y);
                             docPDF.setFont(undefined, 'normal').text('CME / HE-UFPEL', margin + 18, y);
                         }
-                        return y + 18;
+                        return (y - currentY) + 6;
                     } else {
-                        // Lógica para os outros contratos
                         if (!isDryRun) {
                             docPDF.setFont(undefined, 'bold').text('Data da Retirada:', margin + 4, y);
                             docPDF.setFont(undefined, 'normal').text(formatDate(order.data_retirada), margin + 40, y);
                             docPDF.setFont(undefined, 'bold').text('Data da Devolução:', margin + 80, y);
                             docPDF.setFont(undefined, 'normal').text(formatDate(order.data_devolucao), margin + 120, y);
-                            y += 6;
+                        }
+                        y += 6;
+                        if (!isDryRun) {
                             docPDF.setFont(undefined, 'bold').text('Local:', margin + 4, y);
                             docPDF.setFont(undefined, 'normal').text(order.local_atendimento || 'N/A', margin + 19, y);
                         }
-                        return y + 12;
+                        return (y - currentY) + 6;
                     }
                 });
 
-                // --- Seções Comuns (continuação) ---
                 drawSection('Descrição dos Serviços Realizados', (currentY, isDryRun) => {
                     const text = order.servicos_realizados || 'Não informado.';
                     const lines = docPDF.splitTextToSize(text, pageWidth - (margin * 2) - 8);
                     if (!isDryRun) docPDF.text(lines, margin + 4, currentY);
-                    return currentY + (lines.length * 6);
+                    return (lines.length * 6);
                 });
 
                 drawSection('Peças Utilizadas', (currentY, isDryRun) => {
                     const text = order.pecas_utilizadas || 'Nenhuma.';
                     const lines = docPDF.splitTextToSize(text, pageWidth - (margin * 2) - 8);
                     if (!isDryRun) docPDF.text(lines, margin + 4, currentY);
-                    return currentY + (lines.length * 6);
+                    return (lines.length * 5);
                 });
 
-                // --- Assinaturas (Comum a todos) ---
-                const signatureY = pageHeight - 60;
+                const signatureY = pageHeight - 40;
                 const signatureHeight = 25;
                 const signatureWidth = 60;
                 const roleY = signatureY + signatureHeight + 2;
                 const lineY = roleY - 3;
+                
                 if (order.signature_data && order.signature_data.length > 200) {
                     docPDF.addImage(order.signature_data, 'JPEG', margin + 15, signatureY, signatureWidth, signatureHeight);
                 }
                 docPDF.setDrawColor('#333333').setLineWidth(0.3);
                 docPDF.line(margin + 10, lineY, margin + 10 + signatureWidth + 10, lineY);
-                docPDF.setFontSize(9).setFont(undefined, 'normal');
+                docPDF.setFontSize(9).setFont(undefined, 'bold');
                 docPDF.text('Responsável do Setor', margin + 45, roleY, { align: 'center' });
+
                 const techSignatureX = pageWidth - margin - 15 - signatureWidth;
                 docPDF.addImage(techSigDataUrl, 'JPEG', techSignatureX, signatureY, signatureWidth, signatureHeight);
                 docPDF.line(techSignatureX - 5, lineY, techSignatureX + signatureWidth + 5, lineY);
                 docPDF.text('Responsável Técnico da Empresa', techSignatureX + (signatureWidth/2), roleY, { align: 'center' });
 
                 docPDF.save(`OS-${order.os_numero.split(' ')[0]}.pdf`);
-
             } catch (error) {
                 console.error("Erro ao gerar PDF:", error);
-                showToast("Ocorreu um erro ao gerar o PDF.");
+                alert("Ocorreu um erro ao gerar o PDF.");
             } finally {
                 buttonElement.disabled = false;
                 buttonElement.textContent = 'Gerar PDF';

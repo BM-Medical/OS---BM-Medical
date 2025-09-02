@@ -15,30 +15,52 @@
             font-family: 'Inter', sans-serif; 
             background-color: #f4f7f6;
         }
-        .filters-enter {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.5s ease-in-out;
+        .logout-icon {
+            width: 1.25rem; height: 1.25rem; stroke: white;
+            stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none;
         }
-        .filters-enter-active {
-            max-height: 500px; /* Altura suficiente para os filtros */
+        .floating-back-btn { 
+            position: fixed; bottom: 90px; right: 24px; background-color: #3498db;
+            color: white; width: 56px; height: 56px; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25); text-decoration: none; 
+            transition: all 0.3s ease; z-index: 100; 
         }
+        .floating-back-btn:hover { background-color: #2980b9; transform: scale(1.05); }
+        .floating-back-btn svg { width: 24px; height: 24px; }
+
+        /* Estilos do Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background-color: #fff; padding: 20px 30px 30px 30px; border-radius: 10px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; position: relative; }
+        .modal-header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+        .modal-header-container h1 { font-size: 1.5rem; margin: 0; }
+        .modal-close { font-size: 2.5rem; font-weight: 300; cursor: pointer; border: none; background: none; padding: 0 10px; line-height: 1; }
+        .modal-body .form-section { border: 1px solid #e0e0e0; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .modal-body h2 { font-size: 1.2rem; color: #3498db; margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .modal-body p { font-size: 1rem; margin: 5px 0; white-space: pre-wrap; }
+        .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; text-align: center; }
+        .signature-box img { max-height: 80px; margin-bottom: 10px; border: 1px solid #eee; border-radius: 4px; }
+        .signature-line { border-top: 1px solid #ccc; margin: 0 20px; padding-top: 8px; font-weight: 500; font-size: 0.9rem; }
+        .modal-footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .btn-action { text-decoration: none; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: 500; transition: background-color: 0.2s ease; }
+        .btn-history { background-color: #34495e; }
+        .btn-pdf { background-color: #3498db; }
+        .btn-pdf:disabled { background-color: #bdc3c7; }
+        .history-list { list-style: none; padding: 0; margin: 0; }
+        .history-list li { padding: 10px 0; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .history-list li:last-child { border-bottom: none; }
+        .history-list strong { color: #333; }
+        .history-list span { color: #777; font-size: 0.9em; text-align: right; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
     <div class="container mx-auto p-4 flex-grow flex flex-col items-center">
-        <header class="w-full text-center relative py-5">
-            <a href="index.html"><img src="./images/logo.png" alt="Logo da Empresa" class="max-w-xs h-auto mx-auto"></a>
-            <button id="logout-button" class="absolute top-5 right-0 bg-red-600 text-white px-3 py-2 rounded-md font-semibold text-sm">Sair</button>
+        <header class="w-full text-center py-5">
+            <a href="index.html"><img src="./images/logo.png" alt="Logo da Empresa" class="max-w-md h-auto mx-auto"></a>
         </header>
         <main class="w-full max-w-lg bg-white p-5 rounded-lg shadow-lg">
             <h1 class="text-2xl font-bold text-gray-800 mb-4 text-center">Consultar Ordens de Serviço</h1>
-
-            <!-- Secção de Filtros -->
-            <button id="toggle-filters-btn" class="w-full mb-4 text-left text-blue-600 font-semibold p-2 rounded-md hover:bg-blue-50">
-                Mostrar/Ocultar Filtros Avançados
-            </button>
-            <div id="filters-section" class="filters-enter">
+            <div id="filters-section">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
                     <div>
                         <label for="status-filter" class="block text-sm font-medium text-gray-700">Status</label>
@@ -72,10 +94,18 @@
                     <button id="apply-filters-btn" class="px-4 py-2 bg-purple-600 text-white text-sm font-semibold rounded-lg hover:bg-purple-700">Aplicar Filtros</button>
                 </div>
             </div>
-            <!-- Fim da Secção de Filtros -->
-
             <ul id="os-list" class="mt-4"></ul>
         </main>
+        <div class="w-full mt-12 text-center">
+            <button id="logout-button" class="inline-flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-2 font-semibold rounded-lg shadow-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75">
+                <svg class="logout-icon" viewBox="0 0 24 24">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span>Sair</span>
+            </button>
+        </div>
     </div>
     <footer class="w-full bg-gray-800 text-white p-5 text-center mt-8">
         <p><strong>BM MEDICAL Engenharia Clínica</strong></p>
@@ -84,13 +114,12 @@
         <p>Telefone: (51) 99377-5933 | Email: central.bmmedical@outlook.com</p>
     </footer>
 
-    <!-- Botão Voltar Flutuante -->
-    <a href="index.html" class="fixed bottom-6 right-6 bg-gray-800 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-700 transition-colors z-40">
+    <a href="index.html" class="floating-back-btn">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
     </a>
 
-    <!-- Modal de Confirmação -->
-    <div id="confirmation-modal" class="fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center p-4 hidden z-50">
+    <!-- Modal de Confirmação para Desarquivar -->
+    <div id="confirmation-modal" class="modal-overlay">
         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm text-center">
             <h3 class="text-lg font-semibold text-gray-800 mb-2">Confirmar Ação</h3>
             <p class="text-gray-600 mb-6">Deseja realmente desarquivar a <strong id="os-number-modal"></strong>?</p>
@@ -101,9 +130,28 @@
         </div>
     </div>
 
+    <!-- NOVO: Modal para Detalhes da OS -->
+    <div id="details-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div id="modal-body" class="modal-body"></div>
+        </div>
+    </div>
+    
+    <!-- NOVO: Modal para Histórico da OS -->
+    <div id="history-modal" class="modal-overlay" style="z-index: 1002;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header-container">
+                <h1>Histórico da OS</h1>
+                <button class="modal-close-history">&times;</button>
+            </div>
+            <div id="history-modal-body"></div>
+        </div>
+    </div>
+
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getFirestore, collection, getDocs, doc, getDoc, updateDoc, query, orderBy, arrayUnion } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, arrayUnion } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
         
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
@@ -121,41 +169,95 @@
         const cancelBtn = document.getElementById('cancel-btn');
         const confirmBtn = document.getElementById('confirm-btn');
         let currentOrderToUnarchive = null;
-        let allOrders = []; 
+        let allOrdersData = []; // Armazena os dados de todas as OSs buscadas
+
+        // NOVO: Elementos dos modais de detalhes e histórico
+        const detailsModal = document.getElementById('details-modal');
+        const modalBody = document.getElementById('modal-body');
+        const historyModal = document.getElementById('history-modal');
+        const historyModalBody = document.getElementById('history-modal-body');
 
         function formatDate(dateString) {
             if (!dateString) return 'N/A';
             const [year, month, day] = dateString.split('-');
             return `${day}/${month}/${year}`;
         }
+        
+        function formatTimestampForHistory(timestamp) {
+            if (!timestamp) return 'N/A';
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            if (isNaN(date.getTime())) return 'Data inválida';
+
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            
+            return `${day}/${month}/${year} às ${hours}:${minutes}`;
+        }
 
         function normalizeText(text) {
             if (!text) return '';
-            return text
-                .toString()
-                .toLowerCase()
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "");
+            return text.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         }
 
-        async function fetchAllOrders() {
+        async function applyFiltersAndSearch() {
+            const osList = document.getElementById('os-list');
+            osList.innerHTML = '<li>Carregando...</li>';
+
             try {
-                const osList = document.getElementById('os-list');
-                osList.innerHTML = '<li>Carregando...</li>';
+                const status = document.getElementById('status-filter').value;
+                const contract = document.getElementById('contract-filter').value;
+                const date = document.getElementById('date-filter').value;
+                const text = document.getElementById('text-search').value.trim();
+
+                let constraints = [];
+                
+                if (status !== 'todos') {
+                    if (status === 'abertas') {
+                        const openStatuses = ['novas', 'em_execucao', 'aguardando_pecas', 'pronto_entrega'];
+                        constraints.push(where("status", "in", openStatuses));
+                    } else {
+                        constraints.push(where("status", "==", status));
+                    }
+                }
+
+                if (contract !== 'todos') {
+                    constraints.push(where("contrato", "==", contract));
+                }
+
                 const ordersRef = collection(db, "orders");
-                const q = query(ordersRef, orderBy("createdAt", "desc"));
+                const q = query(ordersRef, ...constraints);
                 const querySnapshot = await getDocs(q);
                 
-                allOrders = [];
+                allOrdersData = [];
                 querySnapshot.forEach((doc) => {
-                    allOrders.push({ id: doc.id, ...doc.data() });
+                    allOrdersData.push({ id: doc.id, ...doc.data() });
                 });
+
+                allOrdersData.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+
+                if (date) {
+                    allOrdersData = allOrdersData.filter(order => {
+                        const orderDate = order.data_servico || order.data_retirada;
+                        return orderDate === date;
+                    });
+                }
+
+                if (text) {
+                    const normalizedText = normalizeText(text);
+                    allOrdersData = allOrdersData.filter(order => 
+                        (normalizeText(order.os_numero).includes(normalizedText)) ||
+                        (normalizeText(order.equipamento).includes(normalizedText))
+                    );
+                }
                 
-                renderOrders(allOrders);
+                renderOrders(allOrdersData);
 
             } catch (error) {
                 console.error('Erro ao carregar Ordens de Serviço:', error);
-                document.getElementById('os-list').innerHTML = '<li>Erro ao carregar dados.</li>';
+                osList.innerHTML = '<li>Erro ao carregar dados. Tente novamente.</li>';
             }
         }
 
@@ -174,8 +276,8 @@
                 const isFinalizada = order.status === 'finalizada';
                 const formattedDate = formatDate(order.data_servico || order.data_retirada);
 
-                const detailsButton = `<button class="px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 btn-details">Detalhes</button>`;
-                const pdfButton = `<button class="px-3 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 btn-pdf">Gerar PDF</button>`;
+                const detailsButton = `<button data-id="${order.id}" class="px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 btn-details">Detalhes</button>`;
+                const pdfButton = `<button data-id="${order.id}" class="px-3 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 btn-pdf">Gerar PDF</button>`;
                 const unarchiveButton = `<button class="px-3 py-2 bg-gray-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75 btn-unarchive">Desarquivar</button>`;
 
                 let actionsHtml = '';
@@ -212,15 +314,17 @@
                     </div>
                 `;
                 
-                listItem.querySelector('.btn-details').addEventListener('click', () => {
-                    window.location.href = `detalhe-os.html?id=${order.id}`;
+                // ATUALIZAÇÃO: Event listener para abrir o modal
+                listItem.querySelector('.btn-details').addEventListener('click', (e) => {
+                    const orderId = e.target.dataset.id;
+                    openDetailsModal(orderId);
                 });
 
                 const pdfBtnElement = listItem.querySelector('.btn-pdf');
                 if (pdfBtnElement) {
                     pdfBtnElement.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        generatePdfForOrder(order.id, e.target);
+                        generatePdfForOrder(e.target.dataset.id, e.target);
                     });
                 }
 
@@ -230,7 +334,7 @@
                         e.stopPropagation();
                         currentOrderToUnarchive = { id: order.id, os_numero: order.os_numero, button: e.target };
                         osNumberModal.textContent = `OS ${order.os_numero}`;
-                        confirmationModal.classList.remove('hidden');
+                        confirmationModal.style.display = 'flex';
                     });
                 }
 
@@ -238,59 +342,86 @@
             });
         }
 
-        function applyFilters() {
-            const status = document.getElementById('status-filter').value;
-            const contract = document.getElementById('contract-filter').value;
-            const date = document.getElementById('date-filter').value;
-            const text = document.getElementById('text-search').value.trim();
-
-            let filteredOrders = allOrders;
-
-            if (status !== 'todos') {
-                if (status === 'abertas') {
-                    const closedStatus = ['finalizada', 'arquivada'];
-                    filteredOrders = filteredOrders.filter(order => !closedStatus.includes(order.status));
-                } else {
-                    filteredOrders = filteredOrders.filter(order => order.status === status);
-                }
+        // NOVO: Funções para o modal de detalhes
+        function openDetailsModal(orderId) {
+            const order = allOrdersData.find(o => o.id === orderId);
+            if (!order) {
+                alert("Erro: OS não encontrada.");
+                return;
             }
-
-            if (contract !== 'todos') {
-                filteredOrders = filteredOrders.filter(order => order.contrato === contract);
-            }
-
-            if (date) {
-                filteredOrders = filteredOrders.filter(order => {
-                    const orderDate = order.data_servico || order.data_retirada;
-                    return orderDate === date;
-                });
-            }
-
-            if (text) {
-                const normalizedText = normalizeText(text);
-                filteredOrders = filteredOrders.filter(order => 
-                    (normalizeText(order.os_numero).includes(normalizedText)) ||
-                    (normalizeText(order.equipamento).includes(normalizedText))
-                );
-            }
-
-            renderOrders(filteredOrders);
+            modalBody.innerHTML = generateDetailsView(order);
+            addModalEventListeners(order);
+            detailsModal.style.display = 'flex';
         }
 
-        document.getElementById('apply-filters-btn').addEventListener('click', applyFilters);
+        function generateDetailsView(order) {
+            const formattedRetirada = formatDate(order.data_retirada || order.data_servico);
+            const formattedDevolucao = formatDate(order.data_devolucao);
+
+            let attendanceHtml = '';
+            if (order.contrato === 'Contrato N° 03/2024') {
+                attendanceHtml = `<p><strong>Data do Serviço:</strong> ${formattedRetirada}</p><p><strong>Hora de Chegada:</strong> ${order.hora_chegada || 'N/A'}</p><p><strong>Hora de Saída:</strong> ${order.hora_saida || 'N/A'}</p><p><strong>Local:</strong> CME / HE-UFPEL</p>`;
+            } else {
+                attendanceHtml = `<p><strong>Data da Retirada:</strong> ${formattedRetirada}</p><p><strong>Data da Devolução:</strong> ${formattedDevolucao}</p><p><strong>Local:</strong> ${order.local_atendimento || 'N/A'}</p>`;
+            }
+
+            return `
+                <div class="modal-header-container">
+                    <h1>Detalhes da OS: ${order.os_numero}</h1>
+                    <button class="modal-close" onclick="document.getElementById('details-modal').style.display='none'">&times;</button>
+                </div>
+                <div class="form-section"><h2>Dados do Cliente</h2><p><strong>Contrato:</strong> ${order.contrato||'N/A'}</p><p><strong>Cliente:</strong> ${order.cliente||'N/A'}</p></div>
+                <div class="form-section"><h2>Dados do Equipamento</h2><p><strong>Equipamento:</strong> ${order.equipamento||'N/A'}</p><p><strong>Marca:</strong> ${order.marca||'N/A'}</p><p><strong>Modelo:</strong> ${order.modelo||'N/A'}</p><p><strong>Serial:</strong> ${order.serial||'N/A'}</p></div>
+                <div class="form-section"><h2>Atendimento</h2>${attendanceHtml}</div>
+                <div class="form-section"><h2>Serviços e Peças</h2><p><strong>Serviços Realizados:</strong><br>${order.servicos_realizados||'Não informado'}</p><p><strong>Peças Utilizadas:</strong><br>${order.pecas_utilizadas||'Nenhuma'}</p></div>
+                <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box">${order.signature_data ? `<img src="${order.signature_data}" alt="Assinatura">` : '<p>(Sem assinatura)</p>'}<div class="signature-line">Responsável do Setor</div></div><div class="signature-box"><img src="./images/assinatura-tecnico.png" alt="Assinatura do Técnico"><div class="signature-line">Responsável Técnico</div></div></div></div>
+                <div class="modal-footer">
+                    <button id="modal-btn-history" class="btn-action btn-history">Histórico</button>
+                    <button id="modal-btn-pdf" class="btn-action btn-pdf">Gerar PDF</button>
+                </div>
+            `;
+        }
+
+        function addModalEventListeners(order) {
+            document.getElementById('modal-btn-history').addEventListener('click', () => openHistoryModal(order));
+            document.getElementById('modal-btn-pdf').addEventListener('click', (e) => generatePdfForOrder(order.id, e.target));
+        }
+
+        function openHistoryModal(order) {
+            let historyHtml = '<p>Nenhum histórico de eventos para esta OS.</p>';
+            if (order.history && order.history.length > 0) {
+                const sortedHistory = order.history.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
+                historyHtml = '<ul class="history-list">';
+                sortedHistory.forEach(event => {
+                    const eventDate = formatTimestampForHistory(event.timestamp);
+                    historyHtml += `<li><div><strong>${event.action}</strong>${event.details ? `<p style="font-size: 0.85em; color: #666;">${event.details}</p>` : ''}</div><span>${eventDate}</span></li>`;
+                });
+                historyHtml += '</ul>';
+            }
+            historyModalBody.innerHTML = historyHtml;
+            historyModal.style.display = 'flex';
+        }
+
+        detailsModal.addEventListener('click', (e) => {
+            if (e.target === detailsModal) {
+                detailsModal.style.display = 'none';
+            }
+        });
+        historyModal.addEventListener('click', (e) => {
+            if (e.target === historyModal || e.target.classList.contains('modal-close-history')) {
+                historyModal.style.display = 'none';
+            }
+        });
+
+
+        document.getElementById('apply-filters-btn').addEventListener('click', applyFiltersAndSearch);
 
         document.getElementById('clear-filters-btn').addEventListener('click', () => {
             document.getElementById('status-filter').value = 'todos';
             document.getElementById('contract-filter').value = 'todos';
             document.getElementById('date-filter').value = '';
             document.getElementById('text-search').value = '';
-            renderOrders(allOrders);
-        });
-
-        const toggleBtn = document.getElementById('toggle-filters-btn');
-        const filtersSection = document.getElementById('filters-section');
-        toggleBtn.addEventListener('click', () => {
-            filtersSection.classList.toggle('filters-enter-active');
+            document.getElementById('os-list').innerHTML = '';
         });
 
         async function unarchiveOrder(orderInfo) {
@@ -303,7 +434,7 @@
                     position: Date.now(),
                     history: arrayUnion(historyEntry)
                 });
-                await fetchAllOrders(); 
+                applyFiltersAndSearch(); 
             } catch (error) {
                 console.error("Erro ao desarquivar a OS:", error);
                 alert("Ocorreu um erro ao desarquivar a OS.");
@@ -314,7 +445,7 @@
         }
 
         function closeModal() {
-            confirmationModal.classList.add('hidden');
+            confirmationModal.style.display = 'none';
             currentOrderToUnarchive = null;
         }
 
@@ -331,9 +462,6 @@
             }
         });
 
-        window.onload = fetchAllOrders;
-
-        // --- Funções de PDF ---
         function imageToDataUrl(url, quality = 0.7) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
@@ -357,12 +485,11 @@
             buttonElement.disabled = true;
             buttonElement.textContent = 'Gerando...';
             try {
+                const order = allOrdersData.find(o => o.id === orderId);
+                if (!order) throw new Error('Dados da OS não encontrados localmente.');
+
                 const logoDataUrl = await imageToDataUrl('./images/logo.png', 0.9);
                 const techSigDataUrl = await imageToDataUrl('./images/assinatura-tecnico.png', 0.7);
-                const docRef = doc(db, "orders", orderId);
-                const docSnap = await getDoc(docRef);
-                if (!docSnap.exists()) { throw new Error('OS não encontrada.'); }
-                const order = docSnap.data();
                 
                 const { jsPDF } = window.jspdf;
                 const docPDF = new jsPDF();
@@ -371,18 +498,16 @@
                 const margin = 15;
                 let yPosition = 10;
 
-                // --- Cabeçalho ---
                 docPDF.addImage(logoDataUrl, 'JPEG', margin, yPosition, 72, 32);
                 docPDF.setFontSize(9).setFont(undefined, 'bold');
                 docPDF.text('BM MEDICAL Engenharia Clínica', pageWidth - margin, yPosition + 5, { align: 'right' });
-		docPDF.setFontSize(8).setFont(undefined, 'normal');
+                docPDF.setFontSize(8).setFont(undefined, 'normal');
                 docPDF.text('CNPJ: 48.673.158/0001-59', pageWidth - margin, yPosition + 9, { align: 'right' });
                 docPDF.text('Av. Duque de Caxias, 915-B403, Pelotas-RS', pageWidth - margin, yPosition + 13, { align: 'right' });
                 docPDF.text('Fone: (51) 99377-5933', pageWidth - margin, yPosition + 17, { align: 'right' });
-		docPDF.text('central.bmmedical@outlook.com', pageWidth - margin, yPosition + 21, { align: 'right' });
+                docPDF.text('central.bmmedical@outlook.com', pageWidth - margin, yPosition + 21, { align: 'right' });
                 yPosition += 38;
 
-                // --- Título da OS ---
                 docPDF.setFontSize(20).setFont(undefined, 'bold');
                 docPDF.text(`OS ${order.os_numero}`, pageWidth / 2, yPosition, { align: 'center' });
                 yPosition += 8;
@@ -394,29 +519,22 @@
                 }
                 yPosition += 12;
 
-                // --- Função para desenhar seções ---
                 const drawSection = (title, contentCallback) => {
                     const startY = yPosition;
                     const contentY = startY + 10;
-                    
                     const finalY = contentCallback(contentY, true); 
                     const contentHeight = finalY - contentY;
                     const boxHeight = contentHeight + 18; 
-                    
                     docPDF.setDrawColor('#e0e0e0').setFillColor('#ffffff');
                     docPDF.roundedRect(margin, startY - 5, pageWidth - (margin * 2), boxHeight, 3, 3, 'FD');
-                    
                     docPDF.setFontSize(14).setTextColor('#3498db').setFont(undefined, 'bold');
                     docPDF.text(title, margin + 4, startY);
                     docPDF.setDrawColor('#3498db').setLineWidth(0.5).line(margin + 4, startY + 2, pageWidth - margin - 4, startY + 2);
-
                     docPDF.setFontSize(12).setTextColor('#000000').setFont(undefined, 'normal');
                     contentCallback(contentY, false);
-
                     yPosition = startY + boxHeight + 3;
                 };
 
-                // --- Seções ---
                 drawSection('Dados do Cliente', (currentY, isDryRun) => {
                     let y = currentY;
                     if (!isDryRun) {
@@ -440,24 +558,21 @@
                         docPDF.setFont(undefined, 'normal').text(equipLines, margin + 34, y);
                     }
                     y += 6 * equipLines.length;
-
                     if(!isDryRun) {
                         docPDF.setFont(undefined, 'bold').text('Marca:', margin + 4, y);
                         docPDF.setFont(undefined, 'normal').text(order.marca || 'N/A', margin + 19, y);
-                        docPDF.setFont(undefined, 'bold').text('Modelo:', margin + 70, y);
-                        docPDF.setFont(undefined, 'normal').text(order.modelo || 'N/A', margin + 87, y);
+                        docPDF.setFont(undefined, 'bold').text('Modelo:', margin + 65, y);
+                        docPDF.setFont(undefined, 'normal').text(order.modelo || 'N/A', margin + 82, y);
                         docPDF.setFont(undefined, 'bold').text('Serial:', margin + 130, y);
                         docPDF.setFont(undefined, 'normal').text(order.serial || 'N/A', margin + 144, y);
                     }
                     return y + 6;
                 });
                 
-                // ATUALIZAÇÃO INÍCIO: Código padronizado
                 drawSection('Atendimento', (currentY, isDryRun) => {
                     const ufpelContractId = 'Contrato N° 03/2024';
                     let y = currentY;
                     if (order.contrato === ufpelContractId) {
-                        // Lógica para o contrato da Autoclave (UFPEL)
                         if (!isDryRun) {
                             docPDF.setFont(undefined, 'bold').text('Data do Serviço:', margin + 4, y);
                             docPDF.setFont(undefined, 'normal').text(formatDate(order.data_servico), margin + 39, y);
@@ -472,7 +587,6 @@
                         }
                         return y + 18;
                     } else {
-                        // Lógica para os outros contratos
                         if (!isDryRun) {
                             docPDF.setFont(undefined, 'bold').text('Data da Retirada:', margin + 4, y);
                             docPDF.setFont(undefined, 'normal').text(formatDate(order.data_retirada), margin + 40, y);
@@ -485,7 +599,6 @@
                         return y + 12;
                     }
                 });
-                // ATUALIZAÇÃO FIM
 
                 drawSection('Descrição dos Serviços Realizados', (currentY, isDryRun) => {
                     const text = order.servicos_realizados || 'Não informado.';
@@ -501,7 +614,6 @@
                     return currentY + (lines.length * 5);
                 });
 
-                // --- Assinaturas (no final da página) ---
                 const signatureY = pageHeight - 40;
                 const signatureHeight = 25;
                 const signatureWidth = 60;
