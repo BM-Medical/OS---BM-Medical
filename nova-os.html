@@ -10,7 +10,18 @@
     <script src="auth-guard.js" type="module"></script>
     <style>
         body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
-        .container { width: 90%; max-width: 1100px; margin: 0 auto; padding: 20px; flex: 1; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; text-align: center; }
+        /* AJUSTE: Container agora é um flex-column para distribuir o espaço */
+        .container { 
+            width: 90%; 
+            max-width: 1100px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            text-align: center; 
+        }
         
         .header {
             padding: 20px 0;
@@ -23,14 +34,14 @@
             margin: 0 auto;
         }
         
-        /* ATUALIZAÇÃO: Adicionado flex-grow para empurrar o conteúdo para baixo */
+        /* AJUSTE: flex-grow expande esta área, empurrando o rodapé e o botão sair para baixo */
         .main-content { 
             margin-top: 40px; 
             width: 100%; 
             flex-grow: 1;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: center; /* Centraliza o conteúdo principal verticalmente no espaço que ele ocupa */
         }
         .main-content h1 { font-size: 2.2rem; color: #333; margin-bottom: 10px; }
         .main-content p { font-size: 1.2rem; color: #666; margin-bottom: 40px; }
@@ -44,7 +55,7 @@
         .btn { display: block; width: 100%; max-width: 500px; background-color: #3498db; color: #fff; padding: 20px 30px; font-size: 1.1rem; font-weight: 500; text-decoration: none; border-radius: 8px; transition: background-color 0.3s ease, transform 0.2s ease; box-sizing: border-box; }
         .btn:hover { background-color: #2980b9; transform: translateY(-3px); }
         
-        .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; margin-top: auto; }
+        .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; }
         .footer p { margin: 5px 10px; }
 
         .logout-icon {
@@ -79,10 +90,18 @@
             transform: scale(1.05);
         }
         .floating-back-btn svg { width: 24px; height: 24px; }
+        
+        /* AJUSTE: Container para o botão de sair */
+        .logout-container {
+            width: 100%;
+            padding-bottom: 1rem; /* Pequeno espaçamento do fundo */
+            margin-top: auto; /* Esta é a mágica: empurra o botão para baixo */
+            padding-top: 1.5rem; /* Garante espaço acima do botão */
+        }
 
         @media (max-width: 768px) {
             .header img { max-width: 80%; }
-            .main-content { margin-top: 30px; justify-content: flex-start; } /* Evita centralização excessiva no mobile */
+            .main-content { margin-top: 30px; justify-content: flex-start; }
             .main-content h1 { font-size: 1.8rem; }
             .btn { padding: 15px; font-size: 1rem; }
         }
@@ -105,8 +124,8 @@
             </div>
         </main>
         
-        <!-- ATUALIZAÇÃO: Removido o margin-top para permitir o espaçamento dinâmico -->
-        <div class="w-full pb-4 text-center">
+        <!-- AJUSTE: Botão de sair agora dentro de um container próprio para melhor controle de espaçamento -->
+        <div class="logout-container">
             <button id="logout-button" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; background-color: #e53e3e; color: white; padding: 8px 16px; font-weight: 600; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); transition: background-color 0.2s;">
                 <svg class="logout-icon" viewBox="0 0 24 24">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
