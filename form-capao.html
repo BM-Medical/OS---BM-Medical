@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Formulário OS - Capão do Leão</title>
+    <title>Formulário OS - UFPEL</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
@@ -11,8 +11,11 @@
     <style>
         body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
         .container { width: 90%; max-width: 800px; margin: 0 auto; padding: 20px; flex: 1; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; text-align: center; }
-        .header { padding: 20px 0; width: 100%; position: relative; }
-        .header img { max-width: 350px; height: auto; }
+        
+        .header { padding: 20px 0; width: 100%; text-align: center; }
+        /* AJUSTE: O seletor .header img garantirá a padronização. */
+        .header img { max-width: 450px; height: auto; margin: 0 auto; }
+
         .main-content { margin-top: 20px; width: 100%; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: left; }
         .main-content h1 { font-size: 2rem; color: #333; margin-bottom: 20px; text-align: center; }
         .form-section { border: 1px solid #e0e0e0; padding: 20px; border-radius: 8px; margin-bottom: 25px; }
@@ -20,24 +23,24 @@
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; font-weight: 500; margin-bottom: 8px; color: #555; }
         .form-group input[type="text"], .form-group input[type="date"], .form-group input[type="time"], .form-group textarea, .form-group select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        .form-group input[readonly], .form-group textarea:disabled, .form-group select:disabled { background-color: #e9ecef; cursor: not-allowed; }
+        .form-group input[readonly] { background-color: #e9ecef; cursor: not-allowed; }
         .form-group textarea { resize: vertical; min-height: 120px; }
         .radio-group { display: flex; gap: 20px; align-items: center; }
         .radio-group label { font-weight: normal; margin-bottom: 0; }
+        .time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .prefilled-data { background-color: #e9ecef; padding: 15px; border-radius: 6px; border-left: 5px solid #3498db; }
         .prefilled-data p { margin: 5px 0; font-size: 1rem; }
         .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; text-align: center; margin-top: 20px; }
         .signature-box { display: flex; flex-direction: column; align-items: center; }
-        .signature-image-container { height: 120px; width: 300px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 5px; }
+        .signature-image-container { height: 120px; width: 100%; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 5px; }
         .signature-image-container img { max-height: 120px; max-width: 100%; }
         .signature-line { padding-top: 8px; font-weight: 500; font-size: 0.9rem; width: 100%; }
         .btn-submit { display: block; width: 100%; padding: 15px; margin-top: 30px; background-color: #2ecc71; color: white; border: none; border-radius: 6px; font-size: 1.2rem; font-weight: 700; cursor: pointer; transition: background-color: 0.3s ease; }
         .btn-submit:hover { background-color: #27ae60; }
         .btn-submit:disabled { background-color: #bdc3c7; cursor: not-allowed; }
-        .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; margin-top: 40px; }
+        .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; margin-top: auto; }
         .footer p { margin: 5px 10px; }
-        .checkbox-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
-        .checkbox-group label { margin-bottom: 0; font-weight: normal; }
+        
         .signature-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: center; z-index: 2000; }
         .signature-modal-content { background-color: #fff; padding: 20px; border-radius: 10px; width: 95%; max-width: 600px; text-align: center; display: flex; flex-direction: column; }
         .signature-modal-content canvas { border: 2px dashed #ccc; border-radius: 6px; cursor: crosshair; width: 100%; height: 250px; }
@@ -53,57 +56,35 @@
         .signature-modal-overlay:fullscreen { background-color: #fff; }
         .signature-modal-overlay:fullscreen .signature-modal-content { height: 100%; width: 100%; max-width: none; border-radius: 0; padding: 15px; box-sizing: border-box; }
         .signature-modal-overlay:fullscreen .signature-modal-content canvas { flex-grow: 1; height: auto; }
-        .uppercase-input { text-transform: uppercase; }
-        .floating-back-button {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            background-color: #34495e;
-            color: white;
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            transition: background-color 0.3s ease;
-            z-index: 100;
-            text-decoration: none;
+
+        .logout-icon { width: 1.25rem; height: 1.25rem; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+        /* AJUSTE: Padronizando o botão flutuante */
+        .floating-back-btn { 
+            position: fixed; 
+            bottom: 90px;
+            right: 24px; 
+            background-color: #3498db;
+            color: white; 
+            width: 56px; 
+            height: 56px; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            text-decoration: none; 
+            transition: all 0.3s ease; 
+            z-index: 100; 
         }
-        .floating-back-button:hover {
-            background-color: #2c3e50;
+        .floating-back-btn:hover { 
+            background-color: #2980b9; 
+            transform: scale(1.05);
         }
-        .bottom-button-container {
-            width: 100%;
-            text-align: center;
-            margin-top: 20px;
-        }
-        .styled-logout-button {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background-color: #e74c3c;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 6px;
-            border: 1px solid #c0392b;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            text-decoration: none;
-        }
-        .styled-logout-button:hover {
-            background-color: #c0392b;
-        }
-        .styled-logout-button svg {
-            width: 18px;
-            height: 18px;
-        }
+        .floating-back-btn svg { width: 24px; height: 24px; }
+
         @media (max-width: 768px) {
             .main-content { padding: 15px; }
             .header img { max-width: 80%; }
-            .header { flex-direction: column; align-items: center; }
             .signature-grid { grid-template-columns: 1fr; gap: 30px; }
         }
     </style>
@@ -111,20 +92,15 @@
 <body>
     <div class="container">
         <header class="header">
-            <img id="company-logo" src="./images/logo.png" alt="Logo da Empresa" style="max-width: 350px; height: auto;">
-            <!-- O botão Sair antigo foi removido do cabeçalho -->
+            <img id="company-logo" src="./images/logo.png" alt="Logo da Empresa">
         </header>
+
         <main class="main-content">
             <h1>Formulário de Nova OS</h1>
             <form id="os-form">
-                <!-- Conteúdo do formulário permanece o mesmo -->
                 <div class="form-section">
                     <h2>Detalhes do Atendimento</h2>
                     <div class="form-group">
-                        <label for="os_numero">Número da OS:</label>
-                        <input type="text" id="os_numero" name="os_numero" readonly placeholder="Buscando...">
-                    </div>
-                     <div class="form-group">
                         <label>Tipo de Manutenção:</label>
                         <div class="radio-group">
                             <input type="radio" id="preventiva" name="tipo_manutencao" value="preventiva" checked>
@@ -133,90 +109,49 @@
                             <label for="corretiva">Corretiva</label>
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label for="os_numero">Número da OS:</label>
+                        <input type="text" id="os_numero" name="os_numero" readonly placeholder="Buscando...">
+                    </div>
                 </div>
                 <div class="form-section">
                     <h2>Dados do Cliente</h2>
                     <div class="prefilled-data">
-                        <p><strong>Contrato:</strong> Contrato Nº 138/2024</p>
-                        <p><strong>Cliente:</strong> Secretaria Municipal de Saúde De Capão Do Leão</p>
-                        <p><strong>Razão Social:</strong> Município de Capão Do Leao</p>
-                        <p><strong>CNPJ:</strong> 87.691.507/0001-17</p>
-                        <p><strong>Endereço:</strong> Av. Narciso Silva, 2360, Capão Do Leão - RS</p>
+                        <p><strong>Contrato:</strong> Contrato N° 03/2024</p>
+                        <p><strong>Cliente:</strong> Hospital Escola da Universidade Federal de Pelotas - HE-UFPEL</p>
+                        <p><strong>Razão Social:</strong> Empresa Brasileira de Serviços Hospitalares - EBSERH / HE-UFPEL</p>
+                        <p><strong>CNPJ:</strong> 15.126.437/0023-59</p>
+                        <p><strong>Endereço:</strong> Rua Prof. Dr. Araújo, 433 - Centro, Pelotas - RS</p>
                     </div>
                 </div>
                 <div class="form-section">
                     <h2>Dados do Equipamento</h2>
-                    <div class="form-group">
-                        <label for="equipamento_select">Equipamento:</label>
-                        <select id="equipamento_select" name="equipamento_select" required>
-                            <option value="" disabled selected>Carregando...</option>
-                        </select>
-                    </div>
-                    <div id="manual_equipment_name" class="form-group" style="display: none;">
-                        <label for="equipamento_manual">Qual equipamento?</label>
-                        <input type="text" id="equipamento_manual" name="equipamento_manual" class="uppercase-input">
-                    </div>
-                     <div class="form-group">
-                        <label for="marca_select">Marca:</label>
-                        <select id="marca_select" name="marca_select" required disabled>
-                            <option value="" disabled selected>Selecione um equipamento</option>
-                        </select>
-                    </div>
-                    <div id="manual_brand_name" class="form-group" style="display: none;">
-                        <label for="marca_manual">Qual marca?</label>
-                        <input type="text" id="marca_manual" name="marca_manual" class="uppercase-input">
-                    </div>
-                     <div class="form-group">
-                        <label for="modelo_select">Modelo:</label>
-                        <select id="modelo_select" name="modelo_select" required disabled>
-                           <option value="" disabled selected>Selecione uma marca</option>
-                        </select>
-                    </div>
-                    <div id="manual_model_name" class="form-group" style="display: none;">
-                        <label for="modelo_manual">Qual modelo?</label>
-                        <input type="text" id="modelo_manual" name="modelo_manual" class="uppercase-input">
-                    </div>
-                     <div class="form-group">
-                        <label for="serial_select">Número de Série:</label>
-                        <select id="serial_select" name="serial_select" disabled>
-                            <option value="" disabled selected>Selecione um modelo</option>
-                        </select>
-                    </div>
-                    <div id="manual_serial_name" class="form-group" style="display: none;">
-                        <label for="serial_manual">Qual número de série?</label>
-                        <input type="text" id="serial_manual" name="serial_manual" class="uppercase-input">
+                    <div class="prefilled-data">
+                        <p><strong>Equipamento:</strong> ESTERILIZADOR A VAPOR DO TIPO AUTOCLAVE</p>
+                        <p><strong>Marca:</strong> BAUMER</p>
+                        <p><strong>Modelo:</strong> HI-VAC CAD B-525-P</p>
+                        <p><strong>Serial:</strong> 031908103</p>
                     </div>
                 </div>
                 <div class="form-section">
                     <h2>Atendimento</h2>
                     <div class="form-group">
-                        <label for="data_retirada">Data da Retirada:</label>
-                        <input type="date" id="data_retirada" name="data_retirada" required>
+                        <label for="data_servico">Data do Serviço:</label>
+                        <input type="date" id="data_servico" name="data_servico" required>
                     </div>
-                    <div class="form-group">
-                        <label for="data_devolucao">Data da Devolução:</label>
-                        <input type="date" id="data_devolucao" name="data_devolucao">
-                    </div>
-                    <div class="form-group">
-                        <label for="local_atendimento">Local:</label>
-                        <select id="local_atendimento" name="local_atendimento" required>
-                            <option value="" disabled selected>Selecione um local</option>
-                            <option value="PA">Pronto Atendimento Municipal</option>
-                            <option value="UBS CENTRAL">UBS Central</option>
-                            <option value="UBS CASABOM">UBS Casabom</option>
-                            <option value="UBS I - PARQUE FRAGATA">UBS I - Parque Fragata</option>
-                            <option value="UBS II - JARDIM AMÉRICA">UBS II - Jardim América</option>
-                            <option value="UBS III - JARDIM AMÉRICA">UBS III - Jardim América</option>
-                            <option value="CAPS">CAPS - Casa Vida</option>
-                        </select>
+                    <div class="time-grid">
+                        <div class="form-group">
+                            <label for="hora_chegada">Hora de Chegada:</label>
+                            <input type="time" id="hora_chegada" name="hora_chegada">
+                        </div>
+                        <div class="form-group">
+                            <label for="hora_saida">Hora de Saída:</label>
+                            <input type="time" id="hora_saida" name="hora_saida">
+                        </div>
                     </div>
                 </div>
                 <div class="form-section">
                     <h2>Descrição dos Serviços Realizados</h2>
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="recebimento_check">
-                        <label for="recebimento_check">Apenas recebimento do equipamento</label>
-                    </div>
                     <div class="form-group">
                         <textarea id="servicos_realizados" name="servicos_realizados" required></textarea>
                     </div>
@@ -252,23 +187,24 @@
                 </div>
                 <button type="submit" class="btn-submit">Criar Ordem de Serviço</button>
             </form>
-            <!-- O link de voltar antigo foi removido -->
         </main>
-        <!-- Novo container para o botão Sair -->
-        <div class="bottom-button-container">
-            <button id="logout-button" class="styled-logout-button">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                Sair
+        
+        <div style="width: 100%; margin-top: 48px; text-align: center;">
+            <button id="logout-button" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; background-color: #e53e3e; color: white; padding: 8px 16px; font-weight: 600; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); transition: background-color 0.2s;">
+                <svg class="logout-icon" viewBox="0 0 24 24">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span>Sair</span>
             </button>
         </div>
     </div>
-    
-    <!-- Botão Voltar Flutuante -->
-    <a href="nova-os.html" class="floating-back-button">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+
+    <a href="nova-os.html" class="floating-back-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
     </a>
 
-    <!-- Modal de Assinatura -->
     <div id="signature-modal" class="signature-modal-overlay">
         <div class="signature-modal-content">
             <h3>Assine no campo abaixo:</h3>
@@ -282,12 +218,19 @@
             </div>
         </div>
     </div>
+
     <footer class="footer">
-        <p><strong>BM Medical</strong></p>
+        <p><strong>BM MEDICAL Engenharia Clínica</strong></p>
+        <p>CNPJ: 48.673.158/0001-59</p>
+        <p>Endereço: Av. Duque de Caxias, 915-B403, Pelotas-RS</p>
+        <p>Telefone: (51) 99377-5933 | Email: central.bmmedical@outlook.com</p>
     </footer>
+
     <script type="module">
+        // O código JavaScript permanece o mesmo
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, runTransaction, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, runTransaction, collection, addDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
             authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
@@ -296,207 +239,10 @@
             messagingSenderId: "92355637827",
             appId: "1:92355637827:web:850b89afa5054781475af6"
         };
+
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- LÓGICA DO INVENTÁRIO HÍBRIDO ---
-        let inventory = [];
-        const contractId = "Contrato Nº 138/2024";
-
-        const equipmentSelect = document.getElementById('equipamento_select');
-        const manualEquipmentNameDiv = document.getElementById('manual_equipment_name');
-        const equipmentManualInput = document.getElementById('equipamento_manual');
-        
-        const brandSelect = document.getElementById('marca_select');
-        const manualBrandNameDiv = document.getElementById('manual_brand_name');
-        const brandManualInput = document.getElementById('marca_manual');
-
-        const modelSelect = document.getElementById('modelo_select');
-        const manualModelNameDiv = document.getElementById('manual_model_name');
-        const modelManualInput = document.getElementById('modelo_manual');
-
-        const serialSelect = document.getElementById('serial_select');
-        const manualSerialNameDiv = document.getElementById('manual_serial_name');
-        const serialManualInput = document.getElementById('serial_manual');
-        
-        const locationSelect = document.getElementById('local_atendimento');
-
-        async function loadInventory() {
-            const cacheKey = `inventory_${contractId}`;
-            try {
-                // 1. Tenta carregar do cache da sessão.
-                const cachedInventory = sessionStorage.getItem(cacheKey);
-                // VALIDAÇÃO: Usa o cache apenas se ele existir e não for uma lista vazia.
-                if (cachedInventory && cachedInventory !== '[]') {
-                    console.log("Carregando inventário do cache da sessão (válido).");
-                    inventory = JSON.parse(cachedInventory);
-                    populateEquipmentSelect();
-                    return; 
-                }
-
-                // 2. Se o cache não for válido, busca no Firestore.
-                console.log("Cache inválido ou vazio. Buscando inventário do Firestore.");
-                const q = query(collection(db, "inventory_equipment"), where("contract", "==", contractId)); // Nome da coleção correto.
-                const querySnapshot = await getDocs(q);
-                inventory = querySnapshot.docs.map(doc => doc.data());
-
-                // 3. Se a busca no Firestore retornar dados, salva no cache.
-                if (inventory.length > 0) {
-                    sessionStorage.setItem(cacheKey, JSON.stringify(inventory));
-                    console.log("Inventário salvo no cache da sessão.");
-                }
-                
-                populateEquipmentSelect();
-            } catch (error) {
-                console.error("Erro ao carregar inventário: ", error);
-                equipmentSelect.innerHTML = `<option value="" disabled selected>Erro ao carregar</option>`;
-            }
-        }
-
-        function populateSelectWithOptions(selectElement, options, defaultText) {
-            selectElement.innerHTML = `<option value="" disabled selected>${defaultText}</option>`;
-            options.forEach(opt => {
-                const option = document.createElement('option');
-                option.value = opt;
-                option.textContent = opt;
-                selectElement.appendChild(option);
-            });
-            const otherOption = document.createElement('option');
-            otherOption.value = 'Outro';
-            otherOption.textContent = 'Outro (Digitar Manualmente)';
-            selectElement.appendChild(otherOption);
-        }
-
-        function populateEquipmentSelect() {
-            const equipmentNames = [...new Set(inventory.map(item => item.name))].sort();
-            populateSelectWithOptions(equipmentSelect, equipmentNames, "Selecione um equipamento");
-        }
-
-        function resetAndDisable(select, manualDiv, manualInput) {
-            select.innerHTML = '';
-            select.disabled = true;
-            manualDiv.style.display = 'none';
-            manualInput.value = '';
-            manualInput.required = false;
-        }
-
-        equipmentSelect.addEventListener('change', () => {
-            const selected = equipmentSelect.value;
-            resetAndDisable(brandSelect, manualBrandNameDiv, brandManualInput);
-            resetAndDisable(modelSelect, manualModelNameDiv, modelManualInput);
-            resetAndDisable(serialSelect, manualSerialNameDiv, serialManualInput);
-            locationSelect.disabled = false;
-            locationSelect.value = '';
-
-            if (selected === 'Outro') {
-                manualEquipmentNameDiv.style.display = 'block';
-                equipmentManualInput.required = true;
-                
-                brandSelect.innerHTML = `<option value="Outro" selected>Outro (Digitar Manualmente)</option>`;
-                brandSelect.disabled = false;
-                brandSelect.dispatchEvent(new Event('change'));
-
-            } else {
-                manualEquipmentNameDiv.style.display = 'none';
-                equipmentManualInput.required = false;
-                
-                const brands = [...new Set(inventory.filter(item => item.name === selected).map(item => item.brand))].sort();
-                populateSelectWithOptions(brandSelect, brands, "Selecione a marca");
-                brandSelect.disabled = false;
-            }
-        });
-
-        brandSelect.addEventListener('change', () => {
-            const selected = brandSelect.value;
-            resetAndDisable(modelSelect, manualModelNameDiv, modelManualInput);
-            resetAndDisable(serialSelect, manualSerialNameDiv, serialManualInput);
-            locationSelect.disabled = false;
-            locationSelect.value = '';
-
-            if (selected === 'Outro') {
-                manualBrandNameDiv.style.display = 'block';
-                brandManualInput.required = true;
-
-                modelSelect.innerHTML = `<option value="Outro" selected>Outro (Digitar Manualmente)</option>`;
-                modelSelect.disabled = false;
-                modelSelect.dispatchEvent(new Event('change'));
-
-            } else {
-                manualBrandNameDiv.style.display = 'none';
-                brandManualInput.required = false;
-
-                const models = [...new Set(inventory.filter(item => item.name === equipmentSelect.value && item.brand === selected).map(item => item.model))].sort();
-                populateSelectWithOptions(modelSelect, models, "Selecione o modelo");
-                modelSelect.disabled = false;
-            }
-        });
-
-        modelSelect.addEventListener('change', () => {
-            const selected = modelSelect.value;
-            resetAndDisable(serialSelect, manualSerialNameDiv, serialManualInput);
-            locationSelect.disabled = false;
-            locationSelect.value = '';
-
-            if (selected === 'Outro') {
-                manualModelNameDiv.style.display = 'block';
-                modelManualInput.required = true;
-                
-                serialSelect.innerHTML = `<option value="Outro" selected>Outro (Digitar Manualmente)</option>`;
-                serialSelect.disabled = false;
-                serialSelect.dispatchEvent(new Event('change'));
-
-            } else {
-                manualModelNameDiv.style.display = 'none';
-                modelManualInput.required = false;
-
-                const serials = [...new Set(inventory.filter(item => item.name === equipmentSelect.value && item.brand === brandSelect.value && item.model === selected).map(item => item.serial))].sort();
-                populateSelectWithOptions(serialSelect, serials, "Selecione o N/S");
-                serialSelect.disabled = false;
-            }
-        });
-
-        serialSelect.addEventListener('change', () => {
-            const selectedSerial = serialSelect.value;
-            locationSelect.value = '';
-            locationSelect.disabled = false;
-
-            if (selectedSerial === 'Outro') {
-                manualSerialNameDiv.style.display = 'block';
-                serialManualInput.required = true;
-                return;
-            }
-            
-            manualSerialNameDiv.style.display = 'none';
-            serialManualInput.required = false;
-
-            if (!selectedSerial) {
-                return;
-            }
-
-            const uniqueItem = inventory.find(item =>
-                item.name === equipmentSelect.value &&
-                item.brand === brandSelect.value &&
-                item.model === modelSelect.value &&
-                item.serial === selectedSerial
-            );
-
-            if (uniqueItem && uniqueItem.location) {
-                locationSelect.value = uniqueItem.location;
-                if (locationSelect.value !== uniqueItem.location) {
-                    console.warn('O local "' + uniqueItem.location + '" não foi encontrado nas opções do formulário.');
-                }
-            }
-        });
-        
-        // Aplica a transformação para caixa alta
-        [equipmentManualInput, brandManualInput, modelManualInput, serialManualInput].forEach(input => {
-            input.addEventListener('input', () => {
-                input.value = input.value.toUpperCase();
-            });
-        });
-
-        // --- FIM DA LÓGICA DO INVENTÁRIO ---
-        
         const signatureModal = document.getElementById('signature-modal');
         const signatureContainer = document.getElementById('signature-container');
         const signatureDataInput = document.getElementById('signature-data');
@@ -504,7 +250,7 @@
         const signatureErrorMessage = document.getElementById('signature-error-message');
         const ctx = signaturePad.getContext('2d');
         let drawing = false;
-        let isSignatureDrawn = false;
+        let isSignatureDrawn = false; 
         let signatureHistory = [];
 
         function resizeCanvas() {
@@ -645,20 +391,20 @@
             signatureContainer.innerHTML = `<img src="${dataUrl}" class="signature-thumbnail" alt="Assinatura">`;
             closeSignaturePad();
         });
-        
+
         async function fetchAndSetOsNumber() {
             const osInput = document.getElementById('os_numero');
             osInput.value = 'Gerando...';
 
-            const counterDocId = 'capao_do_leao';
-            const contractNumber = '138.24';
+            const contractId = 'ufpel';
+            const contractNumber = '03.24';
             const currentYear = new Date().getFullYear();
             
-            const counterRef = doc(db, "counters", counterDocId);
+            const counterRef = doc(db, "counters", `${contractId}_${currentYear}`);
 
             try {
                 const docSnap = await getDoc(counterRef);
-                let nextNumber = 1; 
+                let nextNumber = 1;
 
                 if (docSnap.exists()) {
                     nextNumber = (docSnap.data().sequence || 0) + 1;
@@ -672,53 +418,34 @@
                 osInput.value = 'Erro ao carregar';
             }
         }
-
-        const recebimentoCheck = document.getElementById('recebimento_check');
-        const servicosTextarea = document.getElementById('servicos_realizados');
         
-        recebimentoCheck.addEventListener('change', () => {
-            if (recebimentoCheck.checked) {
-                servicosTextarea.value = "Recebimento de equipamento para análise.";
-                servicosTextarea.disabled = true;
-                servicosTextarea.required = false;
-            } else {
-                servicosTextarea.value = "";
-                servicosTextarea.disabled = false;
-                servicosTextarea.required = true;
-            }
-        });
-
         const form = document.getElementById('os-form');
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitButton = form.querySelector('.btn-submit');
             submitButton.disabled = true;
             submitButton.textContent = 'Salvando...';
+
             try {
                 const formData = new FormData(form);
-                
-                const servicosRealizadosValue = recebimentoCheck.checked 
-                    ? "Recebimento de equipamento para análise." 
-                    : servicosTextarea.value;
-                
                 const signatureValue = formData.get('signature_data');
 
                 const osData = {
-                    contrato: "Contrato Nº 138/2024",
-                    cliente: "Secretaria Municipal de Saúde De Capão Do Leão",
-                    razao_social: "Município de Capão Do Leao",
-                    cnpj: "87.691.507/0001-17",
-                    endereco: "Av. Narciso Silva, 2360, Capão Do Leão - RS",
-                    local_atendimento: formData.get('local_atendimento'),
-                    equipamento: formData.get('equipamento_select') === 'Outro' ? formData.get('equipamento_manual') : formData.get('equipamento_select'),
-                    marca: formData.get('marca_select') === 'Outro' ? formData.get('marca_manual') : formData.get('marca_select'),
-                    modelo: formData.get('modelo_select') === 'Outro' ? formData.get('modelo_manual') : formData.get('modelo_select'),
-                    serial: formData.get('serial_select') === 'Outro' ? formData.get('serial_manual') : formData.get('serial_select'),
+                    contrato: "Contrato N° 03/2024",
+                    cliente: "Hospital Escola da Universidade Federal de Pelotas - HE-UFPEL",
+                    razao_social: "Empresa Brasileira de Serviços Hospitalares - EBSERH / HE-UFPEL",
+                    cnpj: "15.126.437/0023-59",
+                    endereco: "Rua Prof. Dr. Araújo, 433 - Centro, Pelotas - RS",
+                    equipamento: "ESTERILIZADOR A VAPOR DO TIPO AUTOCLAVE",
+                    marca: "BAUMER",
+                    modelo: "HI-VAC CAD B-525-P",
+                    serial: "031908103",
                     tipo_manutencao: formData.get('tipo_manutencao'),
                     os_numero: formData.get('os_numero'),
-                    data_retirada: formData.get('data_retirada'),
-                    data_devolucao: formData.get('data_devolucao'),
-                    servicos_realizados: servicosRealizadosValue,
+                    data_servico: formData.get('data_servico'),
+                    hora_chegada: formData.get('hora_chegada'),
+                    hora_saida: formData.get('hora_saida'),
+                    servicos_realizados: formData.get('servicos_realizados'),
                     pecas_utilizadas: formData.get('pecas_utilizadas'),
                     signature_data: signatureValue,
                     status: 'novas',
@@ -731,9 +458,10 @@
                     osData.signedAt = new Date();
                     osData.history.push({ action: 'Assinada', timestamp: new Date(), details: 'OS criada com assinatura.' });
                 }
-                
-                const counterDocId = 'capao_do_leao';
-                const counterRef = doc(db, "counters", counterDocId);
+
+                const contractId = 'ufpel';
+                const currentYear = new Date().getFullYear();
+                const counterRef = doc(db, "counters", `${contractId}_${currentYear}`);
 
                 await runTransaction(db, async (transaction) => {
                     const counterDoc = await transaction.get(counterRef);
@@ -742,17 +470,16 @@
                         nextNumber = (counterDoc.data().sequence || 0) + 1;
                     }
                     
-                    const contractNumber = '138.24';
-                    const currentYear = new Date().getFullYear();
                     const paddedNextNumber = String(nextNumber).padStart(3, '0');
-                    osData.os_numero = `CT${contractNumber}-${currentYear}${paddedNextNumber}`;
+                    osData.os_numero = `CT03.24-${currentYear}${paddedNextNumber}`;
                     
                     const newOrderRef = doc(collection(db, "orders"));
                     transaction.set(newOrderRef, osData);
                     transaction.set(counterRef, { sequence: nextNumber }, { merge: true });
                 });
-
+                
                 window.location.href = 'confirmacao-os.html';
+
             } catch (error) {
                 console.error("Erro ao salvar a OS: ", error);
                 alert("Ocorreu um erro ao salvar a Ordem de Serviço. Tente novamente.");
@@ -760,13 +487,12 @@
                 submitButton.textContent = 'Criar Ordem de Serviço';
             }
         });
+
         window.onload = () => {
             const today = new Date().toISOString().split('T')[0];
-            document.getElementById('data_retirada').value = today;
+            document.getElementById('data_servico').value = today;
             fetchAndSetOsNumber();
-            loadInventory();
         };
     </script>
 </body>
 </html>
-
