@@ -19,6 +19,7 @@
             width: 1.25rem; height: 1.25rem; stroke: white;
             stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none;
         }
+        /* AJUSTE: Adicionando estilos para o botão voltar */
         .floating-back-btn { 
             position: fixed; bottom: 90px; right: 24px; background-color: #3498db;
             color: white; width: 56px; height: 56px; border-radius: 50%; 
@@ -29,7 +30,6 @@
         .floating-back-btn:hover { background-color: #2980b9; transform: scale(1.05); }
         .floating-back-btn svg { width: 24px; height: 24px; }
 
-        /* Estilos do Modal */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background-color: #fff; padding: 20px 30px 30px 30px; border-radius: 10px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; position: relative; }
         .modal-header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
@@ -51,7 +51,8 @@
         .history-list li:last-child { border-bottom: none; }
         .history-list strong { color: #333; }
         .history-list span { color: #777; font-size: 0.9em; text-align: right; }
-        
+
+        /* AJUSTE: Media query para o título */
         @media (max-width: 768px) {
             h1.text-2xl { font-size: 1.5rem; }
         }
@@ -59,6 +60,7 @@
 </head>
 <body class="flex flex-col min-h-screen">
     <div class="container mx-auto p-4 flex-grow flex flex-col items-center">
+        <!-- AJUSTE: Header padronizado -->
         <header class="w-full text-center py-5">
             <a href="index.html"><img src="./images/logo.png" alt="Logo da Empresa" style="max-width: 450px; height: auto; margin: 0 auto;"></a>
         </header>
@@ -118,6 +120,7 @@
         <p>Telefone: (51) 99377-5933 | Email: central.bmmedical@outlook.com</p>
     </footer>
 
+    <!-- AJUSTE: Adicionando o botão voltar flutuante -->
     <a href="index.html" class="floating-back-btn">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
     </a>
@@ -134,14 +137,14 @@
         </div>
     </div>
 
-    <!-- NOVO: Modal para Detalhes da OS -->
+    <!-- Modal para Detalhes da OS -->
     <div id="details-modal" class="modal-overlay">
         <div class="modal-content">
             <div id="modal-body" class="modal-body"></div>
         </div>
     </div>
     
-    <!-- NOVO: Modal para Histórico da OS -->
+    <!-- Modal para Histórico da OS -->
     <div id="history-modal" class="modal-overlay" style="z-index: 1002;">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header-container">
@@ -154,6 +157,7 @@
 
 
     <script type="module">
+        // O código JavaScript permanece o mesmo
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getFirestore, collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, arrayUnion } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
         
@@ -173,7 +177,7 @@
         const cancelBtn = document.getElementById('cancel-btn');
         const confirmBtn = document.getElementById('confirm-btn');
         let currentOrderToUnarchive = null;
-        let allOrdersData = []; // Armazena os dados de todas as OSs buscadas
+        let allOrdersData = [];
 
         const detailsModal = document.getElementById('details-modal');
         const modalBody = document.getElementById('modal-body');
