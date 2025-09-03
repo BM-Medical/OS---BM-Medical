@@ -86,10 +86,13 @@
             .main-content { padding: 15px; }
             .header img { max-width: 80%; }
             .signature-grid { grid-template-columns: 1fr; gap: 30px; }
+            /* AJUSTE: Reduz o tamanho do título em telas menores */
+            .main-content h1 { font-size: 1.8rem; }
         }
     </style>
 </head>
 <body>
+    <!-- O restante do HTML permanece o mesmo -->
     <div class="container">
         <header class="header">
             <img id="company-logo" src="./images/logo.png" alt="Logo da Empresa">
@@ -272,6 +275,7 @@
         <p>Telefone: (51) 99377-5933 | Email: central.bmmedical@outlook.com</p>
     </footer>
     <script type="module">
+        // O código JavaScript permanece o mesmo
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getFirestore, doc, getDoc, runTransaction, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
         const firebaseConfig = {
@@ -284,36 +288,25 @@
         };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-
-        // --- LÓGICA DO INVENTÁRIO HÍBRIDO ---
         let inventory = [];
         const contractId = "Contrato Nº 10/2025";
-
         const equipmentSelect = document.getElementById('equipamento_select');
         const manualEquipmentNameDiv = document.getElementById('manual_equipment_name');
         const equipmentManualInput = document.getElementById('equipamento_manual');
-        
         const brandSelect = document.getElementById('marca_select');
         const manualBrandNameDiv = document.getElementById('manual_brand_name');
         const brandManualInput = document.getElementById('marca_manual');
-
         const modelSelect = document.getElementById('modelo_select');
         const manualModelNameDiv = document.getElementById('manual_model_name');
         const modelManualInput = document.getElementById('modelo_manual');
-
         const serialSelect = document.getElementById('serial_select');
         const manualSerialNameDiv = document.getElementById('manual_serial_name');
         const serialManualInput = document.getElementById('serial_manual');
-        
-        // --- CORREÇÃO: Variável que faltava ser declarada ---
         const desconsiderarAssinaturaCheck = document.getElementById('desconsiderar-assinatura-check');
-
         const locationSelect = document.getElementById('local_atendimento');
-
         async function loadInventory() {
             const cacheKey = `inventory_${contractId}`;
             try {
-                // Forçar a limpeza do cache para garantir dados atualizados
                 sessionStorage.removeItem(cacheKey);
                 console.log("Buscando inventário do Firestore.");
                 const q = query(collection(db, "inventory_equipment"), where("contract", "==", contractId));
@@ -326,7 +319,6 @@
                 equipmentSelect.innerHTML = `<option value="" disabled selected>Erro ao carregar</option>`;
             }
         }
-
         function populateSelectWithOptions(selectElement, options, defaultText) {
             selectElement.innerHTML = `<option value="" disabled selected>${defaultText}</option>`;
             options.forEach(opt => {
@@ -340,12 +332,10 @@
             otherOption.textContent = 'Outro (Digitar Manualmente)';
             selectElement.appendChild(otherOption);
         }
-
         function populateEquipmentSelect() {
             const equipmentNames = [...new Set(inventory.map(item => item.name))].sort();
             populateSelectWithOptions(equipmentSelect, equipmentNames, "Selecione um equipamento");
         }
-
         function resetAndDisable(select, manualDiv, manualInput) {
             select.innerHTML = '';
             select.disabled = true;
@@ -353,7 +343,6 @@
             manualInput.value = '';
             manualInput.required = false;
         }
-
         equipmentSelect.addEventListener('change', () => {
             const selected = equipmentSelect.value;
             resetAndDisable(brandSelect, manualBrandNameDiv, brandManualInput);
@@ -361,99 +350,79 @@
             resetAndDisable(serialSelect, manualSerialNameDiv, serialManualInput);
             locationSelect.disabled = false;
             locationSelect.value = '';
-
             if (selected === 'Outro') {
                 manualEquipmentNameDiv.style.display = 'block';
                 equipmentManualInput.required = true;
-                
                 brandSelect.innerHTML = `<option value="Outro" selected>Outro (Digitar Manualmente)</option>`;
                 brandSelect.disabled = false;
                 brandSelect.dispatchEvent(new Event('change'));
-
             } else {
                 manualEquipmentNameDiv.style.display = 'none';
                 equipmentManualInput.required = false;
-                
                 const brands = [...new Set(inventory.filter(item => item.name === selected).map(item => item.brand))].sort();
                 populateSelectWithOptions(brandSelect, brands, "Selecione a marca");
                 brandSelect.disabled = false;
             }
         });
-
         brandSelect.addEventListener('change', () => {
             const selected = brandSelect.value;
             resetAndDisable(modelSelect, manualModelNameDiv, modelManualInput);
             resetAndDisable(serialSelect, manualSerialNameDiv, serialManualInput);
             locationSelect.disabled = false;
             locationSelect.value = '';
-
             if (selected === 'Outro') {
                 manualBrandNameDiv.style.display = 'block';
                 brandManualInput.required = true;
-
                 modelSelect.innerHTML = `<option value="Outro" selected>Outro (Digitar Manualmente)</option>`;
                 modelSelect.disabled = false;
                 modelSelect.dispatchEvent(new Event('change'));
-
             } else {
                 manualBrandNameDiv.style.display = 'none';
                 brandManualInput.required = false;
-
                 const models = [...new Set(inventory.filter(item => item.name === equipmentSelect.value && item.brand === selected).map(item => item.model))].sort();
                 populateSelectWithOptions(modelSelect, models, "Selecione o modelo");
                 modelSelect.disabled = false;
             }
         });
-
         modelSelect.addEventListener('change', () => {
             const selected = modelSelect.value;
             resetAndDisable(serialSelect, manualSerialNameDiv, serialManualInput);
             locationSelect.disabled = false;
             locationSelect.value = '';
-
             if (selected === 'Outro') {
                 manualModelNameDiv.style.display = 'block';
                 modelManualInput.required = true;
-                
                 serialSelect.innerHTML = `<option value="Outro" selected>Outro (Digitar Manualmente)</option>`;
                 serialSelect.disabled = false;
                 serialSelect.dispatchEvent(new Event('change'));
-
             } else {
                 manualModelNameDiv.style.display = 'none';
                 modelManualInput.required = false;
-
                 const serials = [...new Set(inventory.filter(item => item.name === equipmentSelect.value && item.brand === brandSelect.value && item.model === selected).map(item => item.serial))].sort();
                 populateSelectWithOptions(serialSelect, serials, "Selecione o N/S");
                 serialSelect.disabled = false;
             }
         });
-
         serialSelect.addEventListener('change', () => {
             const selectedSerial = serialSelect.value;
             locationSelect.value = '';
             locationSelect.disabled = false;
-
             if (selectedSerial === 'Outro') {
                 manualSerialNameDiv.style.display = 'block';
                 serialManualInput.required = true;
                 return;
             }
-            
             manualSerialNameDiv.style.display = 'none';
             serialManualInput.required = false;
-
             if (!selectedSerial) {
                 return;
             }
-
             const uniqueItem = inventory.find(item =>
                 item.name === equipmentSelect.value &&
                 item.brand === brandSelect.value &&
                 item.model === modelSelect.value &&
                 item.serial === selectedSerial
             );
-
             if (uniqueItem && uniqueItem.location) {
                 locationSelect.value = uniqueItem.location;
                 if (locationSelect.value !== uniqueItem.location) {
@@ -461,15 +430,11 @@
                 }
             }
         });
-
         [equipmentManualInput, brandManualInput, modelManualInput, serialManualInput].forEach(input => {
             input.addEventListener('input', () => {
                 input.value = input.value.toUpperCase();
             });
         });
-
-        // --- FIM DA LÓGICA DO INVENTÁRIO ---
-        
         const signatureModal = document.getElementById('signature-modal');
         const signatureContainer = document.getElementById('signature-container');
         const signatureDataInput = document.getElementById('signature-data');
@@ -479,7 +444,6 @@
         let drawing = false;
         let isSignatureDrawn = false;
         let signatureHistory = [];
-
         function resizeCanvas() {
             const ratio = Math.max(window.devicePixelRatio || 1, 1);
             signaturePad.width = signaturePad.offsetWidth * ratio;
@@ -488,13 +452,11 @@
             redrawSignatureFromHistory();
         }
         window.addEventListener("resize", resizeCanvas);
-
         function getPos(canvas, event) {
             const rect = canvas.getBoundingClientRect();
             const touch = event.touches ? event.touches[0] : event;
             return { x: (touch.clientX - rect.left), y: (touch.clientY - rect.top) };
         }
-
         function startDrawing(e) {
             drawing = true;
             signatureErrorMessage.style.display = 'none';
@@ -503,7 +465,6 @@
             ctx.moveTo(pos.x, pos.y);
             e.preventDefault();
         }
-
         function stopDrawing(e) {
             if (!drawing) return;
             drawing = false;
@@ -511,7 +472,6 @@
             saveSignatureState();
             e.preventDefault();
         }
-
         function draw(e) {
             if (!drawing) return;
             isSignatureDrawn = true;
@@ -525,13 +485,11 @@
             ctx.moveTo(pos.x, pos.y);
             e.preventDefault();
         }
-        
         async function openSignaturePadInLandscape() {
             const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
             isSignatureDrawn = false;
             signatureErrorMessage.style.display = 'none';
             signatureHistory = [];
-
             try {
                 if (isMobile && typeof screen.orientation.lock === 'function') {
                     await document.documentElement.requestFullscreen();
@@ -545,7 +503,6 @@
                 saveSignatureState();
             }
         }
-
         async function closeSignaturePad() {
             signatureModal.style.display = 'none';
             try {
@@ -557,19 +514,16 @@
                 console.error("Erro ao sair do modo tela cheia/paisagem.", err);
             }
         }
-
         function saveSignatureState() {
             const data = ctx.getImageData(0, 0, signaturePad.width, signaturePad.height);
             signatureHistory.push(data);
         }
-
         function undoLastStroke() {
             if (signatureHistory.length > 1) {
                 signatureHistory.pop();
                 redrawSignatureFromHistory();
             }
         }
-
         function redrawSignatureFromHistory() {
             ctx.clearRect(0, 0, signaturePad.width, signaturePad.height);
             if (signatureHistory.length > 0) {
@@ -577,78 +531,60 @@
             }
             isSignatureDrawn = signatureHistory.length > 1;
         }
-
         signaturePad.addEventListener('mousedown', startDrawing);
         signaturePad.addEventListener('mouseup', stopDrawing);
         signaturePad.addEventListener('mousemove', draw);
         signaturePad.addEventListener('touchstart', startDrawing, { passive: false });
         signaturePad.addEventListener('touchend', stopDrawing, { passive: false });
         signaturePad.addEventListener('touchmove', draw, { passive: false });
-
         signatureContainer.addEventListener('click', openSignaturePadInLandscape);
-
         document.getElementById('signature-cancel-button').addEventListener('click', closeSignaturePad);
         document.getElementById('signature-undo-button').addEventListener('click', undoLastStroke);
-
         document.getElementById('signature-clear-button').addEventListener('click', () => {
             ctx.clearRect(0, 0, signaturePad.width, signaturePad.height);
             isSignatureDrawn = false;
             signatureHistory = [signatureHistory[0]];
         });
-
         document.getElementById('signature-save-button').addEventListener('click', () => {
             if (!isSignatureDrawn) {
                 signatureErrorMessage.style.display = 'block';
                 return;
             }
-            
             const data = ctx.getImageData(0, 0, signaturePad.width, signaturePad.height);
             const compositeOperation = ctx.globalCompositeOperation;
             ctx.globalCompositeOperation = "destination-over";
             ctx.fillStyle = '#FFFFFF';
             ctx.fillRect(0,0,signaturePad.width,signaturePad.height);
-
             const dataUrl = signaturePad.toDataURL('image/jpeg', 0.5);
-            
             ctx.clearRect(0,0,signaturePad.width,signaturePad.height);
             ctx.putImageData(data, 0,0);
             ctx.globalCompositeOperation = compositeOperation;
-
             signatureDataInput.value = dataUrl;
             signatureContainer.innerHTML = `<img src="${dataUrl}" class="signature-thumbnail" alt="Assinatura">`;
             closeSignaturePad();
         });
-        
         async function fetchAndSetOsNumber() {
             const osInput = document.getElementById('os_numero');
             osInput.value = 'Gerando...';
-
             const counterDocId = 'exercito';
             const contractNumber = '10.25';
             const currentYear = new Date().getFullYear();
-            
             const counterRef = doc(db, "counters", counterDocId);
-
             try {
                 const docSnap = await getDoc(counterRef);
                 let nextNumber = 1;
-
                 if (docSnap.exists()) {
                     nextNumber = (docSnap.data().sequence || 0) + 1;
                 }
-
                 const paddedNextNumber = String(nextNumber).padStart(3, '0');
                 osInput.value = `CT${contractNumber}-${currentYear}${paddedNextNumber}`;
-
             } catch (error) {
                 console.error("Erro ao buscar o número da OS:", error);
                 osInput.value = 'Erro ao carregar';
             }
         }
-
         const recebimentoCheck = document.getElementById('recebimento_check');
         const servicosTextarea = document.getElementById('servicos_realizados');
-        
         recebimentoCheck.addEventListener('change', () => {
             if (recebimentoCheck.checked) {
                 servicosTextarea.value = "Recebimento de equipamento para análise.";
@@ -660,9 +596,7 @@
                 servicosTextarea.required = true;
             }
         });
-        
         const signatureArea = document.querySelector('.signature-area');
-
         desconsiderarAssinaturaCheck.addEventListener('change', () => {
             const placeholder = document.getElementById('signature-placeholder');
             if (desconsiderarAssinaturaCheck.checked) {
@@ -674,28 +608,22 @@
                 placeholder.innerHTML = 'Clique para assinar';
             }
         });
-
         const form = document.getElementById('os-form');
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-
             if (!desconsiderarAssinaturaCheck.checked && !signatureDataInput.value) {
                 alert("Por favor, adicione a assinatura do responsável ou marque a opção para desconsiderar.");
                 return;
             }
-
             const submitButton = form.querySelector('.btn-submit');
             submitButton.disabled = true;
             submitButton.textContent = 'Salvando...';
             try {
                 const formData = new FormData(form);
-
                 const servicosRealizadosValue = recebimentoCheck.checked 
                     ? "Recebimento de equipamento para análise." 
                     : servicosTextarea.value;
-                
                 const signatureValue = formData.get('signature_data');
-
                 const osData = {
                     contrato: "Contrato Nº 10/2025",
                     cliente: "Exército Brasileiro",
@@ -717,34 +645,27 @@
                     status: 'novas',
                     createdAt: new Date()
                 };
-
                 osData.history = [{ action: 'Criada', timestamp: new Date(), details: 'OS aberta no sistema.' }];
-
                 if (desconsiderarAssinaturaCheck.checked) {
                     osData.assinaturaDesconsiderada = true;
                     osData.history.push({ action: 'Assinada', timestamp: new Date(), details: 'OS criada com dispensa de assinatura.' });
                 }
-
                 if (signatureValue && signatureValue.length > 200) {
                     osData.signedAt = new Date();
                     osData.history.push({ action: 'Assinada', timestamp: new Date(), details: 'OS criada com assinatura.' });
                 }
-                
                 const counterDocId = 'exercito';
                 const counterRef = doc(db, "counters", counterDocId);
-                
                 await runTransaction(db, async (transaction) => {
                     const counterDoc = await transaction.get(counterRef);
                     let nextNumber = 1;
                     if (counterDoc.exists()) {
                         nextNumber = (counterDoc.data().sequence || 0) + 1;
                     }
-                    
                     const contractNumber = '10.25';
                     const currentYear = new Date().getFullYear();
                     const paddedNextNumber = String(nextNumber).padStart(3, '0');
                     osData.os_numero = `CT${contractNumber}-${currentYear}${paddedNextNumber}`;
-                    
                     const newOrderRef = doc(collection(db, "orders"));
                     transaction.set(newOrderRef, osData);
                     transaction.set(counterRef, { sequence: nextNumber }, { merge: true });

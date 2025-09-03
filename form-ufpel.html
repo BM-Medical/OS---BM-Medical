@@ -56,13 +56,12 @@
         .signature-modal-overlay:fullscreen .signature-modal-content { height: 100%; width: 100%; max-width: none; border-radius: 0; padding: 15px; box-sizing: border-box; }
         .signature-modal-overlay:fullscreen .signature-modal-content canvas { flex-grow: 1; height: auto; }
 
-        /* ATUALIZAÇÃO: Estilos para botão sair e voltar flutuante */
         .logout-icon { width: 1.25rem; height: 1.25rem; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none; }
         .floating-back-btn { 
             position: fixed; 
-            bottom: 90px; /* Aumentado para não sobrepor o rodapé */
+            bottom: 90px;
             right: 24px; 
-            background-color: #3498db; /* Cor primária para mais destaque */
+            background-color: #3498db;
             color: white; 
             width: 56px; 
             height: 56px; 
@@ -70,14 +69,14 @@
             display: flex; 
             align-items: center; 
             justify-content: center; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25); /* Sombra mais forte */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
             text-decoration: none; 
             transition: all 0.3s ease; 
             z-index: 100; 
         }
         .floating-back-btn:hover { 
             background-color: #2980b9; 
-            transform: scale(1.05); /* Efeito de zoom no hover */
+            transform: scale(1.05);
         }
         .floating-back-btn svg { width: 24px; height: 24px; }
 
@@ -85,15 +84,17 @@
             .main-content { padding: 15px; }
             .header img { max-width: 80%; }
             .signature-grid { grid-template-columns: 1fr; gap: 30px; }
+            /* AJUSTE: Reduz o tamanho do título em telas menores */
+            .main-content h1 { font-size: 1.8rem; }
         }
     </style>
 </head>
 <body>
+    <!-- O restante do HTML permanece o mesmo -->
     <div class="container">
         <header class="header">
             <img id="company-logo" src="./images/logo.png" alt="Logo da Empresa">
         </header>
-
         <main class="main-content">
             <h1>Formulário de Nova OS</h1>
             <form id="os-form">
@@ -189,7 +190,7 @@
         </main>
         
         <div style="width: 100%; margin-top: 48px; text-align: center;">
-            <button id="logout-button" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; background-color: #e53e3e; color: white; padding: 8px 16px; font-weight: 600; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); transition: background-color 0.2s;">
+            <button id="logout-button" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; background-color: #e53e3e; color: white; padding: 8px 16px; font-weight: 600; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); transition: background-color: 0.2s;">
                 <svg class="logout-icon" viewBox="0 0 24 24">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                     <polyline points="16 17 21 12 16 7"></polyline>
@@ -226,9 +227,9 @@
     </footer>
 
     <script type="module">
+        // O código JavaScript permanece o mesmo
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getFirestore, doc, getDoc, runTransaction, collection, addDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
-
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
             authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
@@ -237,10 +238,8 @@
             messagingSenderId: "92355637827",
             appId: "1:92355637827:web:850b89afa5054781475af6"
         };
-
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-
         const signatureModal = document.getElementById('signature-modal');
         const signatureContainer = document.getElementById('signature-container');
         const signatureDataInput = document.getElementById('signature-data');
@@ -250,7 +249,6 @@
         let drawing = false;
         let isSignatureDrawn = false; 
         let signatureHistory = [];
-
         function resizeCanvas() {
             const ratio = Math.max(window.devicePixelRatio || 1, 1);
             signaturePad.width = signaturePad.offsetWidth * ratio;
@@ -259,13 +257,11 @@
             redrawSignatureFromHistory();
         }
         window.addEventListener("resize", resizeCanvas);
-
         function getPos(canvas, event) {
             const rect = canvas.getBoundingClientRect();
             const touch = event.touches ? event.touches[0] : event;
             return { x: (touch.clientX - rect.left), y: (touch.clientY - rect.top) };
         }
-
         function startDrawing(e) {
             drawing = true;
             signatureErrorMessage.style.display = 'none';
@@ -274,7 +270,6 @@
             ctx.moveTo(pos.x, pos.y);
             e.preventDefault();
         }
-
         function stopDrawing(e) {
             if (!drawing) return;
             drawing = false;
@@ -282,7 +277,6 @@
             saveSignatureState();
             e.preventDefault();
         }
-
         function draw(e) {
             if (!drawing) return;
             isSignatureDrawn = true;
@@ -296,13 +290,11 @@
             ctx.moveTo(pos.x, pos.y);
             e.preventDefault();
         }
-        
         async function openSignaturePadInLandscape() {
             const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
             isSignatureDrawn = false;
             signatureErrorMessage.style.display = 'none';
             signatureHistory = [];
-
             try {
                 if (isMobile && typeof screen.orientation.lock === 'function') {
                     await document.documentElement.requestFullscreen();
@@ -316,7 +308,6 @@
                 saveSignatureState();
             }
         }
-
         async function closeSignaturePad() {
             signatureModal.style.display = 'none';
             try {
@@ -328,19 +319,16 @@
                 console.error("Erro ao sair do modo tela cheia/paisagem.", err);
             }
         }
-
         function saveSignatureState() {
             const data = ctx.getImageData(0, 0, signaturePad.width, signaturePad.height);
             signatureHistory.push(data);
         }
-
         function undoLastStroke() {
             if (signatureHistory.length > 1) {
                 signatureHistory.pop();
                 redrawSignatureFromHistory();
             }
         }
-
         function redrawSignatureFromHistory() {
             ctx.clearRect(0, 0, signaturePad.width, signaturePad.height);
             if (signatureHistory.length > 0) {
@@ -348,86 +336,67 @@
             }
             isSignatureDrawn = signatureHistory.length > 1;
         }
-
         signaturePad.addEventListener('mousedown', startDrawing);
         signaturePad.addEventListener('mouseup', stopDrawing);
         signaturePad.addEventListener('mousemove', draw);
         signaturePad.addEventListener('touchstart', startDrawing, { passive: false });
         signaturePad.addEventListener('touchend', stopDrawing, { passive: false });
         signaturePad.addEventListener('touchmove', draw, { passive: false });
-
         signatureContainer.addEventListener('click', openSignaturePadInLandscape);
-
         document.getElementById('signature-cancel-button').addEventListener('click', closeSignaturePad);
         document.getElementById('signature-undo-button').addEventListener('click', undoLastStroke);
-
         document.getElementById('signature-clear-button').addEventListener('click', () => {
             ctx.clearRect(0, 0, signaturePad.width, signaturePad.height);
             isSignatureDrawn = false;
             signatureHistory = [signatureHistory[0]];
         });
-
         document.getElementById('signature-save-button').addEventListener('click', () => {
             if (!isSignatureDrawn) {
                 signatureErrorMessage.style.display = 'block';
                 return;
             }
-            
             const data = ctx.getImageData(0, 0, signaturePad.width, signaturePad.height);
             const compositeOperation = ctx.globalCompositeOperation;
             ctx.globalCompositeOperation = "destination-over";
             ctx.fillStyle = '#FFFFFF';
             ctx.fillRect(0,0,signaturePad.width,signaturePad.height);
-
             const dataUrl = signaturePad.toDataURL('image/jpeg', 0.5);
-            
             ctx.clearRect(0,0,signaturePad.width,signaturePad.height);
             ctx.putImageData(data, 0,0);
             ctx.globalCompositeOperation = compositeOperation;
-
             signatureDataInput.value = dataUrl;
             signatureContainer.innerHTML = `<img src="${dataUrl}" class="signature-thumbnail" alt="Assinatura">`;
             closeSignaturePad();
         });
-
         async function fetchAndSetOsNumber() {
             const osInput = document.getElementById('os_numero');
             osInput.value = 'Gerando...';
-
             const contractId = 'ufpel';
             const contractNumber = '03.24';
             const currentYear = new Date().getFullYear();
-            
             const counterRef = doc(db, "counters", `${contractId}_${currentYear}`);
-
             try {
                 const docSnap = await getDoc(counterRef);
                 let nextNumber = 1;
-
                 if (docSnap.exists()) {
                     nextNumber = (docSnap.data().sequence || 0) + 1;
                 }
-
                 const paddedNextNumber = String(nextNumber).padStart(3, '0');
                 osInput.value = `CT${contractNumber}-${currentYear}${paddedNextNumber}`;
-
             } catch (error) {
                 console.error("Erro ao buscar o número da OS:", error);
                 osInput.value = 'Erro ao carregar';
             }
         }
-        
         const form = document.getElementById('os-form');
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitButton = form.querySelector('.btn-submit');
             submitButton.disabled = true;
             submitButton.textContent = 'Salvando...';
-
             try {
                 const formData = new FormData(form);
                 const signatureValue = formData.get('signature_data');
-
                 const osData = {
                     contrato: "Contrato N° 03/2024",
                     cliente: "Hospital Escola da Universidade Federal de Pelotas - HE-UFPEL",
@@ -449,35 +418,27 @@
                     status: 'novas',
                     createdAt: new Date()
                 };
-
                 osData.history = [{ action: 'Criada', timestamp: new Date(), details: 'OS aberta no sistema.' }];
-
                 if (signatureValue && signatureValue.length > 200) {
                     osData.signedAt = new Date();
                     osData.history.push({ action: 'Assinada', timestamp: new Date(), details: 'OS criada com assinatura.' });
                 }
-
                 const contractId = 'ufpel';
                 const currentYear = new Date().getFullYear();
                 const counterRef = doc(db, "counters", `${contractId}_${currentYear}`);
-
                 await runTransaction(db, async (transaction) => {
                     const counterDoc = await transaction.get(counterRef);
                     let nextNumber = 1;
                     if (counterDoc.exists()) {
                         nextNumber = (counterDoc.data().sequence || 0) + 1;
                     }
-                    
                     const paddedNextNumber = String(nextNumber).padStart(3, '0');
                     osData.os_numero = `CT03.24-${currentYear}${paddedNextNumber}`;
-                    
                     const newOrderRef = doc(collection(db, "orders"));
                     transaction.set(newOrderRef, osData);
                     transaction.set(counterRef, { sequence: nextNumber }, { merge: true });
                 });
-                
                 window.location.href = 'confirmacao-os.html';
-
             } catch (error) {
                 console.error("Erro ao salvar a OS: ", error);
                 alert("Ocorreu um erro ao salvar a Ordem de Serviço. Tente novamente.");
@@ -485,7 +446,6 @@
                 submitButton.textContent = 'Criar Ordem de Serviço';
             }
         });
-
         window.onload = () => {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('data_servico').value = today;
