@@ -257,7 +257,7 @@
             
             const contractText = document.getElementById('contract-filter').options[document.getElementById('contract-filter').selectedIndex].text;
             const monthText = document.getElementById('month-filter').value;
-            docPDF.save(`Relatorio-${contractText}-${monthText}.pdf`);
+            docPDF.save(`Relatório de OSs-${contractText}-${monthText}.pdf`);
 
             generatePdfBtn.disabled = false;
             generatePdfBtn.textContent = 'Gerar PDF Compilado';
