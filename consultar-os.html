@@ -15,6 +15,12 @@
             font-family: 'Inter', sans-serif; 
             background-color: #f4f7f6;
         }
+        /* AJUSTE: Definindo um tamanho máximo padrão para o logo no desktop */
+        .header img {
+            max-width: 450px;
+            height: auto;
+            margin: 0 auto;
+        }
         .logout-icon {
             width: 1.25rem; height: 1.25rem; stroke: white;
             stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none;
@@ -53,7 +59,7 @@
         .history-list span { color: #777; font-size: 0.9em; text-align: right; }
         
         @media (max-width: 768px) {
-            /* AJUSTE: Aplicando o tamanho correto para o logo e o título */
+            /* AJUSTE: Regra para mobile agora sobrepõe a de desktop */
             .header img { max-width: 80% !important; }
             h1.text-2xl { font-size: 1.5rem; }
         }
@@ -61,8 +67,8 @@
 </head>
 <body class="flex flex-col min-h-screen">
     <div class="container mx-auto p-4 flex-grow flex flex-col items-center">
-        <header class="w-full text-center py-5">
-            <!-- AJUSTE: Removido o style inline que causava o problema de layout -->
+        <!-- AJUSTE: Header agora é controlado pelo CSS acima -->
+        <header class="w-full text-center py-5 header">
             <a href="index.html"><img src="./images/logo.png" alt="Logo da Empresa"></a>
         </header>
         <main class="w-full max-w-lg bg-white p-5 rounded-lg shadow-lg">
