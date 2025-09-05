@@ -18,58 +18,31 @@
         body { font-family: 'Inter', sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
         .board-container { display: flex; flex-direction: column; height: 100vh; }
         
-        /* CABEÇALHO ATUALIZADO */
+        /* CABEÇALHO REESTRUTURADO */
         .board-header {
-            padding: 10px 20px;
+            padding: 15px 20px;
             background-color: #fff;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 15px; 
+            text-align: center; /* Centraliza todo o conteúdo */
             position: sticky;
             top: 0;
             z-index: 10;
         }
-        .header-left {
-            display: flex;
-            align-items: center;
+        .board-header img {
+            height: 50px; /* Tamanho base do logo */
+            margin-bottom: 12px;
         }
-        .header-left img {
-            height: 50px; 
-        }
-        .header-center {
-            flex-grow: 1; 
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-        .header-center h1 {
+        .board-header h1 {
             font-size: 1.5rem;
-            margin: 0;
-            text-align: center;
-        }
-        .header-right {
-            display: flex;
-            align-items: center;
-        }
-        .logout-button {
-            background-color: #e74c3c;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: 500;
+            margin: 0 0 8px 0;
         }
         
         /* ESTILOS DA LEGENDA */
         .header-legend {
             display: flex;
             align-items: center;
+            justify-content: center; /* Garante a centralização da legenda */
             gap: 15px;
-            margin-top: 5px;
         }
         .legend-item {
             display: flex;
@@ -88,7 +61,7 @@
         .board { 
             display: flex; 
             gap: 15px; 
-            padding: 20px 20px 60px 20px; 
+            padding: 20px; 
             overflow-x: auto; 
             flex-grow: 1; 
             align-items: flex-start;
@@ -112,7 +85,7 @@
         }
         .cards { padding: 10px; flex-grow: 1; min-height: 100px; overflow-y: auto; }
         
-        /* NOVO BOTÃO DE ADICIONAR OS */
+        /* BOTÃO DE ADICIONAR OS */
         .add-os-container {
             position: relative;
         }
@@ -426,25 +399,15 @@
             text-align: right;
         }
 
-        /* ESTILOS RESPONSIVOS PARA CELULAR */
+        /* ESTILOS RESPONSIVOS PARA O CABEÇALHO */
         @media (max-width: 768px) {
-            .board-header {
-                flex-wrap: wrap;
-                justify-content: space-between;
-                padding: 15px;
+            .board-header img {
+                height: 40px; /* Logo um pouco menor no celular */
+                margin-bottom: 10px;
             }
-            .header-left img {
-                height: 40px;
-            }
-            .header-center {
-                width: 100%; /* Ocupa a largura total para quebrar a linha */
-                order: 1; /* Garante que ele vá para baixo do logo e botão */
-                margin-top: 10px;
-                text-align: center;
-            }
-            .header-center h1 {
-                font-size: 1.2rem;
-                margin-bottom: 8px;
+            .board-header h1 {
+                font-size: 1.2rem; /* Título menor */
+                margin-bottom: 10px;
             }
             .board { scroll-snap-type: none; }
             .list { scroll-snap-align: none; }
@@ -453,35 +416,30 @@
 </head>
 <body>
     <div class="board-container">
+        <!-- ESTRUTURA DO CABEÇALHO SIMPLIFICADA -->
         <header class="board-header">
-            <div class="header-left">
-                <a href="index.html"><img src="./images/logo.png" alt="Logo BM Medical"></a>
-            </div>
-            <div class="header-center">
-                <h1>Quadro de Ordens de Serviço</h1>
-                <div class="header-legend">
-                    <div class="legend-item">
-                        <span class="legend-color-dot" style="background-color: #2980b9;"></span>
-                        UFPEL
-                    </div>
-                    <div class="legend-item">
-                        <span class="legend-color-dot" style="background-color: #f39c12;"></span>
-                        Capão do Leão
-                    </div>
-                    <div class="legend-item">
-                        <span class="legend-color-dot" style="background: repeating-linear-gradient(to bottom, #2F4F2F, #2F4F2F 25%, #8B4513 25%, #8B4513 50%, #6B8E23 50%, #6B8E23 75%, #556B2F 75%, #556B2F 100%);"></span>
-                        Exército
-                    </div>
+            <a href="index.html"><img src="./images/logo.png" alt="Logo BM Medical"></a>
+            <h1>Quadro de Ordens de Serviço</h1>
+            <div class="header-legend">
+                <div class="legend-item">
+                    <span class="legend-color-dot" style="background-color: #2980b9;"></span>
+                    UFPEL
                 </div>
-            </div>
-            <div class="header-right">
-                <button id="logout-button" class="logout-button">Sair</button>
+                <div class="legend-item">
+                    <span class="legend-color-dot" style="background-color: #f39c12;"></span>
+                    Capão do Leão
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color-dot" style="background: repeating-linear-gradient(to bottom, #2F4F2F, #2F4F2F 25%, #8B4513 25%, #8B4513 50%, #6B8E23 50%, #6B8E23 75%, #556B2F 75%, #556B2F 100%);"></span>
+                    Exército
+                </div>
             </div>
         </header>
 
         <main class="board" id="board">
             <!-- As colunas são preenchidas dinamicamente pelo JavaScript -->
         </main>
+        
     </div>
 
     <!-- Menu de movimentação global -->
@@ -921,7 +879,6 @@ function addModalEventListeners(order) {
             document.getElementById('modal-btn-history').addEventListener('click', () => openHistoryModal(order));
             document.getElementById('modal-btn-archive').addEventListener('click', handleArchiveClick);
             document.getElementById('modal-btn-edit').addEventListener('click', () => switchToEditMode(order.id));
-            // CORREÇÃO: Passa o objeto 'order' completo para a função do PDF
             document.getElementById('modal-btn-pdf').addEventListener('click', (e) => generatePdfForOrder(order, e.target));
             document.getElementById('modal-btn-finalize').addEventListener('click', handleFinalizeClick);
         }
@@ -1424,10 +1381,10 @@ async function generatePdfForOrder(order, buttonElement) {
 
                 const drawSection = (title, contentCallback) => {
                     const dryRunFinalY = contentCallback(0, true);
-                    const contentHeight = dryRunFinalY; // Corrigido para usar a altura retornada
+                    const contentHeight = dryRunFinalY; 
                     const boxHeight = contentHeight + 18;
 
-                    if (yPosition + boxHeight > pageHeight - 50) { // Adiciona margem inferior
+                    if (yPosition + boxHeight > pageHeight - 50) { 
                         docPDF.addPage();
                         yPosition = 20;
                     }
@@ -1483,7 +1440,6 @@ async function generatePdfForOrder(order, buttonElement) {
                     return (y - currentY) + 6;
                 });
                 
-                // NOVA VERSÃO CORRIGIDA DESTA SEÇÃO
                 drawSection('Atendimento', (currentY, isDryRun) => {
                     const ufpelContractId = 'Contrato N° 03/2024';
                     let y = currentY;
@@ -1590,21 +1546,18 @@ async function generatePdfForOrder(order, buttonElement) {
         
         initializeBoard();
         listenToOrders();
-
-        // Lógica para o novo botão de adicionar OS
-        // É preciso esperar o initializeBoard() criar o botão
+        
         setTimeout(() => {
             const addOsBtn = document.getElementById('add-os-btn');
             const newOsMenu = document.getElementById('new-os-menu');
 
             if (addOsBtn && newOsMenu) {
                 addOsBtn.addEventListener('click', (e) => {
-                    e.stopPropagation(); // Impede que o clique feche o menu imediatamente
+                    e.stopPropagation();
                     newOsMenu.classList.toggle('show');
                 });
             }
 
-            // Fecha o menu se clicar fora
             window.addEventListener('click', (e) => {
                 if (newOsMenu && newOsMenu.classList.contains('show')) {
                     if (!newOsMenu.contains(e.target) && e.target !== addOsBtn) {
@@ -1617,3 +1570,4 @@ async function generatePdfForOrder(order, buttonElement) {
     </script>
 </body>
 </html>
+
