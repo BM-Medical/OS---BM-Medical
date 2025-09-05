@@ -102,7 +102,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background-color 0.2s;
+            transition: background-color: 0.2s;
         }
         .add-os-button:hover {
             background-color: #2980b9;
@@ -399,18 +399,53 @@
             text-align: right;
         }
 
-        /* ESTILOS RESPONSIVOS PARA O CABEÇALHO */
+        /* ESTILOS RESPONSIVOS */
         @media (max-width: 768px) {
             .board-header img {
-                height: 40px; /* Logo um pouco menor no celular */
+                height: 40px; 
                 margin-bottom: 10px;
             }
             .board-header h1 {
-                font-size: 1.2rem; /* Título menor */
+                font-size: 1.2rem;
                 margin-bottom: 10px;
             }
             .board { scroll-snap-type: none; }
             .list { scroll-snap-align: none; }
+
+            /* AJUSTE PARA O LAYOUT PERSONALIZADO DOS BOTÕES */
+            .modal-footer {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr); /* Cria 3 colunas */
+                grid-template-rows: auto auto; /* Cria 2 linhas */
+                gap: 10px;
+            }
+
+            .modal-footer .btn-action {
+                width: 100%;
+                margin: 0;
+            }
+
+            /* Posicionando cada botão na grade */
+            #modal-btn-edit {
+                grid-row: 2;
+                grid-column: 1;
+            }
+            #modal-btn-history {
+                grid-row: 1;
+                grid-column: 1;
+            }
+            #modal-btn-pdf {
+                grid-row: 2;
+                grid-column: 2;
+            }
+            #modal-btn-archive {
+                grid-row: 1;
+                grid-column: 3;
+            }
+            #modal-btn-finalize {
+                grid-row: 2;
+                grid-column: 3;
+            }
         }
     </style>
 </head>
@@ -867,10 +902,10 @@
                 </div>
                 <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div><div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width:200px;"></div></div></div>
                 <div class="modal-footer">
-                    <button id="modal-btn-history" class="btn-action btn-history">Histórico</button>
-                    <button id="modal-btn-archive" class="btn-action btn-archive">Arquivar OS</button>
                     <button id="modal-btn-edit" class="btn-action btn-edit">Editar OS</button>
+                    <button id="modal-btn-history" class="btn-action btn-history">Histórico</button>
                     <button id="modal-btn-pdf" class="btn-action btn-pdf">Gerar PDF</button>
+                    <button id="modal-btn-archive" class="btn-action btn-archive">Arquivar OS</button>
                     <button id="modal-btn-finalize" class="btn-action btn-finalize">Finalizar OS</button>
                 </div>`;
         }
