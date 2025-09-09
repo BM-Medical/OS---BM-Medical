@@ -80,28 +80,33 @@ async function drawOrderContent(docPDF, order, assets) {
     yPosition += 12;
 
     // --- Função auxiliar para desenhar seções ---
-    const drawSection = (title, contentCallback) => {
-        const dryRunFinalY = contentCallback(0, true);
-        const contentHeight = dryRunFinalY;
-        const boxHeight = contentHeight + 18;
+   // VERSÃO NOVA E FLEXÍVEL
+const drawSection = (title, contentCallback, options = {}) => {
+    const paddingTop = options.paddingTop || 10; // Pega o padding customizado ou usa 10 como padrão
+    
+    // O 'dryRun' precisa usar o mesmo padding para o cálculo de altura ser correto
+    const dryRunFinalY = contentCallback(0, true);
+    const contentHeight = dryRunFinalY;
+    // Note que a altura da caixa agora depende do padding customizado
+    const boxHeight = contentHeight + paddingTop + 8; 
 
-        if (yPosition + boxHeight > pageHeight - 50) { // Adiciona margem inferior para assinaturas
-            docPDF.addPage();
-            yPosition = 20;
-        }
-        
-        docPDF.setDrawColor('#e0e0e0').setFillColor('#ffffff');
-        docPDF.roundedRect(margin, yPosition - 5, pageWidth - (margin * 2), boxHeight, 3, 3, 'FD');
-        
-        docPDF.setFontSize(14).setTextColor('#3498db').setFont(undefined, 'bold');
-        docPDF.text(title, margin + 4, yPosition);
-        docPDF.setDrawColor('#3498db').setLineWidth(0.5).line(margin + 4, yPosition + 2, pageWidth - margin - 4, yPosition + 2);
+    if (yPosition + boxHeight > pageHeight - 50) { 
+        docPDF.addPage();
+        yPosition = 20;
+    }
+    
+    docPDF.setDrawColor('#e0e0e0').setFillColor('#ffffff');
+    docPDF.roundedRect(margin, yPosition - 5, pageWidth - (margin * 2), boxHeight, 3, 3, 'FD');
+    
+    docPDF.setFontSize(14).setTextColor('#3498db').setFont(undefined, 'bold');
+    docPDF.text(title, margin + 4, yPosition);
+    docPDF.setDrawColor('#3498db').setLineWidth(0.5).line(margin + 4, yPosition + 2, pageWidth - margin - 4, yPosition + 2);
 
-        docPDF.setFontSize(12).setTextColor('#000000').setFont(undefined, 'normal');
-        contentCallback(yPosition + 10, false); // Desenha o conteúdo real
+    docPDF.setFontSize(12).setTextColor('#000000').setFont(undefined, 'normal');
+    contentCallback(yPosition + paddingTop, false); // <--- USA A VARIÁVEL 'paddingTop'
 
-        yPosition += boxHeight + 3;
-    };
+    yPosition += boxHeight + 3;
+};
     
     // --- Desenho das seções ---
     drawSection('Dados do Cliente', (currentY, isDryRun) => {
@@ -116,7 +121,7 @@ async function drawOrderContent(docPDF, order, assets) {
             docPDF.setFont(undefined, 'bold').text('Endereço:', margin + 4, y);
             docPDF.setFont(undefined, 'normal').text(order.endereco || 'N/A', margin + 27, y);
         }
-        return (y - currentY) + 18; // Retorna a altura calculada
+        return (y - currentY) + 14; // Retorna a altura calculada
     });
     
     drawSection('Dados do Equipamento', (currentY, isDryRun) => {
@@ -125,17 +130,17 @@ async function drawOrderContent(docPDF, order, assets) {
         if (!isDryRun) {
             docPDF.setFont(undefined, 'bold').text('Equipamento:', margin + 4, y);
             docPDF.setFont(undefined, 'normal').text(equipLines, margin + 34, y);
+            docPDF.setFont(undefined, 'bold').text('Marca:', margin + 117, y);
+            docPDF.setFont(undefined, 'normal').text(order.marca || 'N/A', margin + 132, y);
         }
         y += 6 * equipLines.length;
         if(!isDryRun) {
-            docPDF.setFont(undefined, 'bold').text('Marca:', margin + 4, y);
-            docPDF.setFont(undefined, 'normal').text(order.marca || 'N/A', margin + 19, y);
-            docPDF.setFont(undefined, 'bold').text('Modelo:', margin + 70, y);
-            docPDF.setFont(undefined, 'normal').text(order.modelo || 'N/A', margin + 87, y);
-            docPDF.setFont(undefined, 'bold').text('Serial:', margin + 130, y);
-            docPDF.setFont(undefined, 'normal').text(order.serial || 'N/A', margin + 144, y);
+            docPDF.setFont(undefined, 'bold').text('Modelo:', margin + 4, y);
+            docPDF.setFont(undefined, 'normal').text(order.modelo || 'N/A', margin + 22, y);
+            docPDF.setFont(undefined, 'bold').text('Serial:', margin + 117, y);
+            docPDF.setFont(undefined, 'normal').text(order.serial || 'N/A', margin + 131, y);
         }
-        return (y - currentY) + 6;
+        return (y - currentY) + 2;
     });
 
     drawSection('Atendimento', (currentY, isDryRun) => {
@@ -163,9 +168,9 @@ async function drawOrderContent(docPDF, order, assets) {
                 docPDF.setFont(undefined, 'normal').text(formatDate(order.data_devolucao), margin + 120, y);
                 y += 6;
                 docPDF.setFont(undefined, 'bold').text('Local:', margin + 4, y);
-                docPDF.setFont(undefined, 'normal').text(order.local_atendimento || 'N/A', margin + 19, y);
+                docPDF.setFont(undefined, 'normal').text(order.local_atendimento || 'N/A', margin + 18, y);
             }
-            return (y - currentY) + 6;
+            return (y - currentY) + 8;
         }
     });
 
@@ -173,7 +178,7 @@ async function drawOrderContent(docPDF, order, assets) {
         const text = order.servicos_realizados || 'Não informado.';
         const lines = docPDF.splitTextToSize(text, pageWidth - (margin * 2) - 8);
         if (!isDryRun) docPDF.text(lines, margin + 4, currentY);
-        return (lines.length * 6);
+        return (lines.length * 4);
     });
 
     drawSection('Peças Utilizadas', (currentY, isDryRun) => {
@@ -193,23 +198,32 @@ async function drawOrderContent(docPDF, order, assets) {
             qtd: 15,
             desc: tableWidth - 30,
         };
-        const rowPadding = 3;
+        const rowPadding = 2;
         let tableCurrentY = currentY;
-        const lineHeight = 5;
+        const lineHeight = 4;
 
         // --- Desenhar Cabeçalho da Tabela (Estilo Minimalista) ---
-        const drawHeader = () => {
-            docPDF.setFontSize(10).setFont(undefined, 'bold');
-            docPDF.text('Item', tableX + rowPadding, tableCurrentY + lineHeight);
-            docPDF.text('Qtd.', tableX + colWidths.item + rowPadding, tableCurrentY + lineHeight);
-            docPDF.text('Descrição', tableX + colWidths.item + colWidths.qtd + rowPadding, tableCurrentY + lineHeight);
-            
-            tableCurrentY += lineHeight + rowPadding;
-            docPDF.setLineWidth(0.5);
-            docPDF.setDrawColor(0, 0, 0); // Linha preta
-            docPDF.line(tableX, tableCurrentY, tableX + tableWidth, tableCurrentY);
-            tableCurrentY += rowPadding;
-        };
+	// --- VERSÃO NOVA E CENTRALIZADA ---
+	const drawHeader = () => {
+    		docPDF.setFontSize(10).setFont(undefined, 'bold');
+
+    	// Posição X centralizada para os cabeçalhos 'Item' e 'Qtd.'
+    		const itemHeaderX = tableX + (colWidths.item / 2);
+   		const qtdHeaderX = tableX + colWidths.item + (colWidths.qtd / 2);
+    		const textY = tableCurrentY + rowPadding + (lineHeight / 2); // Posição Y verticalmente centralizada
+
+    	// Desenha os textos do cabeçalho usando a opção 'align: center'
+    		docPDF.text('Item', itemHeaderX, textY, { align: 'center', baseline: 'middle' });
+    		docPDF.text('Qtd.', qtdHeaderX, textY, { align: 'center', baseline: 'middle' });
+    		docPDF.text('Descrição', tableX + colWidths.item + colWidths.qtd + rowPadding, textY, { baseline: 'middle' });
+    
+    		tableCurrentY += lineHeight + (rowPadding * 2); // A altura total do cabeçalho
+    		docPDF.setLineWidth(0.5);
+    		docPDF.setDrawColor(0, 0, 0); // Linha preta
+    	// A linha é desenhada abaixo do espaço total do cabeçalho
+    		docPDF.line(tableX, tableCurrentY, tableX + tableWidth, tableCurrentY); 
+    		tableCurrentY += rowPadding; // Espaçamento extra após a linha do cabeçalho foi removido para ficar mais limpo
+	};
         
         if (!isDryRun) {
             drawHeader();
@@ -223,24 +237,36 @@ async function drawOrderContent(docPDF, order, assets) {
             const descLines = docPDF.splitTextToSize(part.descricao, colWidths.desc - (rowPadding * 2));
             const rowHeight = (descLines.length * lineHeight) + (rowPadding * 2);
 
-            if (!isDryRun) {
-                // Texto das células (centralizado para item e qtd)
-                const textY = tableCurrentY + lineHeight;
-                docPDF.text(`${index + 1}`, tableX + (colWidths.item / 2), textY, { align: 'center' });
-                docPDF.text(`${part.qtd}`, tableX + colWidths.item + (colWidths.qtd / 2), textY, { align: 'center' });
-                docPDF.text(descLines, tableX + colWidths.item + colWidths.qtd + rowPadding, textY);
+	// --- VERSÃO NOVA COM ALINHAMENTO VERTICAL ---
+	    if (!isDryRun) {
+    		// Calcula o centro vertical da linha
+   		const verticalCenter = tableCurrentY + (rowHeight / 2);
 
-                // Linha inferior
-                docPDF.setLineWidth(0.2);
-                docPDF.setDrawColor(200, 200, 200);
-                docPDF.line(tableX, tableCurrentY + rowHeight, tableX + tableWidth, tableCurrentY + rowHeight);
-            }
+    	// Adiciona a opção 'baseline: middle' para centralizar verticalmente
+   		const itemX = tableX + (colWidths.item / 2);
+    		const qtdX = tableX + colWidths.item + (colWidths.qtd / 2);
+    		const descX = tableX + colWidths.item + colWidths.qtd + rowPadding;
+
+    	// Coluna "Item": Centralizado horizontalmente e verticalmente
+    		docPDF.text(`${index + 1}`, itemX, verticalCenter, { align: 'center', baseline: 'middle' });
+
+    	// Coluna "Qtd.": Centralizado horizontalmente e verticalmente
+    		docPDF.text(`${part.qtd}`, qtdX, verticalCenter, { align: 'center', baseline: 'middle' });
+
+    	// Coluna "Descrição": Alinhado à esquerda e centralizado verticalmente
+    		docPDF.text(descLines, descX, verticalCenter, { baseline: 'middle' });
+
+    	// Linha inferior
+    		docPDF.setLineWidth(0.2);
+    		docPDF.setDrawColor(200, 200, 200);
+    		docPDF.line(tableX, tableCurrentY + rowHeight, tableX + tableWidth, tableCurrentY + rowHeight);
+	    }
             tableCurrentY += rowHeight;
         });
 
         // Retorna a altura total da tabela
         return tableCurrentY - currentY;
-    });
+    },{ paddingTop: 5 });
 
 
     // --- Assinaturas (sempre no final da página) ---
