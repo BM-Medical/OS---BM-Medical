@@ -32,7 +32,6 @@
             align-items: center;
             text-align: center;
         }
-        /* ATUALIZAÇÃO: Header agora centraliza a logo */
         .header {
             padding: 20px 0;
             width: 100%;
@@ -41,7 +40,7 @@
         .header img {
             max-width: 450px;
             height: auto;
-            margin: 0 auto; /* Garante a centralização */
+            margin: 0 auto;
         }
         .main-content {
             margin-top: 60px;
@@ -81,6 +80,10 @@
         .btn.tertiary:hover { background-color: #7f8c8d; }
         .btn.quaternary { background-color: #e67e22; }
         .btn.quaternary:hover { background-color: #d35400; }
+        /* AJUSTE: Nova cor para o botão de inventário */
+        .btn.inventory { background-color: #8e44ad; }
+        .btn.inventory:hover { background-color: #732d91; }
+
         .footer {
             background-color: #34495e;
             color: #ecf0f1;
@@ -122,11 +125,12 @@
                 <a href="nova-os.html" class="btn">Nova OS</a>
                 <a href="quadro-os.html" class="btn secondary">Quadro de OS</a>
                 <a href="consultar-os.html" class="btn tertiary">Consultar OS</a>
+                <!-- AJUSTE: Botão de Inventário adicionado -->
+                <a href="inventario.html" class="btn inventory">Gestão de Inventário</a>
                 <a href="relatorios.html" class="btn quaternary">Relatórios</a>
             </div>
         </main>
         
-        <!-- BOTÃO "SAIR" MOVIDO PARA O FINAL DO CONTAINER PRINCIPAL -->
         <div class="w-full mt-12 text-center">
             <button id="logout-button" class="inline-flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-2 font-semibold rounded-lg shadow-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75">
                 <svg class="logout-icon" viewBox="0 0 24 24">
@@ -143,7 +147,7 @@
         <p><strong>BM MEDICAL Engenharia Clínica</strong></p>
         <p>CNPJ: 48.673.158/0001-59</p>
         <p>Endereço: Av. Duque de Caxias, 915-B403, Pelotas-RS</p>
-        <p>Telefone: (51) 99377-5933 | Email: central.bmmedical@outlook.com</p>
+        <p>Contato: (51) 99377-5933 | Email: central.bmmedical@outlook.com</p>
     </footer>
 </body>
 </html>

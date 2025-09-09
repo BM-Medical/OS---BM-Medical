@@ -7,10 +7,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script> <!-- Tailwind Adicionado -->
     <script src="auth-guard.js" type="module"></script>
     <style>
         body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
-        .container { width: 90%; max-width: 800px; margin: 0 auto; padding: 20px; flex: 1; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; text-align: center; }
+        /* ALTERAÇÃO: A classe .container foi removida daqui para evitar conflitos com o Tailwind */
         .header { padding: 20px 0; width: 100%; text-align: center; }
         .header img { max-width: 450px; height: auto; margin: 0 auto; }
         .main-content { margin-top: 20px; width: 100%; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: left; }
@@ -21,7 +22,6 @@
         .form-group label { display: block; font-weight: 500; margin-bottom: 8px; color: #555; }
         .form-group input[type="text"], .form-group input[type="date"], .form-group input[type="time"], .form-group textarea, .form-group select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         .form-group input[readonly], .form-group textarea:disabled, .form-group select:disabled { background-color: #e9ecef; cursor: not-allowed; }
-        .form-group textarea { resize: vertical; min-height: 120px; }
         .radio-group { display: flex; gap: 20px; align-items: center; }
         .radio-group label { font-weight: normal; margin-bottom: 0; }
         .prefilled-data { background-color: #e9ecef; padding: 15px; border-radius: 6px; border-left: 5px solid #3498db; }
@@ -34,7 +34,7 @@
         .btn-submit { display: block; width: 100%; padding: 15px; margin-top: 30px; background-color: #2ecc71; color: white; border: none; border-radius: 6px; font-size: 1.2rem; font-weight: 700; cursor: pointer; transition: background-color: 0.3s ease; }
         .btn-submit:hover { background-color: #27ae60; }
         .btn-submit:disabled { background-color: #bdc3c7; cursor: not-allowed; }
-        .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; margin-top: auto; }
+        .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; }
         .footer p { margin: 5px 10px; }
         .checkbox-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
         .checkbox-group label { margin-bottom: 0; font-weight: normal; }
@@ -83,16 +83,15 @@
             .main-content { padding: 15px; }
             .header img { max-width: 80%; }
             .signature-grid { grid-template-columns: 1fr; gap: 30px; }
-            /* AJUSTE: Reduz o tamanho do título em telas menores */
             .main-content h1 { font-size: 1.8rem; }
         }
     </style>
 </head>
 <body>
-    <!-- O restante do HTML permanece o mesmo -->
-    <div class="container">
+    <!-- ALTERAÇÃO: Classes do Tailwind aplicadas para controlar o layout -->
+    <div class="w-full max-w-4xl mx-auto p-5 flex-1 flex flex-col items-center">
         <header class="header">
-            <img id="company-logo" src="./images/logo.png" alt="Logo da Empresa">
+            <a href="index.html"><img id="company-logo" src="./images/logo.png" alt="Logo da Empresa"></a>
         </header>
         <main class="main-content">
             <h1>Formulário de Nova OS</h1>
@@ -202,8 +201,12 @@
                 </div>
                 <div class="form-section">
                     <h2>Peças Utilizadas</h2>
-                    <div class="form-group">
-                        <textarea id="pecas_utilizadas" name="pecas_utilizadas"></textarea>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="add-parts-checkbox">
+                        <label for="add-parts-checkbox">Adicionar peças na criação da OS</label>
+                    </div>
+                    <div id="parts-manager-container" class="hidden mt-4">
+                        <!-- O módulo de peças será inserido aqui pelo JavaScript -->
                     </div>
                 </div>
                 <div class="form-section">
@@ -264,12 +267,14 @@
         <p><strong>BM MEDICAL Engenharia Clínica</strong></p>
         <p>CNPJ: 48.673.158/0001-59</p>
         <p>Endereço: Av. Duque de Caxias, 915-B403, Pelotas-RS</p>
-        <p>Telefone: (51) 99377-5933 | Email: central.bmmedical@outlook.com</p>
+        <p>Contato: (51) 99377-5933 | Email: central.bmmedical@outlook.com</p>
     </footer>
     <script type="module">
-        // O código JavaScript permanece o mesmo
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getFirestore, doc, getDoc, runTransaction, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { SignaturePadManager } from './signature-pad-helper.js';
+        import { PartsManager } from './modulo-pecas.js'; 
+
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
             authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
@@ -280,6 +285,46 @@
         };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+
+        // --- INICIALIZAÇÃO DO MÓDULO DE ASSINATURA ---
+        const signatureContainer = document.getElementById('signature-container');
+        const signatureDataInput = document.getElementById('signature-data');
+        
+        const signaturePadManager = new SignaturePadManager({
+            modal: document.getElementById('signature-modal'),
+            canvas: document.getElementById('signature-pad'),
+            saveButton: document.getElementById('signature-save-button'),
+            clearButton: document.getElementById('signature-clear-button'),
+            undoButton: document.getElementById('signature-undo-button'),
+            cancelButton: document.getElementById('signature-cancel-button'),
+            errorMessage: document.getElementById('signature-error-message')
+        });
+
+        signatureContainer.addEventListener('click', () => {
+            signaturePadManager.open((dataUrl) => {
+                signatureDataInput.value = dataUrl;
+                signatureContainer.innerHTML = `<img src="${dataUrl}" class="signature-thumbnail" alt="Assinatura">`;
+            });
+        });
+
+        // --- LÓGICA DO GERENCIADOR DE PEÇAS ---
+        const addPartsCheckbox = document.getElementById('add-parts-checkbox');
+        const partsManagerContainer = document.getElementById('parts-manager-container');
+        let partsManager = null;
+
+        addPartsCheckbox.addEventListener('change', () => {
+            if (addPartsCheckbox.checked) {
+                partsManagerContainer.classList.remove('hidden');
+                if (!partsManager) { // Inicializa o módulo apenas uma vez
+                    partsManager = new PartsManager(partsManagerContainer);
+                }
+            } else {
+                partsManagerContainer.classList.add('hidden');
+            }
+        });
+
+
+        // --- LÓGICA DO FORMULÁRIO ---
         let inventory = [];
         const contractId = "Contrato Nº 138/2024";
         const equipmentSelect = document.getElementById('equipamento_select');
@@ -295,23 +340,21 @@
         const manualSerialNameDiv = document.getElementById('manual_serial_name');
         const serialManualInput = document.getElementById('serial_manual');
         const locationSelect = document.getElementById('local_atendimento');
+
         async function loadInventory() {
             const cacheKey = `inventory_${contractId}`;
             try {
                 const cachedInventory = sessionStorage.getItem(cacheKey);
                 if (cachedInventory && cachedInventory !== '[]') {
-                    console.log("Carregando inventário do cache da sessão (válido).");
                     inventory = JSON.parse(cachedInventory);
                     populateEquipmentSelect();
                     return; 
                 }
-                console.log("Cache inválido ou vazio. Buscando inventário do Firestore.");
                 const q = query(collection(db, "inventory_equipment"), where("contract", "==", contractId));
                 const querySnapshot = await getDocs(q);
                 inventory = querySnapshot.docs.map(doc => doc.data());
                 if (inventory.length > 0) {
                     sessionStorage.setItem(cacheKey, JSON.stringify(inventory));
-                    console.log("Inventário salvo no cache da sessão.");
                 }
                 populateEquipmentSelect();
             } catch (error) {
@@ -319,6 +362,7 @@
                 equipmentSelect.innerHTML = `<option value="" disabled selected>Erro ao carregar</option>`;
             }
         }
+
         function populateSelectWithOptions(selectElement, options, defaultText) {
             selectElement.innerHTML = `<option value="" disabled selected>${defaultText}</option>`;
             options.forEach(opt => {
@@ -332,10 +376,12 @@
             otherOption.textContent = 'Outro (Digitar Manualmente)';
             selectElement.appendChild(otherOption);
         }
+
         function populateEquipmentSelect() {
             const equipmentNames = [...new Set(inventory.map(item => item.name))].sort();
             populateSelectWithOptions(equipmentSelect, equipmentNames, "Selecione um equipamento");
         }
+
         function resetAndDisable(select, manualDiv, manualInput) {
             select.innerHTML = '';
             select.disabled = true;
@@ -343,6 +389,7 @@
             manualInput.value = '';
             manualInput.required = false;
         }
+
         equipmentSelect.addEventListener('change', () => {
             const selected = equipmentSelect.value;
             resetAndDisable(brandSelect, manualBrandNameDiv, brandManualInput);
@@ -364,6 +411,7 @@
                 brandSelect.disabled = false;
             }
         });
+
         brandSelect.addEventListener('change', () => {
             const selected = brandSelect.value;
             resetAndDisable(modelSelect, manualModelNameDiv, modelManualInput);
@@ -384,6 +432,7 @@
                 modelSelect.disabled = false;
             }
         });
+
         modelSelect.addEventListener('change', () => {
             const selected = modelSelect.value;
             resetAndDisable(serialSelect, manualSerialNameDiv, serialManualInput);
@@ -403,6 +452,7 @@
                 serialSelect.disabled = false;
             }
         });
+
         serialSelect.addEventListener('change', () => {
             const selectedSerial = serialSelect.value;
             locationSelect.value = '';
@@ -430,139 +480,13 @@
                 }
             }
         });
+
         [equipmentManualInput, brandManualInput, modelManualInput, serialManualInput].forEach(input => {
             input.addEventListener('input', () => {
                 input.value = input.value.toUpperCase();
             });
         });
-        const signatureModal = document.getElementById('signature-modal');
-        const signatureContainer = document.getElementById('signature-container');
-        const signatureDataInput = document.getElementById('signature-data');
-        const signaturePad = document.getElementById('signature-pad');
-        const signatureErrorMessage = document.getElementById('signature-error-message');
-        const ctx = signaturePad.getContext('2d');
-        let drawing = false;
-        let isSignatureDrawn = false;
-        let signatureHistory = [];
-        function resizeCanvas() {
-            const ratio = Math.max(window.devicePixelRatio || 1, 1);
-            signaturePad.width = signaturePad.offsetWidth * ratio;
-            signaturePad.height = signaturePad.offsetHeight * ratio;
-            signaturePad.getContext("2d").scale(ratio, ratio);
-            redrawSignatureFromHistory();
-        }
-        window.addEventListener("resize", resizeCanvas);
-        function getPos(canvas, event) {
-            const rect = canvas.getBoundingClientRect();
-            const touch = event.touches ? event.touches[0] : event;
-            return { x: (touch.clientX - rect.left), y: (touch.clientY - rect.top) };
-        }
-        function startDrawing(e) {
-            drawing = true;
-            signatureErrorMessage.style.display = 'none';
-            const pos = getPos(signaturePad, e);
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-            e.preventDefault();
-        }
-        function stopDrawing(e) {
-            if (!drawing) return;
-            drawing = false;
-            ctx.beginPath();
-            saveSignatureState();
-            e.preventDefault();
-        }
-        function draw(e) {
-            if (!drawing) return;
-            isSignatureDrawn = true;
-            const pos = getPos(signaturePad, e);
-            ctx.lineWidth = 3;
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = '#000';
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-            e.preventDefault();
-        }
-        async function openSignaturePadInLandscape() {
-            const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-            isSignatureDrawn = false;
-            signatureErrorMessage.style.display = 'none';
-            signatureHistory = [];
-            try {
-                if (isMobile && typeof screen.orientation.lock === 'function') {
-                    await document.documentElement.requestFullscreen();
-                    await screen.orientation.lock('landscape-primary');
-                }
-            } catch (err) {
-                console.warn("Não foi possível ativar o modo paisagem/tela cheia.", err);
-            } finally {
-                signatureModal.style.display = 'flex';
-                resizeCanvas();
-                saveSignatureState();
-            }
-        }
-        async function closeSignaturePad() {
-            signatureModal.style.display = 'none';
-            try {
-                if (document.fullscreenElement) {
-                    await screen.orientation.unlock();
-                    await document.exitFullscreen();
-                }
-            } catch (err) {
-                console.error("Erro ao sair do modo tela cheia/paisagem.", err);
-            }
-        }
-        function saveSignatureState() {
-            const data = ctx.getImageData(0, 0, signaturePad.width, signaturePad.height);
-            signatureHistory.push(data);
-        }
-        function undoLastStroke() {
-            if (signatureHistory.length > 1) {
-                signatureHistory.pop();
-                redrawSignatureFromHistory();
-            }
-        }
-        function redrawSignatureFromHistory() {
-            ctx.clearRect(0, 0, signaturePad.width, signaturePad.height);
-            if (signatureHistory.length > 0) {
-                ctx.putImageData(signatureHistory[signatureHistory.length - 1], 0, 0);
-            }
-            isSignatureDrawn = signatureHistory.length > 1;
-        }
-        signaturePad.addEventListener('mousedown', startDrawing);
-        signaturePad.addEventListener('mouseup', stopDrawing);
-        signaturePad.addEventListener('mousemove', draw);
-        signaturePad.addEventListener('touchstart', startDrawing, { passive: false });
-        signaturePad.addEventListener('touchend', stopDrawing, { passive: false });
-        signaturePad.addEventListener('touchmove', draw, { passive: false });
-        signatureContainer.addEventListener('click', openSignaturePadInLandscape);
-        document.getElementById('signature-cancel-button').addEventListener('click', closeSignaturePad);
-        document.getElementById('signature-undo-button').addEventListener('click', undoLastStroke);
-        document.getElementById('signature-clear-button').addEventListener('click', () => {
-            ctx.clearRect(0, 0, signaturePad.width, signaturePad.height);
-            isSignatureDrawn = false;
-            signatureHistory = [signatureHistory[0]];
-        });
-        document.getElementById('signature-save-button').addEventListener('click', () => {
-            if (!isSignatureDrawn) {
-                signatureErrorMessage.style.display = 'block';
-                return;
-            }
-            const data = ctx.getImageData(0, 0, signaturePad.width, signaturePad.height);
-            const compositeOperation = ctx.globalCompositeOperation;
-            ctx.globalCompositeOperation = "destination-over";
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0,0,signaturePad.width,signaturePad.height);
-            const dataUrl = signaturePad.toDataURL('image/jpeg', 0.5);
-            ctx.clearRect(0,0,signaturePad.width,signaturePad.height);
-            ctx.putImageData(data, 0,0);
-            ctx.globalCompositeOperation = compositeOperation;
-            signatureDataInput.value = dataUrl;
-            signatureContainer.innerHTML = `<img src="${dataUrl}" class="signature-thumbnail" alt="Assinatura">`;
-            closeSignaturePad();
-        });
+        
         async function fetchAndSetOsNumber() {
             const osInput = document.getElementById('os_numero');
             osInput.value = 'Gerando...';
@@ -583,6 +507,7 @@
                 osInput.value = 'Erro ao carregar';
             }
         }
+
         const recebimentoCheck = document.getElementById('recebimento_check');
         const servicosTextarea = document.getElementById('servicos_realizados');
         recebimentoCheck.addEventListener('change', () => {
@@ -596,6 +521,7 @@
                 servicosTextarea.required = true;
             }
         });
+
         const form = document.getElementById('os-form');
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -603,11 +529,17 @@
             submitButton.disabled = true;
             submitButton.textContent = 'Salvando...';
             try {
+                let pecasUtilizadasData = [];
+                if (addPartsCheckbox.checked && partsManager) {
+                    pecasUtilizadasData = partsManager.getParts();
+                }
+
                 const formData = new FormData(form);
                 const servicosRealizadosValue = recebimentoCheck.checked 
                     ? "Recebimento de equipamento para análise." 
                     : servicosTextarea.value;
                 const signatureValue = formData.get('signature_data');
+                
                 const osData = {
                     contrato: "Contrato Nº 138/2024",
                     cliente: "Secretaria Municipal de Saúde De Capão Do Leão",
@@ -624,7 +556,7 @@
                     data_retirada: formData.get('data_retirada'),
                     data_devolucao: formData.get('data_devolucao'),
                     servicos_realizados: servicosRealizadosValue,
-                    pecas_utilizadas: formData.get('pecas_utilizadas'),
+                    pecas_utilizadas: pecasUtilizadasData, 
                     signature_data: signatureValue,
                     status: 'novas',
                     createdAt: new Date()
@@ -658,6 +590,7 @@
                 submitButton.textContent = 'Criar Ordem de Serviço';
             }
         });
+
         window.onload = () => {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('data_retirada').value = today;
@@ -667,3 +600,4 @@
     </script>
 </body>
 </html>
+

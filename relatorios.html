@@ -8,11 +8,20 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- AJUSTE DEFINITIVO: Parâmetro de versão para forçar a atualização do cache -->
     <script src="auth-guard.js?v=1.2" type="module"></script>
     <style>
         body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
-        .container { width: 90%; max-width: 1200px; margin: 0 auto; padding: 20px; flex: 1; display: flex; flex-direction: column; align-items: center; }
+        /* AJUSTE: Container agora é um flex-column para distribuir o espaço */
+        .container { 
+            width: 90%; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            flex: 1; /* Faz o container principal crescer */
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+        }
         
         .header { padding: 20px 0; width: 100%; text-align: center; }
         .header img { max-width: 450px; height: auto; margin: 0 auto; }
@@ -36,11 +45,19 @@
         .os-details-text span { font-size: 0.9rem; color: #777; }
         .os-status { padding: 5px 10px; border-radius: 15px; font-size: 0.8rem; font-weight: 700; background-color: #2ecc71; color: white; }
         
-        .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; margin-top: 40px; }
-        .footer p { margin: 5px 10px; }
+        .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; }
         #loading-message { text-align: center; padding: 20px; font-size: 1.1rem; color: #777; }
         
         .logout-icon { width: 1.25rem; height: 1.25rem; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+        /* AJUSTE: Novo container para o botão de sair */
+        .logout-container {
+            width: 100%;
+            text-align: center;
+            margin-top: auto; /* Esta é a mágica que empurra o botão para baixo */
+            padding-top: 20px; /* Garante um espaço acima do botão */
+            padding-bottom: 20px; /* Garante um espaço abaixo do botão */
+        }
+
         .floating-back-btn { 
             position: fixed; bottom: 90px; right: 24px; background-color: #3498db;
             color: white; width: 56px; height: 56px; border-radius: 50%; 
@@ -95,7 +112,9 @@
             </div>
             <div id="loading-message" style="display: none;">Carregando...</div>
         </main>
-        <div class="w-full mt-12 text-center">
+        
+        <!-- AJUSTE: Botão de sair movido para seu próprio container -->
+        <div class="logout-container">
             <button id="logout-button" class="inline-flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-2 font-semibold rounded-lg shadow-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; background-color: #e53e3e; color: white; padding: 8px 16px; font-weight: 600; border-radius: 8px;">
                 <svg class="logout-icon" viewBox="0 0 24 24">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -112,16 +131,16 @@
     </a>
 
     <footer class="footer">
-        <p><strong>BM MEDICAL Engenharia Clínica</strong></p>
-        <p>CNPJ: 48.673.158/0001-59</p>
-        <p>Endereço: Av. Duque de Caxias, 915-B403, Pelotas-RS</p>
-        <p>Telefone: (51) 99377-5933 | Email: central.bmmedical@outlook.com</p>
+    	<p><strong>BM MEDICAL Engenharia Clínica</strong></p>
+    	<p>CNPJ: 48.673.158/0001-59</p>
+    	<p>Endereço: Av. Duque de Caxias, 915-B403, Pelotas-RS</p>
+    	<p>Contatos: (51) 99377-5933 | central.bmmedical@outlook.com</p>
     </footer>
 
     <script type="module">
-        // O código JavaScript permanece o mesmo
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { addOrderPageToPdf } from './pdf-generator.js'; 
 
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
@@ -237,22 +256,22 @@
 
             const { jsPDF } = window.jspdf;
             const docPDF = new jsPDF();
-            let isFirstPage = true;
 
             const selectedCheckboxes = document.querySelectorAll('.os-checkbox:checked');
             const ordersData = Array.from(selectedCheckboxes)
                 .map(cb => JSON.parse(cb.dataset.order))
                 .sort((a, b) => (a.os_numero || '').localeCompare(b.os_numero || ''));
 
-            const logoDataUrl = await imageToDataUrl('./images/logo.png', 0.9);
-            const techSigDataUrl = await imageToDataUrl('./images/assinatura-tecnico.png', 0.7);
+            const assets = {
+                logoDataUrl: await imageToDataUrl('./images/logo.png', 0.9),
+                techSigDataUrl: await imageToDataUrl('./images/assinatura-tecnico.png', 0.7)
+            };
 
-            for (const order of ordersData) {
-                if (!isFirstPage) {
+            for (const [index, order] of ordersData.entries()) {
+                if (index > 0) {
                     docPDF.addPage();
                 }
-                await addOrderToPdf(docPDF, order, logoDataUrl, techSigDataUrl);
-                isFirstPage = false;
+                await addOrderPageToPdf(docPDF, order, assets);
             }
             
             const contractText = document.getElementById('contract-filter').options[document.getElementById('contract-filter').selectedIndex].text;
@@ -261,156 +280,6 @@
 
             generatePdfBtn.disabled = false;
             generatePdfBtn.textContent = 'Gerar PDF Compilado';
-        }
-
-        async function addOrderToPdf(docPDF, order, logoDataUrl, techSigDataUrl) {
-            const pageHeight = docPDF.internal.pageSize.height;
-            const pageWidth = docPDF.internal.pageSize.width;
-            const margin = 15;
-            let yPosition = 10;
-
-            docPDF.addImage(logoDataUrl, 'JPEG', margin, yPosition, 72, 32);
-            docPDF.setFontSize(9).setFont(undefined, 'bold');
-            docPDF.text('BM MEDICAL Engenharia Clínica', pageWidth - margin, yPosition + 5, { align: 'right' });
-	    docPDF.setFontSize(8).setFont(undefined, 'normal');
-            docPDF.text('CNPJ: 48.673.158/0001-59', pageWidth - margin, yPosition + 9, { align: 'right' });
-            docPDF.text('Av. Duque de Caxias, 915-B403, Pelotas-RS', pageWidth - margin, yPosition + 13, { align: 'right' });
-            docPDF.text('Fone: (51) 99377-5933', pageWidth - margin, yPosition + 17, { align: 'right' });
-	    docPDF.text('central.bmmedical@outlook.com', pageWidth - margin, yPosition + 21, { align: 'right' });
-            yPosition += 38;
-
-            docPDF.setFontSize(20).setFont(undefined, 'bold');
-            docPDF.text(`OS ${order.os_numero}`, pageWidth / 2, yPosition, { align: 'center' });
-            yPosition += 8;
-
-            if (order.tipo_manutencao) {
-                docPDF.setFontSize(12).setFont(undefined, 'normal');
-                const typeText = order.tipo_manutencao === 'preventiva' ? 'MP - Manutenção Preventiva' : 'MC - Manutenção Corretiva';
-                docPDF.text(typeText, pageWidth / 2, yPosition, { align: 'center' });
-            }
-            yPosition += 12;
-
-            const drawSection = (title, contentCallback) => {
-                const dryRunFinalY = contentCallback(0, true);
-                const contentHeight = dryRunFinalY;
-                const boxHeight = contentHeight + 18;
-
-                if (yPosition + boxHeight > pageHeight - 30) {
-                    docPDF.addPage();
-                    yPosition = 20;
-                }
-                
-                docPDF.setDrawColor('#e0e0e0').setFillColor('#ffffff');
-                docPDF.roundedRect(margin, yPosition - 5, pageWidth - (margin * 2), boxHeight, 3, 3, 'FD');
-                
-                docPDF.setFontSize(14).setTextColor('#3498db').setFont(undefined, 'bold');
-                docPDF.text(title, margin + 4, yPosition);
-                docPDF.setDrawColor('#3498db').setLineWidth(0.5).line(margin + 4, yPosition + 2, pageWidth - margin - 4, yPosition + 2);
-
-                docPDF.setFontSize(12).setTextColor('#000000').setFont(undefined, 'normal');
-                contentCallback(yPosition + 10, false);
-
-                yPosition += boxHeight + 3;
-            };
-
-            drawSection('Dados do Cliente', (currentY, isDryRun) => {
-                let y = currentY;
-                if (!isDryRun) {
-                    docPDF.setFont(undefined, 'bold').text('Contrato:', margin + 4, y);
-                    docPDF.setFont(undefined, 'normal').text(order.contrato || 'N/A', margin + 27, y);
-                    y += 6;
-                    docPDF.setFont(undefined, 'bold').text('Cliente:', margin + 4, y);
-                    docPDF.setFont(undefined, 'normal').text(order.cliente || 'N/A', margin + 27, y);
-                    y += 6;
-                    docPDF.setFont(undefined, 'bold').text('Endereço:', margin + 4, y);
-                    docPDF.setFont(undefined, 'normal').text(order.endereco || 'N/A', margin + 27, y);
-                }
-                return y + 18;
-            });
-
-            drawSection('Dados do Equipamento', (currentY, isDryRun) => {
-                let y = currentY;
-                const equipLines = docPDF.splitTextToSize(order.equipamento || 'N/A', pageWidth - margin * 2 - 40);
-                if (!isDryRun) {
-                    docPDF.setFont(undefined, 'bold').text('Equipamento:', margin + 4, y);
-                    docPDF.setFont(undefined, 'normal').text(equipLines, margin + 34, y);
-                }
-                y += 6 * equipLines.length;
-
-                if(!isDryRun) {
-                    docPDF.setFont(undefined, 'bold').text('Marca:', margin + 4, y);
-                    docPDF.setFont(undefined, 'normal').text(order.marca || 'N/A', margin + 19, y);
-                    docPDF.setFont(undefined, 'bold').text('Modelo:', margin + 70, y);
-                    docPDF.setFont(undefined, 'normal').text(order.modelo || 'N/A', margin + 87, y);
-                    docPDF.setFont(undefined, 'bold').text('Serial:', margin + 130, y);
-                    docPDF.setFont(undefined, 'normal').text(order.serial || 'N/A', margin + 144, y);
-                }
-                return y + 6;
-            });
-            
-            drawSection('Dados do Atendimento', (currentY, isDryRun) => {
-                const ufpelContractId = 'Contrato N° 03/2024';
-                let y = currentY;
-                if (order.contrato === ufpelContractId) {
-                    if (!isDryRun) {
-                        docPDF.setFont(undefined, 'bold').text('Data do Serviço:', margin + 4, y);
-                        docPDF.setFont(undefined, 'normal').text(formatDateString(order.data_servico), margin + 39, y);
-                        y += 6;
-                        docPDF.setFont(undefined, 'bold').text('Hora de Chegada:', margin + 4, y);
-                        docPDF.setFont(undefined, 'normal').text(order.hora_chegada || 'N/A', margin + 42, y);
-                        docPDF.setFont(undefined, 'bold').text('Hora de Saída:', margin + 80, y);
-                        docPDF.setFont(undefined, 'normal').text(order.hora_saida || 'N/A', margin + 111, y);
-                        y += 6;
-                        docPDF.setFont(undefined, 'bold').text('Local:', margin + 4, y);
-                        docPDF.setFont(undefined, 'normal').text('CME / HE-UFPEL', margin + 18, y);
-                    }
-                    return y + 18;
-                } else {
-                    if (!isDryRun) {
-                        docPDF.setFont(undefined, 'bold').text('Data da Retirada:', margin + 4, y);
-                        docPDF.setFont(undefined, 'normal').text(formatDateString(order.data_retirada), margin + 40, y);
-                        docPDF.setFont(undefined, 'bold').text('Data da Devolução:', margin + 80, y);
-                        docPDF.setFont(undefined, 'normal').text(formatDateString(order.data_devolucao), margin + 120, y);
-                        y += 6;
-                        docPDF.setFont(undefined, 'bold').text('Local:', margin + 4, y);
-                        docPDF.setFont(undefined, 'normal').text(order.local_atendimento || 'N/A', margin + 19, y);
-                    }
-                    return y + 12;
-                }
-            });
-
-            drawSection('Descrição dos Serviços Realizados', (currentY, isDryRun) => {
-                const text = order.servicos_realizados || 'Não informado.';
-                const lines = docPDF.splitTextToSize(text, pageWidth - (margin * 2) - 8);
-                if (!isDryRun) docPDF.text(lines, margin + 4, currentY);
-                return currentY + (lines.length * 5);
-            });
-
-            drawSection('Peças Utilizadas', (currentY, isDryRun) => {
-                const text = order.pecas_utilizadas || 'Nenhuma.';
-                const lines = docPDF.splitTextToSize(text, pageWidth - (margin * 2) - 8);
-                if (!isDryRun) docPDF.text(lines, margin + 4, currentY);
-                return currentY + (lines.length * 6);
-            });
-
-            const signatureY = pageHeight - 40;
-            const signatureHeight = 25;
-            const signatureWidth = 60;
-            const roleY = signatureY + signatureHeight + 2;
-            const lineY = roleY - 3;
-            
-            if (order.signature_data && order.signature_data.length > 200) {
-                docPDF.addImage(order.signature_data, 'JPEG', margin + 15, signatureY, signatureWidth, signatureHeight);
-            }
-            docPDF.setDrawColor('#333333').setLineWidth(0.3);
-            docPDF.line(margin + 10, lineY, margin + 10 + signatureWidth + 10, lineY);
-            docPDF.setFontSize(9).setFont(undefined, 'bold');
-            docPDF.text('Responsável do Setor', margin + 45, roleY, { align: 'center' });
-
-            const techSignatureX = pageWidth - margin - 15 - signatureWidth;
-            docPDF.addImage(techSigDataUrl, 'JPEG', techSignatureX, signatureY, signatureWidth, signatureHeight);
-            docPDF.line(techSignatureX - 5, lineY, techSignatureX + signatureWidth + 5, lineY);
-            docPDF.text('Responsável Técnico da Empresa', techSignatureX + (signatureWidth/2), roleY, { align: 'center' });
         }
 
         function imageToDataUrl(url, quality = 0.7) {
