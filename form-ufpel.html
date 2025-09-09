@@ -156,13 +156,12 @@
                 </div>
                 <div class="form-section">
                     <h2>Peças Utilizadas</h2>
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="add-parts-checkbox">
-                        <label for="add-parts-checkbox">Adicionar peças na criação da OS</label>
+                     <div id="parts-summary-container">
+                        <p class="text-gray-500 italic">Nenhuma peça adicionada.</p>
                     </div>
-                    <div id="parts-manager-container" class="hidden mt-4">
-                        <!-- O módulo de peças será inserido aqui pelo JavaScript -->
-                    </div>
+                    <button type="button" id="manage-parts-btn" class="mt-4 px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 w-full sm:w-auto">
+                        Gerenciar Peças
+                    </button>
                 </div>
                 <div class="form-section">
                     <h2>Assinaturas</h2>
@@ -245,7 +244,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         
-        // --- INICIALIZAÇÃO DO MÓDULO DE ASSINATURA ---
         const signatureContainer = document.getElementById('signature-container');
         const signatureDataInput = document.getElementById('signature-data');
         const signaturePadManager = new SignaturePadManager({
@@ -264,19 +262,23 @@
             });
         });
 
-        // --- LÓGICA DO GERENCIADOR DE PEÇAS ---
-        const addPartsCheckbox = document.getElementById('add-parts-checkbox');
-        const partsManagerContainer = document.getElementById('parts-manager-container');
-        let partsManager = null;
-        addPartsCheckbox.addEventListener('change', () => {
-            if (addPartsCheckbox.checked) {
-                partsManagerContainer.classList.remove('hidden');
-                if (!partsManager) {
-                    partsManager = new PartsManager(partsManagerContainer);
-                }
+        // --- LÓGICA DO GERENCIADOR DE PEÇAS (MODAL) ---
+        const managePartsBtn = document.getElementById('manage-parts-btn');
+        const partsSummaryContainer = document.getElementById('parts-summary-container');
+        let currentParts = [];
+
+        function renderPartsSummary() {
+            if (currentParts.length === 0) {
+                partsSummaryContainer.innerHTML = `<p class="text-gray-500 italic">Nenhuma peça adicionada.</p>`;
             } else {
-                partsManagerContainer.classList.add('hidden');
+                const list = currentParts.map(part => `<li><strong>${part.qtd}x</strong> - ${part.descricao}</li>`).join('');
+                partsSummaryContainer.innerHTML = `<ul class="list-disc pl-5 space-y-1">${list}</ul>`;
             }
+        }
+
+        const partsManager = new PartsManager(managePartsBtn, [], (updatedParts) => {
+            currentParts = updatedParts;
+            renderPartsSummary();
         });
         
         // --- LÓGICA DO FORMULÁRIO ---
@@ -307,11 +309,6 @@
             submitButton.disabled = true;
             submitButton.textContent = 'Salvando...';
             try {
-                let pecasUtilizadasData = [];
-                if (addPartsCheckbox.checked && partsManager) {
-                    pecasUtilizadasData = partsManager.getParts();
-                }
-
                 const formData = new FormData(form);
                 const signatureValue = formData.get('signature_data');
                 const osData = {
@@ -330,7 +327,7 @@
                     hora_chegada: formData.get('hora_chegada'),
                     hora_saida: formData.get('hora_saida'),
                     servicos_realizados: formData.get('servicos_realizados'),
-                    pecas_utilizadas: pecasUtilizadasData,
+                    pecas_utilizadas: currentParts,
                     signature_data: signatureValue,
                     status: 'novas',
                     createdAt: new Date()
@@ -371,3 +368,4 @@
     </script>
 </body>
 </html>
+
