@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com"></script> <!-- Tailwind Adicionado -->
     <script src="auth-guard.js" type="module"></script>
     <style>
         body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
@@ -198,12 +198,17 @@
                 </div>
                 <div class="form-section">
                     <h2>Peças Utilizadas</h2>
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="add-parts-checkbox">
-                        <label for="add-parts-checkbox">Adicionar peças na criação da OS</label>
+                    <div id="parts-initial-view">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="add-parts-checkbox">
+                            <label for="add-parts-checkbox">Adicionar peças na criação da OS</label>
+                        </div>
                     </div>
-                    <div id="parts-manager-container" class="hidden mt-4">
-                        <!-- O módulo de peças será inserido aqui pelo JavaScript -->
+                    <div id="parts-summary-view" class="hidden">
+                        <div id="parts-summary-list" class="mb-4 bg-gray-50 p-3 rounded-md border"></div>
+                        <button type="button" id="edit-parts-btn" class="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 w-full sm:w-auto">
+                            Editar Peças
+                        </button>
                     </div>
                 </div>
                 <div class="form-section">
@@ -290,7 +295,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- INICIALIZAÇÃO DO MÓDULO DE ASSINATURA ---
         const signatureContainer = document.getElementById('signature-container');
         const signatureDataInput = document.getElementById('signature-data');
         
@@ -311,21 +315,59 @@
             });
         });
 
-        // --- LÓGICA DO GERENCIADOR DE PEÇAS ---
+        // --- NOVA LÓGICA DO GERENCIADOR DE PEÇAS ---
+        let currentParts = [];
+        let partsManager;
+
         const addPartsCheckbox = document.getElementById('add-parts-checkbox');
-        const partsManagerContainer = document.getElementById('parts-manager-container');
-        let partsManager = null;
+        const partsInitialView = document.getElementById('parts-initial-view');
+        const partsSummaryView = document.getElementById('parts-summary-view');
+        const editPartsBtn = document.getElementById('edit-parts-btn');
+        const partsSummaryList = document.getElementById('parts-summary-list');
+
+        function updatePartsUI() {
+            if (currentParts.length > 0) {
+                partsInitialView.classList.add('hidden');
+                partsSummaryView.classList.remove('hidden');
+                const listHtml = currentParts.map(part => `<li><strong>${part.qtd}x</strong> - ${part.descricao}</li>`).join('');
+                partsSummaryList.innerHTML = `<ul class="list-disc pl-5 space-y-1">${listHtml}</ul>`;
+            } else {
+                partsInitialView.classList.remove('hidden');
+                addPartsCheckbox.checked = false;
+                partsSummaryView.classList.add('hidden');
+            }
+        }
+
+        function initializePartsManager() {
+            if (partsManager) return;
+            partsManager = new PartsManager({
+                initialParts: currentParts,
+                onConfirm: (updatedParts) => {
+                    currentParts = updatedParts;
+                    updatePartsUI();
+                },
+                onCancel: () => {
+                    // Se o usuário cancelar sem ter adicionado peças, desmarca o checkbox
+                    if (currentParts.length === 0) {
+                        addPartsCheckbox.checked = false;
+                    }
+                }
+            });
+        }
 
         addPartsCheckbox.addEventListener('change', () => {
             if (addPartsCheckbox.checked) {
-                partsManagerContainer.classList.remove('hidden');
-                if (!partsManager) {
-                    partsManager = new PartsManager(partsManagerContainer);
-                }
-            } else {
-                partsManagerContainer.classList.add('hidden');
+                initializePartsManager();
+                partsManager.open(currentParts);
             }
         });
+
+        editPartsBtn.addEventListener('click', () => {
+            if (partsManager) {
+                partsManager.open(currentParts);
+            }
+        });
+
 
         // --- LÓGICA DO FORMULÁRIO ---
         let inventory = [];
@@ -531,11 +573,6 @@
             submitButton.disabled = true;
             submitButton.textContent = 'Salvando...';
             try {
-                let pecasUtilizadasData = [];
-                if (addPartsCheckbox.checked && partsManager) {
-                    pecasUtilizadasData = partsManager.getParts();
-                }
-
                 const formData = new FormData(form);
                 const servicosRealizadosValue = recebimentoCheck.checked 
                     ? "Recebimento de equipamento para análise." 
@@ -557,7 +594,7 @@
                     data_retirada: formData.get('data_retirada'),
                     data_devolucao: formData.get('data_devolucao'),
                     servicos_realizados: servicosRealizadosValue,
-                    pecas_utilizadas: pecasUtilizadasData,
+                    pecas_utilizadas: currentParts,
                     signature_data: signatureValue,
                     status: 'novas',
                     createdAt: new Date()
@@ -605,3 +642,4 @@
     </script>
 </body>
 </html>
+
