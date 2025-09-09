@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script> <!-- Tailwind Adicionado -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="auth-guard.js" type="module"></script>
     <style>
         body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
@@ -27,7 +27,8 @@
         .prefilled-data p { margin: 5px 0; font-size: 1rem; }
         .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; text-align: center; margin-top: 20px; }
         .signature-box { display: flex; flex-direction: column; align-items: center; }
-        .signature-image-container { height: 120px; width: 300px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 5px; }
+        /* CORREÇÃO 2: Largura do container da assinatura agora é flexível */
+        .signature-image-container { height: 120px; width: 100%; max-width: 300px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 5px; }
         .signature-image-container img { max-height: 120px; max-width: 100%; }
         .signature-line { padding-top: 8px; font-weight: 500; font-size: 0.9rem; width: 100%; }
         .btn-submit { display: block; width: 100%; padding: 15px; margin-top: 30px; background-color: #2ecc71; color: white; border: none; border-radius: 6px; font-size: 1.2rem; font-weight: 700; cursor: pointer; transition: background-color: 0.3s ease; }
@@ -255,7 +256,7 @@
         </div>
     </div>
 
-    <a href="nova-os.html" class="floating-back-btn">
+    <a href="nova-os.html" id="back-btn" class="floating-back-btn">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
     </a>
 
@@ -324,6 +325,7 @@
         const partsSummaryView = document.getElementById('parts-summary-view');
         const editPartsBtn = document.getElementById('edit-parts-btn');
         const partsSummaryList = document.getElementById('parts-summary-list');
+        const backBtn = document.getElementById('back-btn'); // CORREÇÃO 1: Referência para o botão voltar
 
         function updatePartsUI() {
             if (currentParts.length > 0) {
@@ -345,12 +347,13 @@
                 onConfirm: (updatedParts) => {
                     currentParts = updatedParts;
                     updatePartsUI();
+                    backBtn.style.display = 'flex'; // CORREÇÃO 1: Mostra o botão
                 },
                 onCancel: () => {
-                    // Se o usuário cancelar sem ter adicionado peças, desmarca o checkbox
                     if (currentParts.length === 0) {
                         addPartsCheckbox.checked = false;
                     }
+                    backBtn.style.display = 'flex'; // CORREÇÃO 1: Mostra o botão
                 }
             });
         }
@@ -358,12 +361,14 @@
         addPartsCheckbox.addEventListener('change', () => {
             if (addPartsCheckbox.checked) {
                 initializePartsManager();
+                backBtn.style.display = 'none'; // CORREÇÃO 1: Esconde o botão
                 partsManager.open(currentParts);
             }
         });
 
         editPartsBtn.addEventListener('click', () => {
             if (partsManager) {
+                backBtn.style.display = 'none'; // CORREÇÃO 1: Esconde o botão
                 partsManager.open(currentParts);
             }
         });

@@ -186,9 +186,9 @@ const drawSection = (title, contentCallback, options = {}) => {
 
         if (!Array.isArray(pecas) || pecas.length === 0) {
             if (!isDryRun) {
-                docPDF.text('Nenhuma peça utilizada.', margin + 4, currentY);
+                docPDF.text('Nenhuma peça utilizada.', margin + 4, currentY+5);
             }
-            return 5;
+            return 10;
         }
 
         const tableX = margin + 4;
