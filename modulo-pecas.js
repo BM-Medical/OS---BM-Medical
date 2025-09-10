@@ -26,7 +26,8 @@ export class PartsManager {
 
         this.modalElement = document.createElement('div');
         this.modalElement.id = 'parts-manager-modal';
-        this.modalElement.className = 'fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center p-4';
+        // CORREÇÃO: Aumentado o z-index para que o modal de peças apareça sobre o modal de detalhes.
+        this.modalElement.className = 'fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full hidden z-[1050] flex items-center justify-center p-4';
         this.modalElement.innerHTML = `
             <div class="relative mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
                 <div class="mt-3">

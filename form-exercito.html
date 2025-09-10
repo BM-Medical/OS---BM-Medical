@@ -55,7 +55,6 @@
         .signature-modal-overlay:fullscreen .signature-modal-content canvas { flex-grow: 1; height: auto; }
         .uppercase-input { text-transform: uppercase; }
 
-        .logout-icon { width: 1.25rem; height: 1.25rem; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none; }
         .floating-back-btn { 
             position: fixed; 
             bottom: 90px;
@@ -269,9 +268,10 @@
     </footer>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, runTransaction, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, runTransaction, collection } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
         import { SignaturePadManager } from './signature-pad-helper.js';
         import { PartsManager } from './modulo-pecas.js'; 
+        import { EquipmentSelector } from './equipment-selector.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
@@ -361,155 +361,11 @@
             }
         });
 
-
         // --- LÓGICA DO FORMULÁRIO ---
-        let inventory = [];
+        let equipmentSelector = null;
         const contractId = "Contrato Nº 10/2025";
-        const equipmentSelect = document.getElementById('equipamento_select');
-        const manualEquipmentNameDiv = document.getElementById('manual_equipment_name');
-        const equipmentManualInput = document.getElementById('equipamento_manual');
-        const brandSelect = document.getElementById('marca_select');
-        const manualBrandNameDiv = document.getElementById('manual_brand_name');
-        const brandManualInput = document.getElementById('marca_manual');
-        const modelSelect = document.getElementById('modelo_select');
-        const manualModelNameDiv = document.getElementById('manual_model_name');
-        const modelManualInput = document.getElementById('modelo_manual');
-        const serialSelect = document.getElementById('serial_select');
-        const manualSerialNameDiv = document.getElementById('manual_serial_name');
-        const serialManualInput = document.getElementById('serial_manual');
         const desconsiderarAssinaturaCheck = document.getElementById('desconsiderar-assinatura-check');
-        const locationSelect = document.getElementById('local_atendimento');
-        async function loadInventory() {
-            const cacheKey = `inventory_${contractId}`;
-            try {
-                sessionStorage.removeItem(cacheKey);
-                const q = query(collection(db, "inventory_equipment"), where("contract", "==", contractId));
-                const querySnapshot = await getDocs(q);
-                inventory = querySnapshot.docs.map(doc => doc.data());
-                sessionStorage.setItem(cacheKey, JSON.stringify(inventory));
-                populateEquipmentSelect();
-            } catch (error) {
-                console.error("Erro ao carregar inventário: ", error);
-                equipmentSelect.innerHTML = `<option value="" disabled selected>Erro ao carregar</option>`;
-            }
-        }
-        function populateSelectWithOptions(selectElement, options, defaultText) {
-            selectElement.innerHTML = `<option value="" disabled selected>${defaultText}</option>`;
-            options.forEach(opt => {
-                const option = document.createElement('option');
-                option.value = opt;
-                option.textContent = opt;
-                selectElement.appendChild(option);
-            });
-            const otherOption = document.createElement('option');
-            otherOption.value = 'Outro';
-            otherOption.textContent = 'Outro (Digitar Manualmente)';
-            selectElement.appendChild(otherOption);
-        }
-        function populateEquipmentSelect() {
-            const equipmentNames = [...new Set(inventory.map(item => item.name))].sort();
-            populateSelectWithOptions(equipmentSelect, equipmentNames, "Selecione um equipamento");
-        }
-        function resetAndDisable(select, manualDiv, manualInput) {
-            select.innerHTML = '';
-            select.disabled = true;
-            manualDiv.style.display = 'none';
-            manualInput.value = '';
-            manualInput.required = false;
-        }
-        equipmentSelect.addEventListener('change', () => {
-            const selected = equipmentSelect.value;
-            resetAndDisable(brandSelect, manualBrandNameDiv, brandManualInput);
-            resetAndDisable(modelSelect, manualModelNameDiv, modelManualInput);
-            resetAndDisable(serialSelect, manualSerialNameDiv, serialManualInput);
-            locationSelect.disabled = false;
-            locationSelect.value = '';
-            if (selected === 'Outro') {
-                manualEquipmentNameDiv.style.display = 'block';
-                equipmentManualInput.required = true;
-                brandSelect.innerHTML = `<option value="Outro" selected>Outro (Digitar Manualmente)</option>`;
-                brandSelect.disabled = false;
-                brandSelect.dispatchEvent(new Event('change'));
-            } else {
-                manualEquipmentNameDiv.style.display = 'none';
-                equipmentManualInput.required = false;
-                const brands = [...new Set(inventory.filter(item => item.name === selected).map(item => item.brand))].sort();
-                populateSelectWithOptions(brandSelect, brands, "Selecione a marca");
-                brandSelect.disabled = false;
-            }
-        });
-        brandSelect.addEventListener('change', () => {
-            const selected = brandSelect.value;
-            resetAndDisable(modelSelect, manualModelNameDiv, modelManualInput);
-            resetAndDisable(serialSelect, manualSerialNameDiv, serialManualInput);
-            locationSelect.disabled = false;
-            locationSelect.value = '';
-            if (selected === 'Outro') {
-                manualBrandNameDiv.style.display = 'block';
-                brandManualInput.required = true;
-                modelSelect.innerHTML = `<option value="Outro" selected>Outro (Digitar Manualmente)</option>`;
-                modelSelect.disabled = false;
-                modelSelect.dispatchEvent(new Event('change'));
-            } else {
-                manualBrandNameDiv.style.display = 'none';
-                brandManualInput.required = false;
-                const models = [...new Set(inventory.filter(item => item.name === equipmentSelect.value && item.brand === selected).map(item => item.model))].sort();
-                populateSelectWithOptions(modelSelect, models, "Selecione o modelo");
-                modelSelect.disabled = false;
-            }
-        });
-        modelSelect.addEventListener('change', () => {
-            const selected = modelSelect.value;
-            resetAndDisable(serialSelect, manualSerialNameDiv, serialManualInput);
-            locationSelect.disabled = false;
-            locationSelect.value = '';
-            if (selected === 'Outro') {
-                manualModelNameDiv.style.display = 'block';
-                modelManualInput.required = true;
-                serialSelect.innerHTML = `<option value="Outro" selected>Outro (Digitar Manualmente)</option>`;
-                serialSelect.disabled = false;
-                serialSelect.dispatchEvent(new Event('change'));
-            } else {
-                manualModelNameDiv.style.display = 'none';
-                modelManualInput.required = false;
-                const serials = [...new Set(inventory.filter(item => item.name === equipmentSelect.value && item.brand === brandSelect.value && item.model === selected).map(item => item.serial))].sort();
-                populateSelectWithOptions(serialSelect, serials, "Selecione o N/S");
-                serialSelect.disabled = false;
-            }
-        });
-        serialSelect.addEventListener('change', () => {
-            const selectedSerial = serialSelect.value;
-            locationSelect.value = '';
-            locationSelect.disabled = false;
-            if (selectedSerial === 'Outro') {
-                manualSerialNameDiv.style.display = 'block';
-                serialManualInput.required = true;
-                return;
-            }
-            manualSerialNameDiv.style.display = 'none';
-            serialManualInput.required = false;
-            if (!selectedSerial) {
-                return;
-            }
-            const uniqueItem = inventory.find(item =>
-                item.name === equipmentSelect.value &&
-                item.brand === brandSelect.value &&
-                item.model === modelSelect.value &&
-                item.serial === selectedSerial
-            );
-            if (uniqueItem && uniqueItem.location) {
-                locationSelect.value = uniqueItem.location;
-                if (locationSelect.value !== uniqueItem.location) {
-                    console.warn('O local "' + uniqueItem.location + '" não foi encontrado nas opções do formulário.');
-                }
-            }
-        });
-        [equipmentManualInput, brandManualInput, modelManualInput, serialManualInput].forEach(input => {
-            input.addEventListener('input', () => {
-                input.value = input.value.toUpperCase();
-            });
-        });
-        
+
         async function fetchAndSetOsNumber() {
             const osInput = document.getElementById('os_numero');
             osInput.value = 'Gerando...';
@@ -530,6 +386,7 @@
                 osInput.value = 'Erro ao carregar';
             }
         }
+
         const recebimentoCheck = document.getElementById('recebimento_check');
         const servicosTextarea = document.getElementById('servicos_realizados');
         recebimentoCheck.addEventListener('change', () => {
@@ -543,6 +400,7 @@
                 servicosTextarea.required = true;
             }
         });
+        
         const signatureArea = document.querySelector('.signature-area');
         desconsiderarAssinaturaCheck.addEventListener('change', () => {
             const placeholder = document.getElementById('signature-placeholder');
@@ -555,6 +413,7 @@
                 placeholder.innerHTML = 'Clique para assinar';
             }
         });
+
         const form = document.getElementById('os-form');
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -571,6 +430,8 @@
                     ? "Recebimento de equipamento para análise." 
                     : servicosTextarea.value;
                 const signatureValue = formData.get('signature_data');
+                const equipmentData = equipmentSelector.getSelection();
+
                 const osData = {
                     contrato: "Contrato Nº 10/2025",
                     cliente: "Exército Brasileiro",
@@ -578,10 +439,10 @@
                     cnpj: "09.590.648/0001-30",
                     endereco: "Av. Duque de Caxias, 344, Pelotas - RS",
                     local_atendimento: formData.get('local_atendimento'),
-                    equipamento: formData.get('equipamento_select') === 'Outro' ? formData.get('equipamento_manual').toUpperCase() : formData.get('equipamento_select'),
-                    marca: formData.get('marca_select') === 'Outro' ? formData.get('marca_manual').toUpperCase() : formData.get('marca_select'),
-                    modelo: formData.get('modelo_select') === 'Outro' ? formData.get('modelo_manual').toUpperCase() : formData.get('modelo_select'),
-                    serial: formData.get('serial_select') === 'Outro' ? formData.get('serial_manual').toUpperCase() : formData.get('serial_select'),
+                    equipamento: equipmentData.equipamento,
+                    marca: equipmentData.marca,
+                    modelo: equipmentData.modelo,
+                    serial: equipmentData.serial,
                     tipo_manutencao: formData.get('tipo_manutencao'),
                     os_numero: formData.get('os_numero'),
                     data_retirada: formData.get('data_retirada'),
@@ -592,6 +453,7 @@
                     status: 'novas',
                     createdAt: new Date()
                 };
+
                 osData.history = [{ action: 'Criada', timestamp: new Date(), details: 'OS aberta no sistema.' }];
                 if (desconsiderarAssinaturaCheck.checked) {
                     osData.assinaturaDesconsiderada = true;
@@ -601,6 +463,7 @@
                     osData.signedAt = new Date();
                     osData.history.push({ action: 'Assinada', timestamp: new Date(), details: 'OS criada com assinatura.' });
                 }
+
                 const counterDocId = 'exercito';
                 const counterRef = doc(db, "counters", counterDocId);
                 await runTransaction(db, async (transaction) => {
@@ -625,12 +488,31 @@
                 submitButton.textContent = 'Criar Ordem de Serviço';
             }
         });
+
         window.onload = () => {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('data_retirada').value = today;
             fetchAndSetOsNumber();
             desconsiderarAssinaturaCheck.dispatchEvent(new Event('change'));
-            loadInventory();
+
+            equipmentSelector = new EquipmentSelector({
+                contractId: contractId,
+                elements: {
+                    equipmentSelect: document.getElementById('equipamento_select'),
+                    brandSelect: document.getElementById('marca_select'),
+                    modelSelect: document.getElementById('modelo_select'),
+                    serialSelect: document.getElementById('serial_select'),
+                    locationSelect: document.getElementById('local_atendimento'),
+                    manualEquipmentDiv: document.getElementById('manual_equipment_name'),
+                    manualBrandDiv: document.getElementById('manual_brand_name'),
+                    manualModelDiv: document.getElementById('manual_model_name'),
+                    manualSerialDiv: document.getElementById('manual_serial_name'),
+                    equipmentManualInput: document.getElementById('equipamento_manual'),
+                    brandManualInput: document.getElementById('marca_manual'),
+                    modelManualInput: document.getElementById('modelo_manual'),
+                    serialManualInput: document.getElementById('serial_manual')
+                }
+            });
         };
     </script>
 </body>
