@@ -19,18 +19,17 @@
         body { font-family: 'Inter', sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
         .board-container { display: flex; flex-direction: column; height: 100vh; }
         
-        /* CABEÇALHO REESTRUTURADO */
         .board-header {
             padding: 15px 20px;
             background-color: #fff;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            text-align: center; /* Centraliza todo o conteúdo */
+            text-align: center;
             position: sticky;
             top: 0;
             z-index: 10;
         }
         .board-header img {
-            height: 50px; /* Tamanho base do logo */
+            height: 50px;
             margin-bottom: 12px;
         }
         .board-header h1 {
@@ -38,11 +37,10 @@
             margin: 0 0 8px 0;
         }
         
-        /* ESTILOS DA LEGENDA */
         .header-legend {
             display: flex;
             align-items: center;
-            justify-content: center; /* Garante a centralização da legenda */
+            justify-content: center;
             gap: 15px;
         }
         .legend-item {
@@ -86,7 +84,6 @@
         }
         .cards { padding: 10px; flex-grow: 1; min-height: 100px; overflow-y: auto; }
         
-        /* BOTÃO DE ADICIONAR OS */
         .add-os-container {
             position: relative;
         }
@@ -137,7 +134,6 @@
             background-color: #f5f5f5;
         }
 
-        /* ESTILOS DO CARTÃO (CARD) */
         .card { 
             background-color: #fff; 
             border-radius: 6px; 
@@ -175,7 +171,6 @@
             color: #e74c3c;
         }
 
-        /* ÍCONES DE STATUS (ASSINATURA) */
         .card-status-icon {
             position: absolute;
             top: 12px;
@@ -189,7 +184,6 @@
         @keyframes stroke { 100% { stroke-dashoffset: 0; } }
         .icon-unsigned { display: flex; align-items: center; gap: 4px; }
 
-        /* SISTEMA DE MOVER */
         .card-move-action {
             position: absolute;
             bottom: 8px;
@@ -236,7 +230,6 @@
             background-color: #f5f5f5;
         }
 
-        /* ESTILOS DOS MODAIS */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background-color: #fff; padding: 20px 30px 30px 30px; border-radius: 10px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; position: relative; }
         
@@ -319,7 +312,8 @@
         #signature-clear-button-details { background-color: #e74c3c; color: white; }
         #signature-cancel-button-details { background-color: #95a5a6; color: white; }
         #signature-error-message-details { color: #e74c3c; font-weight: 500; margin-top: 10px; display: none; }
-        .signature-placeholder { border: 2px dashed #ccc; border-radius: 6px; padding: 20px; text-align: center; cursor: pointer; color: #7f8c8d; }
+        .signature-placeholder { border: 2px dashed #ccc; border-radius: 6px; padding: 20px; text-align: center; color: #7f8c8d; }
+        .signature-placeholder.is-clickable { cursor: pointer; }
         .signature-thumbnail { max-width: 200px; max-height: 100px; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; }
 
         .signature-modal-overlay:fullscreen { background-color: #fff; }
@@ -409,36 +403,17 @@
             }
             .board { scroll-snap-type: none; }
             .list { scroll-snap-align: none; }
+            
+            .modal-header-top { flex-direction: row; }
 
             .modal-footer {
                 display: grid;
-                grid-template-columns: repeat(3, 1fr); 
-                grid-template-rows: auto auto; 
+                grid-template-columns: 1fr 1fr;
                 gap: 10px;
             }
             .modal-footer .btn-action {
                 width: 100%;
                 margin: 0;
-            }
-            #modal-btn-edit {
-                grid-row: 2;
-                grid-column: 1;
-            }
-            #modal-btn-history {
-                grid-row: 1;
-                grid-column: 1;
-            }
-            #modal-btn-pdf {
-                grid-row: 2;
-                grid-column: 2;
-            }
-            #modal-btn-archive {
-                grid-row: 1;
-                grid-column: 3;
-            }
-            #modal-btn-finalize {
-                grid-row: 2;
-                grid-column: 3;
             }
         }
     </style>
@@ -534,7 +509,7 @@
         import { getFirestore, collection, doc, getDoc, updateDoc, onSnapshot, query, where, orderBy, deleteField, arrayUnion } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
         import { SignaturePadManager } from './signature-pad-helper.js';
         import { generateOsPdf } from './pdf-generator.js';
-        import { PartsManager } from './modulo-pecas.js'; // <-- MÓDULO DE PEÇAS IMPORTADO
+        import { PartsManager } from './modulo-pecas.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
@@ -557,7 +532,7 @@
         const historyModal = document.getElementById('history-modal');
         const historyModalBody = document.getElementById('history-modal-body');
         let currentOrderForAction = null;
-        let activePartsManager = null; // <-- Variável para guardar a instância do PartsManager
+        let activePartsManager = null;
 
         const statuses = {
             'novas': 'Novas OS',
@@ -814,7 +789,6 @@
                 servicosDisplayHtml = `<p><strong>Serviços Realizados:</strong><br>${(order.servicos_realizados || 'Não informado.').replace(/\n/g, '<br>')}</p>`;
             }
 
-            // ALTERAÇÃO: Lógica para exibir as peças
             let pecasHtml = '<p>Nenhuma peça utilizada.</p>';
             if (order.pecas_utilizadas && Array.isArray(order.pecas_utilizadas) && order.pecas_utilizadas.length > 0) {
                 pecasHtml = '<ul class="list-disc pl-5 space-y-1">';
@@ -823,7 +797,7 @@
                 });
                 pecasHtml += '</ul>';
             } else if (order.pecas_utilizadas && typeof order.pecas_utilizadas === 'string') {
-                pecasHtml = `<p>${order.pecas_utilizadas.replace(/\n/g, '<br>')}</p>`; // Compatibilidade com dados antigos
+                pecasHtml = `<p>${order.pecas_utilizadas.replace(/\n/g, '<br>')}</p>`;
             }
 
 
@@ -866,12 +840,12 @@
                     <p class="mt-4"><strong>Peças Utilizadas:</strong></p>
                     ${pecasHtml}
                 </div>
-                <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div><div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width:200px;"></div></div></div>
+                <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><div id="signature-container-details">${signatureSectionHtml}</div><div class="signature-line">Responsável do Setor</div></div><div class="signature-box"><img src="./images/assinatura-tecnico.png" style="max-width:200px;"><div class="signature-line">Responsável Técnico</div></div></div></div>
                 <div class="modal-footer">
-                    <button id="modal-btn-edit" class="btn-action btn-edit">Editar OS</button>
                     <button id="modal-btn-history" class="btn-action btn-history">Histórico</button>
-                    <button id="modal-btn-pdf" class="btn-action btn-pdf">Gerar PDF</button>
                     <button id="modal-btn-archive" class="btn-action btn-archive">Arquivar OS</button>
+                    <button id="modal-btn-edit" class="btn-action btn-edit">Editar OS</button>
+                    <button id="modal-btn-pdf" class="btn-action btn-pdf">Gerar PDF</button>
                     <button id="modal-btn-finalize" class="btn-action btn-finalize">Finalizar OS</button>
                 </div>`;
         }
@@ -902,39 +876,51 @@
                 const order = { id: docSnap.id, ...docSnap.data() };
                 modalBody.innerHTML = generateEditForm(order);
                 const editForm = document.getElementById('edit-os-form');
-                editForm.addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    saveOrderChanges(orderId);
-                });
                 
                 const textareas = editForm.querySelectorAll('textarea');
                 textareas.forEach(textarea => {
                     textarea.addEventListener('input', () => autoGrowTextarea(textarea));
                     autoGrowTextarea(textarea);
                 });
+                
+                // --- INICIALIZAÇÃO DO MODAL DE PEÇAS ---
+                let currentParts = Array.isArray(order.pecas_utilizadas) ? order.pecas_utilizadas : [];
+                const partsInitialView = document.getElementById('parts-initial-view-edit');
+                const partsSummaryView = document.getElementById('parts-summary-view-edit');
+                const editPartsBtn = document.getElementById('edit-parts-btn-edit');
+                const partsSummaryList = document.getElementById('parts-summary-list-edit');
 
-                const equipamentoSelect = editForm.querySelector('#edit_equipamento_select');
-                if (equipamentoSelect) {
-                    equipamentoSelect.addEventListener('change', () => {
-                        const outroGroup = editForm.querySelector('#edit_outro_equipamento_group');
-                        outroGroup.style.display = equipamentoSelect.value === 'Outro' ? 'block' : 'none';
-                    });
-                    if (equipamentoSelect.value === 'Outro') {
-                        equipamentoSelect.dispatchEvent(new Event('change'));
+                function updatePartsUI() {
+                    if (currentParts.length > 0) {
+                        partsInitialView.classList.add('hidden');
+                        partsSummaryView.classList.remove('hidden');
+                        const listHtml = currentParts.map(part => `<li><strong>${part.qtd}x</strong> - ${part.descricao}</li>`).join('');
+                        partsSummaryList.innerHTML = `<ul class="list-disc pl-5 space-y-1">${listHtml}</ul>`;
+                    } else {
+                        partsInitialView.classList.remove('hidden');
+                        partsSummaryView.classList.add('hidden');
                     }
                 }
-
-                // --- INICIALIZAÇÃO DO MÓDULO DE PEÇAS NO MODO DE EDIÇÃO ---
-                const partsContainer = document.getElementById('parts-manager-container-edit');
-                let initialParts = [];
-                // Compatibilidade com dados antigos que eram string
-                if (Array.isArray(order.pecas_utilizadas)) {
-                    initialParts = order.pecas_utilizadas;
-                } else if (order.pecas_utilizadas && typeof order.pecas_utilizadas === 'string') {
-                    // Converte a string antiga para o novo formato de array
-                    initialParts = [{ qtd: 1, descricao: order.pecas_utilizadas }];
+                
+                if (!activePartsManager) {
+                     activePartsManager = new PartsManager({
+                        onConfirm: (updatedParts) => {
+                            currentParts = updatedParts;
+                            updatePartsUI();
+                        }
+                    });
                 }
-                activePartsManager = new PartsManager(partsContainer, initialParts);
+                
+                editPartsBtn.addEventListener('click', () => {
+                    activePartsManager.open(currentParts);
+                });
+
+                updatePartsUI(); // Renderiza o estado inicial
+                
+                editForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    saveOrderChanges(orderId, currentParts); // Passa as peças atuais para a função de salvar
+                });
 
 
                 // --- LÓGICA DE ASSINATURA ---
@@ -987,9 +973,8 @@
             const isSigned = order.signature_data && order.signature_data.length > 200;
             let signatureSectionHtml = isSigned 
                 ? `<img src="${order.signature_data}" class="signature-thumbnail" alt="Assinatura">` 
-                : `<div id="signature-placeholder-details" class="signature-placeholder">Adicionar Assinatura</div>`;
+                : `<div id="signature-placeholder-details" class="signature-placeholder is-clickable">Adicionar Assinatura</div>`;
             
-            let equipmentFields = '';
             let attendanceFields = '';
             const ufpelContract = 'Contrato N° 03/2024';
             const capaoContract = 'Contrato Nº 138/2024';
@@ -1008,18 +993,9 @@
             if (order.contrato === ufpelContract) {
                  attendanceFields = `<div class="form-group"><label for="edit_data_servico">Data do Serviço:</label><input type="date" id="edit_data_servico" name="data_servico" value="${order.data_servico||''}"></div><div class="form-group"><label for="edit_hora_chegada">Hora de Chegada:</label><input type="time" id="edit_hora_chegada" name="hora_chegada" value="${order.hora_chegada||''}"></div><div class="form-group"><label for="edit_hora_saida">Hora de Saída:</label><input type="time" id="edit_hora_saida" name="hora_saida" value="${order.hora_saida||''}"></div>`;
             } else {
-                const isCapao = order.contrato === capaoContract;
-                const isExercito = order.contrato === exercitoContract;
-                const equipmentOptionsList = isCapao 
-                    ? ['Micromotor Odontológico','Caneta de Alta Rotação','Autoclave de Bancada','Contra-Ângulo','Ultrassom Tipo Borden','Ultrassom Com Jato De Bicarbonato','Esfigmomanômetro','Compressor Odontológico','Cadeira Odontológica','Balança Antropométrica','Balança Neonatal'] 
-                    : ['Micromotor Odontológico','Caneta de Alta Rotação','Autoclave de Bancada','Contra-Ângulo','Ultrassom Com Jato De Bicarbonato','Compressor Odontológico','Cadeira Odontológica','Raio-X Odontológico','Mocho Odontológico'];
-                const isCustomEquipment = !equipmentOptionsList.includes(order.equipamento);
-                const optionsHtml = equipmentOptionsList.map(opt => `<option value="${opt}" ${order.equipamento===opt?'selected':''}>${opt}</option>`).join('');
-                equipmentFields = `<div class="form-group"><label for="edit_equipamento_select">Equipamento:</label><select id="edit_equipamento_select" name="equipamento_select">${optionsHtml}<option value="Outro" ${isCustomEquipment?'selected':''}>Outro</option></select></div><div class="form-group" id="edit_outro_equipamento_group" style="display:${isCustomEquipment?'block':'none'};"><label for="edit_outro_equipamento">Qual equipamento?</label><input type="text" id="edit_outro_equipamento" name="outro_equipamento" value="${isCustomEquipment?order.equipamento:''}"></div><div class="form-group"><label for="edit_marca">Marca:</label><input type="text" id="edit_marca" name="marca" value="${order.marca||''}"></div><div class="form-group"><label for="edit_modelo">Modelo:</label><input type="text" id="edit_modelo" name="modelo" value="${order.modelo||''}"></div><div class="form-group"><label for="edit_serial">Serial:</label><input type="text" id="edit_serial" name="serial" value="${order.serial||''}"></div>`;
                 attendanceFields = `<div class="form-group"><label for="edit_data_retirada">Data da Retirada:</label><input type="date" id="edit_data_retirada" name="data_retirada" value="${order.data_retirada||''}"></div><div class="form-group"><label for="edit_data_devolucao">Data da Devolução:</label><input type="date" id="edit_data_devolucao" name="data_devolucao" value="${order.data_devolucao||''}"></div>`;
-                
-                if (isCapao || isExercito) {
-                    const locationOptions = isCapao 
+                if (order.contrato === capaoContract || order.contrato === exercitoContract) {
+                    const locationOptions = order.contrato === capaoContract 
                         ? ['Pronto Atendimento Municipal','UBS Central','UBS Casabom','UBS I - Parque Fragata','UBS II - Jardim América','UBS III - Jardim América','UBS Campus UFPEL','CAPS - Casa Vida']
                         : ['GO 1', 'GO 2', 'GO 3', 'GO 4', 'PMGuPel'];
                     const locationHtml = locationOptions.map(opt => `<option value="${opt}" ${order.local_atendimento===opt?'selected':''}>${opt}</option>`).join('');
@@ -1028,12 +1004,13 @@
             }
             return `
                 <div class="modal-header-container">
-                    <h1>Editar OS: ${order.os_numero}</h1>
-                    <button class="modal-close">&times;</button>
+                    <div class="modal-header-top">
+                        <h1>Editar OS: ${order.os_numero}</h1>
+                        <button class="modal-close">&times;</button>
+                    </div>
                 </div>
                 <form id="edit-os-form">
                     <input type="hidden" id="edit_signature_data" value="${order.signature_data || ''}">
-                    ${equipmentFields?`<div class="form-section"><h2>Dados do Equipamento</h2>${equipmentFields}</div>`:''}
                     <div class="form-section"><h2>Atendimento</h2>${attendanceFields}</div>
                     <div class="form-section">
                         <h2>Serviços e Peças</h2>
@@ -1043,7 +1020,17 @@
                         </div>
                         <div class="form-group">
                             <label>Peças Utilizadas:</label>
-                            <div id="parts-manager-container-edit" class="mt-2"></div>
+                            <div id="parts-initial-view-edit">
+                                <button type="button" id="edit-parts-btn" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 w-full sm:w-auto">
+                                    Gerenciar Peças
+                                </button>
+                            </div>
+                            <div id="parts-summary-view-edit" class="hidden">
+                                <div id="parts-summary-list-edit" class="mb-4 bg-gray-50 p-3 rounded-md border"></div>
+                                <button type="button" id="edit-parts-btn" class="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 w-full sm:w-auto">
+                                    Editar Peças
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="form-section">
@@ -1051,8 +1038,8 @@
                         ${desconsiderarCheckboxHtml}
                         <div class="signature-area">
                             <div class="signature-grid">
-                                <div class="signature-box"><label>Responsável do Setor:</label><div id="signature-container-details">${signatureSectionHtml}</div></div>
-                                <div class="signature-box"><label>Responsável Técnico:</label><img src="./images/assinatura-tecnico.png" style="max-width:200px;"></div>
+                                <div class="signature-box"><div id="signature-container-details">${signatureSectionHtml}</div><div class="signature-line">Responsável do Setor</div></div>
+                                <div class="signature-box"><img src="./images/assinatura-tecnico.png" style="max-width:200px;"><div class="signature-line">Responsável Técnico</div></div>
                             </div>
                         </div>
                     </div>
@@ -1060,33 +1047,28 @@
                 </form>`;
         }
         
-        async function saveOrderChanges(orderId) {
+        async function saveOrderChanges(orderId, currentParts) {
             const form = document.getElementById('edit-os-form');
             const updatedData = {};
             const historyEntries = [];
 
-            if(form.equipamento_select){updatedData.equipamento=form.equipamento_select.value==='Outro'?form.outro_equipamento.value:form.outro_equipamento.value}
-            if(form.marca)updatedData.marca=form.marca.value;if(form.modelo)updatedData.modelo=form.modelo.value;if(form.serial)updatedData.serial=form.serial.value;if(form.data_servico)updatedData.data_servico=form.data_servico.value;if(form.hora_chegada)updatedData.hora_chegada=form.hora_chegada.value;if(form.hora_saida)updatedData.hora_saida=form.hora_saida.value;if(form.data_retirada)updatedData.data_retirada=form.data_retirada.value;if(form.data_devolucao)updatedData.data_devolucao=form.data_devolucao.value;if(form.local_atendimento)updatedData.local_atendimento=form.local_atendimento.value;
-            updatedData.servicos_realizados = document.getElementById('edit_servicos_realizados').value;
+            if(form.data_servico) updatedData.data_servico=form.data_servico.value;
+            if(form.hora_chegada) updatedData.hora_chegada=form.hora_chegada.value;
+            if(form.hora_saida) updatedData.hora_saida=form.hora_saida.value;
+            if(form.data_retirada) updatedData.data_retirada=form.data_retirada.value;
+            if(form.data_devolucao) updatedData.data_devolucao=form.data_devolucao.value;
+            if(form.local_atendimento) updatedData.local_atendimento=form.local_atendimento.value;
             
-            // ALTERAÇÃO: Pega os dados das peças do módulo
-            if (activePartsManager) {
-                updatedData.pecas_utilizadas = activePartsManager.getParts();
-            }
+            updatedData.servicos_realizados = document.getElementById('edit_servicos_realizados').value;
+            updatedData.pecas_utilizadas = currentParts;
 
             const signatureInput = document.getElementById('edit_signature_data');
-            if (signatureInput) {
-                updatedData.signature_data = signatureInput.value;
-            }
+            if (signatureInput) updatedData.signature_data = signatureInput.value;
 
             const desconsiderarCheck = form.querySelector('#edit-desconsiderar-assinatura-check');
             if (desconsiderarCheck) {
-                if (desconsiderarCheck.checked) {
-                    updatedData.assinaturaDesconsiderada = true;
-                    updatedData.signature_data = ''; 
-                } else {
-                    updatedData.assinaturaDesconsiderada = false;
-                }
+                updatedData.assinaturaDesconsiderada = desconsiderarCheck.checked;
+                if (desconsiderarCheck.checked) updatedData.signature_data = ''; 
             }
             
             const wasSigned = (currentOrderForAction.signature_data && currentOrderForAction.signature_data.length > 200) || currentOrderForAction.assinaturaDesconsiderada === true;
@@ -1260,4 +1242,3 @@
     </script>
 </body>
 </html>
-
