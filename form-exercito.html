@@ -27,7 +27,6 @@
         .prefilled-data p { margin: 5px 0; font-size: 1rem; }
         .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; text-align: center; margin-top: 20px; }
         .signature-box { display: flex; flex-direction: column; align-items: center; }
-        /* CORREÇÃO 2: Largura do container da assinatura agora é flexível */
         .signature-image-container { height: 120px; width: 100%; max-width: 300px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 5px; }
         .signature-image-container img { max-height: 120px; max-width: 100%; }
         .signature-line { padding-top: 8px; font-weight: 500; font-size: 0.9rem; width: 100%; }
@@ -221,7 +220,7 @@
                     <div class="signature-area">
                         <div class="signature-grid">
                             <div class="signature-box">
-                                <label>Assinatura do Responsável do Setor:</label>
+                                <!-- CORREÇÃO 3: Label redundante removida -->
                                 <div id="signature-container">
                                     <div id="signature-placeholder" class="signature-placeholder">Clique para assinar</div>
                                 </div>
@@ -325,7 +324,7 @@
         const partsSummaryView = document.getElementById('parts-summary-view');
         const editPartsBtn = document.getElementById('edit-parts-btn');
         const partsSummaryList = document.getElementById('parts-summary-list');
-        const backBtn = document.getElementById('back-btn'); // CORREÇÃO 1: Referência para o botão voltar
+        const backBtn = document.getElementById('back-btn');
 
         function updatePartsUI() {
             if (currentParts.length > 0) {
@@ -347,13 +346,13 @@
                 onConfirm: (updatedParts) => {
                     currentParts = updatedParts;
                     updatePartsUI();
-                    backBtn.style.display = 'flex'; // CORREÇÃO 1: Mostra o botão
+                    backBtn.style.display = 'flex';
                 },
                 onCancel: () => {
                     if (currentParts.length === 0) {
                         addPartsCheckbox.checked = false;
                     }
-                    backBtn.style.display = 'flex'; // CORREÇÃO 1: Mostra o botão
+                    backBtn.style.display = 'flex';
                 }
             });
         }
@@ -361,14 +360,14 @@
         addPartsCheckbox.addEventListener('change', () => {
             if (addPartsCheckbox.checked) {
                 initializePartsManager();
-                backBtn.style.display = 'none'; // CORREÇÃO 1: Esconde o botão
+                backBtn.style.display = 'none';
                 partsManager.open(currentParts);
             }
         });
 
         editPartsBtn.addEventListener('click', () => {
             if (partsManager) {
-                backBtn.style.display = 'none'; // CORREÇÃO 1: Esconde o botão
+                backBtn.style.display = 'none';
                 partsManager.open(currentParts);
             }
         });
