@@ -391,6 +391,12 @@
             font-size: 0.9em;
             text-align: right;
         }
+        .signature-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Centraliza horizontalmente */
+            justify-content: center; /* Centraliza verticalmente */
+        }
 
         @media (max-width: 768px) {
             .board-header img {
@@ -887,7 +893,7 @@
                 let currentParts = Array.isArray(order.pecas_utilizadas) ? order.pecas_utilizadas : [];
                 const partsInitialView = document.getElementById('parts-initial-view-edit');
                 const partsSummaryView = document.getElementById('parts-summary-view-edit');
-                const editPartsBtn = document.getElementById('edit-parts-btn-edit');
+                const editPartsBtns = document.querySelectorAll('.btn-edit-parts');
                 const partsSummaryList = document.getElementById('parts-summary-list-edit');
 
                 function updatePartsUI() {
@@ -911,15 +917,17 @@
                     });
                 }
                 
-                editPartsBtn.addEventListener('click', () => {
-                    activePartsManager.open(currentParts);
+                editPartsBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        activePartsManager.open(currentParts);
+                    });
                 });
 
-                updatePartsUI(); // Renderiza o estado inicial
+                updatePartsUI(); 
                 
                 editForm.addEventListener('submit', (e) => {
                     e.preventDefault();
-                    saveOrderChanges(orderId, currentParts); // Passa as peças atuais para a função de salvar
+                    saveOrderChanges(orderId, currentParts);
                 });
 
 
@@ -927,13 +935,17 @@
                 const signatureContainer = document.getElementById('signature-container-details');
                 if (signatureContainer) {
                     signatureContainer.addEventListener('click', () => {
-                        signaturePadManagerDetails.open((dataUrl) => {
-                            const signatureInput = document.getElementById('edit_signature_data');
-                            if (signatureInput) {
-                                signatureInput.value = dataUrl;
-                            }
-                            signatureContainer.innerHTML = `<img src="${dataUrl}" class="signature-thumbnail" alt="Assinatura">`;
-                        });
+                        const placeholder = document.getElementById('signature-placeholder-details');
+                        // Só abre o modal se for clicável (ou seja, não desconsiderado)
+                        if (placeholder && placeholder.classList.contains('is-clickable')) {
+                            signaturePadManagerDetails.open((dataUrl) => {
+                                const signatureInput = document.getElementById('edit_signature_data');
+                                if (signatureInput) {
+                                    signatureInput.value = dataUrl;
+                                }
+                                signatureContainer.innerHTML = `<img src="${dataUrl}" class="signature-thumbnail" alt="Assinatura">`;
+                            });
+                        }
                     });
                 }
                 
@@ -943,23 +955,30 @@
                     const signatureDataInput = editForm.querySelector('#edit_signature_data');
                     
                     const updateSignatureArea = () => {
+                        const placeholder = document.getElementById('signature-placeholder-details');
                         if (desconsiderarCheck.checked) {
                             signatureArea.style.opacity = '0.5';
                             signatureArea.style.pointerEvents = 'none';
+                             if(placeholder) placeholder.classList.remove('is-clickable');
                         } else {
                             signatureArea.style.opacity = '1';
                             signatureArea.style.pointerEvents = 'auto';
+                            if(placeholder) placeholder.classList.add('is-clickable');
                         }
                     };
 
                     desconsiderarCheck.addEventListener('change', () => {
                         if (desconsiderarCheck.checked) {
                             signatureDataInput.value = ''; 
-                            const placeholder = document.getElementById('signature-placeholder-details');
-                            if (placeholder) {
-                                placeholder.innerHTML = 'Assinatura não necessária';
-                            } else {
+                            const currentHtml = document.getElementById('signature-container-details').innerHTML;
+                            // Só altera se não tiver uma imagem de assinatura
+                            if (!currentHtml.includes('<img')) {
                                 document.getElementById('signature-container-details').innerHTML = `<div id="signature-placeholder-details" class="signature-placeholder">Assinatura não necessária</div>`;
+                            }
+                        } else {
+                             const currentHtml = document.getElementById('signature-container-details').innerHTML;
+                             if (!currentHtml.includes('<img')) {
+                                document.getElementById('signature-container-details').innerHTML = `<div id="signature-placeholder-details" class="signature-placeholder is-clickable">Adicionar Assinatura</div>`;
                             }
                         }
                         updateSignatureArea();
@@ -1021,13 +1040,13 @@
                         <div class="form-group">
                             <label>Peças Utilizadas:</label>
                             <div id="parts-initial-view-edit">
-                                <button type="button" id="edit-parts-btn" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 w-full sm:w-auto">
+                                <button type="button" class="btn-edit-parts px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 w-full sm:w-auto">
                                     Gerenciar Peças
                                 </button>
                             </div>
                             <div id="parts-summary-view-edit" class="hidden">
                                 <div id="parts-summary-list-edit" class="mb-4 bg-gray-50 p-3 rounded-md border"></div>
-                                <button type="button" id="edit-parts-btn" class="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 w-full sm:w-auto">
+                                <button type="button" class="btn-edit-parts px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 w-full sm:w-auto">
                                     Editar Peças
                                 </button>
                             </div>
@@ -1242,3 +1261,4 @@
     </script>
 </body>
 </html>
+
