@@ -291,6 +291,7 @@
             overflow-y: hidden;
             min-height: 80px;
         }
+        .uppercase-input { text-transform: uppercase; }
 
         .modal-footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 20px; }
         .btn-action { text-decoration: none; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: 500; transition: background-color: 0.2s ease; }
@@ -516,6 +517,7 @@
         import { SignaturePadManager } from './signature-pad-helper.js';
         import { generateOsPdf } from './pdf-generator.js';
         import { PartsManager } from './modulo-pecas.js';
+        import { EquipmentSelector } from './equipment-selector.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
@@ -539,6 +541,7 @@
         const historyModalBody = document.getElementById('history-modal-body');
         let currentOrderForAction = null;
         let activePartsManager = null;
+        let activeEquipmentSelector = null;
 
         const statuses = {
             'novas': 'Novas OS',
@@ -881,6 +884,33 @@
             if(docSnap.exists()){
                 const order = { id: docSnap.id, ...docSnap.data() };
                 modalBody.innerHTML = generateEditForm(order);
+
+                // --- INICIALIZAÇÃO DO SELETOR DE EQUIPAMENTO ---
+                if (order.contrato !== 'Contrato N° 03/2024') {
+                    activeEquipmentSelector = new EquipmentSelector({
+                        contractId: order.contrato,
+                        elements: {
+                            equipmentSelect: document.getElementById('equipamento_select_edit'),
+                            brandSelect: document.getElementById('marca_select_edit'),
+                            modelSelect: document.getElementById('modelo_select_edit'),
+                            serialSelect: document.getElementById('serial_select_edit'),
+                            locationSelect: document.getElementById('edit_local_atendimento'),
+                            manualEquipmentDiv: document.getElementById('manual_equipment_name_edit'),
+                            manualBrandDiv: document.getElementById('manual_brand_name_edit'),
+                            manualModelDiv: document.getElementById('manual_model_name_edit'),
+                            manualSerialDiv: document.getElementById('manual_serial_name_edit'),
+                            equipmentManualInput: document.getElementById('equipamento_manual_edit'),
+                            brandManualInput: document.getElementById('marca_manual_edit'),
+                            modelManualInput: document.getElementById('modelo_manual_edit'),
+                            serialManualInput: document.getElementById('serial_manual_edit')
+                        }
+                    });
+
+                    await activeEquipmentSelector.init();
+                    activeEquipmentSelector.preselect(order);
+                }
+
+
                 const editForm = document.getElementById('edit-os-form');
                 
                 const textareas = editForm.querySelectorAll('textarea');
@@ -890,7 +920,7 @@
                 });
                 
                 // --- INICIALIZAÇÃO DO MODAL DE PEÇAS ---
-                let currentParts = Array.isArray(order.pecas_utilizadas) ? order.pecas_utilizadas : [];
+                let currentParts = Array.isArray(order.pecas_utilizadas) ? [...order.pecas_utilizadas] : [];
                 const partsInitialView = document.getElementById('parts-initial-view-edit');
                 const partsSummaryView = document.getElementById('parts-summary-view-edit');
                 const editPartsBtns = document.querySelectorAll('.btn-edit-parts');
@@ -908,14 +938,21 @@
                     }
                 }
                 
+                // Se o gerenciador não existir, cria uma única vez.
                 if (!activePartsManager) {
                      activePartsManager = new PartsManager({
-                        onConfirm: (updatedParts) => {
-                            currentParts = updatedParts;
-                            updatePartsUI();
-                        }
+                        onConfirm: () => {}, // Callbacks vazios na inicialização
+                        onCancel: () => {}
                     });
                 }
+                
+                // SEMPRE atualiza os callbacks para o contexto da OS atual
+                activePartsManager.updateCallbacks({
+                    onConfirm: (updatedParts) => {
+                        currentParts = updatedParts;
+                        updatePartsUI();
+                    }
+                });
                 
                 editPartsBtns.forEach(btn => {
                     btn.addEventListener('click', () => {
@@ -936,7 +973,6 @@
                 if (signatureContainer) {
                     signatureContainer.addEventListener('click', () => {
                         const placeholder = document.getElementById('signature-placeholder-details');
-                        // Só abre o modal se for clicável (ou seja, não desconsiderado)
                         if (placeholder && placeholder.classList.contains('is-clickable')) {
                             signaturePadManagerDetails.open((dataUrl) => {
                                 const signatureInput = document.getElementById('edit_signature_data');
@@ -971,7 +1007,6 @@
                         if (desconsiderarCheck.checked) {
                             signatureDataInput.value = ''; 
                             const currentHtml = document.getElementById('signature-container-details').innerHTML;
-                            // Só altera se não tiver uma imagem de assinatura
                             if (!currentHtml.includes('<img')) {
                                 document.getElementById('signature-container-details').innerHTML = `<div id="signature-placeholder-details" class="signature-placeholder">Assinatura não necessária</div>`;
                             }
@@ -995,6 +1030,7 @@
                 : `<div id="signature-placeholder-details" class="signature-placeholder is-clickable">Adicionar Assinatura</div>`;
             
             let attendanceFields = '';
+            let equipmentFields = '';
             const ufpelContract = 'Contrato N° 03/2024';
             const capaoContract = 'Contrato Nº 138/2024';
             const exercitoContract = 'Contrato Nº 10/2025';
@@ -1011,15 +1047,51 @@
 
             if (order.contrato === ufpelContract) {
                  attendanceFields = `<div class="form-group"><label for="edit_data_servico">Data do Serviço:</label><input type="date" id="edit_data_servico" name="data_servico" value="${order.data_servico||''}"></div><div class="form-group"><label for="edit_hora_chegada">Hora de Chegada:</label><input type="time" id="edit_hora_chegada" name="hora_chegada" value="${order.hora_chegada||''}"></div><div class="form-group"><label for="edit_hora_saida">Hora de Saída:</label><input type="time" id="edit_hora_saida" name="hora_saida" value="${order.hora_saida||''}"></div>`;
+                 equipmentFields = `<div class="bg-gray-100 p-4 rounded-md"><p><strong>Equipamento:</strong> ${order.equipamento}</p><p><strong>Marca:</strong> ${order.marca}</p><p><strong>Modelo:</strong> ${order.modelo}</p><p><strong>Serial:</strong> ${order.serial}</p></div>`;
             } else {
                 attendanceFields = `<div class="form-group"><label for="edit_data_retirada">Data da Retirada:</label><input type="date" id="edit_data_retirada" name="data_retirada" value="${order.data_retirada||''}"></div><div class="form-group"><label for="edit_data_devolucao">Data da Devolução:</label><input type="date" id="edit_data_devolucao" name="data_devolucao" value="${order.data_devolucao||''}"></div>`;
-                if (order.contrato === capaoContract || order.contrato === exercitoContract) {
-                    const locationOptions = order.contrato === capaoContract 
-                        ? ['Pronto Atendimento Municipal','UBS Central','UBS Casabom','UBS I - Parque Fragata','UBS II - Jardim América','UBS III - Jardim América','UBS Campus UFPEL','CAPS - Casa Vida']
-                        : ['GO 1', 'GO 2', 'GO 3', 'GO 4', 'PMGuPel'];
-                    const locationHtml = locationOptions.map(opt => `<option value="${opt}" ${order.local_atendimento===opt?'selected':''}>${opt}</option>`).join('');
-                    attendanceFields += `<div class="form-group"><label for="edit_local_atendimento">Local:</label><select id="edit_local_atendimento" name="local_atendimento">${locationHtml}</select></div>`;
-                }
+                
+                let locationOptions = order.contrato === capaoContract 
+                    ? ['PA','UBS CENTRAL','UBS CASABOM','UBS I - PARQUE FRAGATA','UBS II - JARDIM AMÉRICA','UBS III - JARDIM AMÉRICA','CAPS']
+                    : ['GO1', 'GO2', 'GO3', 'GO4', 'PMGUPEL'];
+                
+                const locationHtml = locationOptions.map(opt => `<option value="${opt}" ${order.local_atendimento===opt?'selected':''}>${opt}</option>`).join('');
+                attendanceFields += `<div class="form-group"><label for="edit_local_atendimento">Local:</label><select id="edit_local_atendimento" name="local_atendimento"><option value="" disabled>Selecione um local</option>${locationHtml}</select></div>`;
+
+                equipmentFields = `
+                    <div class="form-group">
+                        <label for="equipamento_select_edit">Equipamento:</label>
+                        <select id="equipamento_select_edit" name="equipamento_select_edit" required></select>
+                    </div>
+                    <div id="manual_equipment_name_edit" class="form-group" style="display: none;">
+                        <label for="equipamento_manual_edit">Qual equipamento?</label>
+                        <input type="text" id="equipamento_manual_edit" name="equipamento_manual_edit" class="uppercase-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="marca_select_edit">Marca:</label>
+                        <select id="marca_select_edit" name="marca_select_edit" required disabled></select>
+                    </div>
+                    <div id="manual_brand_name_edit" class="form-group" style="display: none;">
+                        <label for="marca_manual_edit">Qual marca?</label>
+                        <input type="text" id="marca_manual_edit" name="marca_manual_edit" class="uppercase-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="modelo_select_edit">Modelo:</label>
+                        <select id="modelo_select_edit" name="modelo_select_edit" required disabled></select>
+                    </div>
+                    <div id="manual_model_name_edit" class="form-group" style="display: none;">
+                        <label for="modelo_manual_edit">Qual modelo?</label>
+                        <input type="text" id="modelo_manual_edit" name="modelo_manual_edit" class="uppercase-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="serial_select_edit">Número de Série:</label>
+                        <select id="serial_select_edit" name="serial_select_edit" disabled></select>
+                    </div>
+                    <div id="manual_serial_name_edit" class="form-group" style="display: none;">
+                        <label for="serial_manual_edit">Qual número de série?</label>
+                        <input type="text" id="serial_manual_edit" name="serial_manual_edit" class="uppercase-input">
+                    </div>
+                `;
             }
             return `
                 <div class="modal-header-container">
@@ -1030,6 +1102,7 @@
                 </div>
                 <form id="edit-os-form">
                     <input type="hidden" id="edit_signature_data" value="${order.signature_data || ''}">
+                    <div class="form-section"><h2>Dados do Equipamento</h2>${equipmentFields}</div>
                     <div class="form-section"><h2>Atendimento</h2>${attendanceFields}</div>
                     <div class="form-section">
                         <h2>Serviços e Peças</h2>
@@ -1068,7 +1141,13 @@
         
         async function saveOrderChanges(orderId, currentParts) {
             const form = document.getElementById('edit-os-form');
-            const updatedData = {};
+            let equipmentData = {};
+            
+            if (activeEquipmentSelector) {
+                equipmentData = activeEquipmentSelector.getSelection();
+            }
+
+            const updatedData = { ...equipmentData };
             const historyEntries = [];
 
             if(form.data_servico) updatedData.data_servico=form.data_servico.value;
