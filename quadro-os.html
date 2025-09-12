@@ -296,7 +296,8 @@
         .modal-footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 20px; }
         .btn-action { text-decoration: none; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: 500; transition: background-color: 0.2s ease; }
         .btn-history { background-color: #34495e; }
-        .btn-edit { background-color: #f39c12; }
+        /* CORREÇÃO: Seletor agora é mais específico para não afetar os ícones */
+        .modal-footer .btn-edit { background-color: #f39c12; }
         .btn-pdf { background-color: #3498db; }
         .btn-pdf:disabled { background-color: #bdc3c7; }
         .btn-save { background-color: #2ecc71; }

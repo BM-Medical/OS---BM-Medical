@@ -42,16 +42,67 @@ export class PartsManager {
 
         this.modalElement = document.createElement('div');
         this.modalElement.id = 'parts-manager-modal';
-        // Aumentado o z-index para que o modal de peças apareça sobre o modal de detalhes.
         this.modalElement.className = 'fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full hidden z-[1050] flex items-center justify-center p-4';
         this.modalElement.innerHTML = `
+            <style>
+                /* Remove a borda de foco laranja/azul dos botões de ícone */
+                .btn-edit:focus, .btn-remove:focus {
+                    outline: none;
+                    box-shadow: none;
+                }
+
+                /* Estilos para a tabela de peças */
+                .parts-table-row {
+                    display: table-row; /* Layout padrão para desktop */
+                }
+
+                /* Media Query para telas de celular (até 640px) */
+                @media (max-width: 640px) {
+                    .parts-table-row {
+                        display: flex;
+                        flex-wrap: wrap;
+                        justify-content: space-between;
+                        align-items: center;
+                        border-bottom: 1px solid #e5e7eb;
+                        padding: 0.75rem 0.5rem;
+                    }
+                    .parts-table-row td {
+                        border: none;
+                        padding: 0.25rem;
+                    }
+                    .part-info {
+                        display: flex;
+                        align-items: center;
+                        flex-grow: 1;
+                    }
+                    .part-quantity {
+                        font-weight: bold;
+                        font-size: 1.1rem;
+                        margin-right: 0.75rem;
+                    }
+                    .part-description {
+                        flex-basis: 100%;
+                        order: 1; 
+                        margin-bottom: 0.5rem;
+                        padding-left: 0 !important;
+                    }
+                    .part-actions {
+                        flex-basis: 100%;
+                        order: 2;
+                        padding-top: 0.25rem;
+                    }
+                    .part-actions > div {
+                        justify-content: flex-end;
+                    }
+                }
+            </style>
             <div class="relative mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
                 <div class="mt-3">
                     <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4 text-center">Gerenciar Peças Utilizadas</h3>
                     
                     <!-- Formulário de Adição/Edição -->
                     <div id="part-form" class="p-4 border rounded-md bg-gray-50 mb-4">
-                        <div class="flex flex-col sm:flex-row items-end space-y-2 sm:space-y-0 sm:space-x-2">
+                        <div class="flex flex-col sm:flex-row items-start sm:items-end space-y-2 sm:space-y-0 sm:space-x-2 mb-3">
                             <!-- Seletor de Quantidade -->
                             <div class="w-full sm:w-auto">
                                 <label for="part-quantity" class="block text-sm font-medium text-gray-700 text-left">Qtd.</label>
@@ -66,13 +117,15 @@ export class PartsManager {
                                 <label for="part-description" class="block text-sm font-medium text-gray-700 text-left">Descrição da Peça</label>
                                 <input type="text" id="part-description" class="uppercase-input mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
                             </div>
-                            <!-- Botões de Ação -->
-                            <div id="add-mode-btns" class="w-full sm:w-auto">
-                                <button type="button" id="add-part-btn" class="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 whitespace-nowrap">+ Adicionar</button>
+                        </div>
+                         <!-- Linha dos Botões -->
+                        <div class="flex justify-end space-x-2">
+                            <div id="add-mode-btns">
+                                <button type="button" id="add-part-btn" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 whitespace-nowrap">+ Adicionar</button>
                             </div>
-                            <div id="edit-mode-btns" class="hidden w-full sm:w-auto flex space-x-2">
-                                <button type="button" id="update-part-btn" class="w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 whitespace-nowrap">Atualizar</button>
-                                <button type="button" id="cancel-edit-btn" class="w-full px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 whitespace-nowrap">Cancelar</button>
+                            <div id="edit-mode-btns" class="hidden flex space-x-2">
+                                <button type="button" id="update-part-btn" class="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 whitespace-nowrap">Atualizar</button>
+                                <button type="button" id="cancel-edit-btn" class="px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 whitespace-nowrap">Cancelar</button>
                             </div>
                         </div>
                     </div>
@@ -80,9 +133,9 @@ export class PartsManager {
                     <!-- Tabela de Peças -->
                     <div class="max-h-60 overflow-y-auto border-t border-b">
                         <table class="min-w-full bg-white">
-                            <thead class="sticky top-0 bg-gray-100 z-10">
+                            <thead class="sticky top-0 bg-gray-100 z-10 hidden sm:table-header-group">
                                 <tr>
-                                    <th class="px-4 py-2 text-center text-sm font-semibold text-gray-600 w-16">Qtd.</th>
+                                    <th class="px-4 py-2 text-center text-sm font-semibold text-gray-600 w-20">Qtd.</th>
                                     <th class="px-4 py-2 text-left text-sm font-semibold text-gray-600">Descrição</th>
                                     <th class="px-4 py-2 w-32 text-center">Ações</th>
                                 </tr>
@@ -172,10 +225,8 @@ export class PartsManager {
             }
         });
         this.quantityInput.addEventListener('input', () => {
-            // Garante que apenas números sejam inseridos e que o valor seja no mínimo 1
             this.quantityInput.value = this.quantityInput.value.replace(/[^0-9]/g, '');
             if (this.quantityInput.value === '' || parseInt(this.quantityInput.value, 10) < 1) {
-                // Atraso para garantir que o valor seja atualizado após a entrada do usuário
                 setTimeout(() => {
                     if (this.quantityInput.value === '' || parseInt(this.quantityInput.value, 10) < 1) {
                         this.quantityInput.value = 1;
@@ -184,22 +235,15 @@ export class PartsManager {
             }
         });
     }
-
-    /**
-     * Abre o modal, carregando a lista de peças atual.
-     * @param {Array<object>} currentParts - A lista de peças para editar.
-     */
+    
     open(currentParts = []) {
-        this.parts = JSON.parse(JSON.stringify(currentParts)); // Carrega uma cópia das peças atuais
-        this._cancelEdit(); // Garante que o formulário está sempre no modo de adição ao abrir
+        this.parts = JSON.parse(JSON.stringify(currentParts)); 
+        this._cancelEdit();
         this._renderParts();
         this.modalElement.classList.remove('hidden');
         this.descriptionInput.focus();
     }
 
-    /**
-     * Fecha o modal.
-     */
     close() {
         this.modalElement.classList.add('hidden');
     }
@@ -214,22 +258,23 @@ export class PartsManager {
         if (hasParts) {
             this.parts.forEach((part, index) => {
                 const row = this.tableBody.insertRow();
+                row.className = 'parts-table-row';
                 row.innerHTML = `
-                    <td class="px-4 py-2 border-b text-center">${part.qtd}</td>
-                    <td class="px-4 py-2 border-b text-left">${part.descricao}</td>
-                    <td class="px-4 py-2 border-b text-center">
-                        <div class="flex justify-center space-x-2">
-                            <button type="button" class="text-blue-500 hover:text-blue-700 text-sm font-semibold btn-edit" data-index="${index}">Editar</button>
-                            <button type="button" class="text-red-500 hover:text-red-700 text-sm font-semibold btn-remove" data-index="${index}">Remover</button>
+                    <td class="part-quantity sm:text-center">${part.qtd}</td>
+                    <td class="part-description">${part.descricao}</td>
+                    <td class="part-actions">
+                        <div class="flex justify-center items-center space-x-3">
+                            <button type="button" class="p-1 text-gray-500 hover:text-blue-600 btn-edit" data-index="${index}" title="Editar">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                            </button>
+                            <button type="button" class="p-1 text-gray-500 hover:text-red-600 btn-remove" data-index="${index}" title="Remover">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                            </button>
                         </div>
                     </td>
                 `;
-                row.querySelector('.btn-edit').addEventListener('click', (e) => {
-                    this._startEdit(parseInt(e.target.dataset.index, 10));
-                });
-                row.querySelector('.btn-remove').addEventListener('click', (e) => {
-                    this._removePart(parseInt(e.target.dataset.index, 10));
-                });
+                row.querySelector('.btn-edit').addEventListener('click', (e) => this._startEdit(parseInt(e.currentTarget.dataset.index, 10)));
+                row.querySelector('.btn-remove').addEventListener('click', (e) => this._removePart(parseInt(e.currentTarget.dataset.index, 10)));
             });
         }
     }
@@ -281,17 +326,12 @@ export class PartsManager {
 
     _removePart(index) {
         this.parts.splice(index, 1);
-        // Se a peça removida era a que estava sendo editada, cancela o modo de edição
         if (this.editingIndex === index) {
             this._cancelEdit();
         }
         this._renderParts();
     }
-
-    /**
-     * Retorna a lista atual de peças.
-     * @returns {Array<object>} A lista de peças no formato [{qtd, descricao}, ...].
-     */
+    
     getParts() {
         return this.parts;
     }
