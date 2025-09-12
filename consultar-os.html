@@ -125,16 +125,7 @@
                 <li style="text-align: center; color: #777; padding: 20px;">Utilize os filtros acima para iniciar a busca.</li>
             </ul>
         </main>
-        <div class="w-full mt-12 text-center">
-            <button id="logout-button" class="inline-flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-2 font-semibold rounded-lg shadow-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75">
-                <svg class="logout-icon" viewBox="0 0 24 24">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-                <span>Sair</span>
-            </button>
-        </div>
+        <!-- BOTÃO SAIR REMOVIDO DAQUI -->
     </div>
     <footer class="footer">
     	<p><strong>BM MEDICAL Engenharia Clínica</strong></p>
@@ -320,15 +311,15 @@
 
             orders.forEach((order) => {
                 const listItem = document.createElement('li');
+                listItem.className = 'cursor-pointer';
+                listItem.dataset.id = order.id;
                 
                 const isArchived = order.status === 'arquivada';
                 const isFinalizada = order.status === 'finalizada';
                 const formattedDate = formatDate(order.data_servico || order.data_retirada);
-
-                const detailsButton = `<button data-id="${order.id}" class="px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 btn-details">Detalhes</button>`;
-                const pdfButton = `<button data-id="${order.id}" class="px-3 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 btn-pdf">Gerar PDF</button>`;
+                
                 const unarchiveButton = `<button class="px-3 py-2 bg-gray-600 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75 btn-unarchive">Desarquivar</button>`;
-
+                
                 let actionsHtml = '';
                 let statusText = '';
                 let cardClasses = 'bg-white';
@@ -336,17 +327,14 @@
                 let textClasses = 'text-gray-500';
 
                 if (isFinalizada) {
-                    actionsHtml = detailsButton + pdfButton;
                     statusText = '(Concluída)';
                     titleClasses = 'text-green-600';
                 } else if (isArchived) {
-                    actionsHtml = unarchiveButton + detailsButton + pdfButton;
+                    actionsHtml = `<div class="border-t border-gray-200 my-2"></div><div class="flex justify-end items-center pt-2">${unarchiveButton}</div>`;
                     statusText = '(Arquivada)';
                     cardClasses = 'bg-gray-50';
                     titleClasses = 'text-gray-500';
                     textClasses = 'text-gray-400';
-                } else {
-                    actionsHtml = detailsButton + pdfButton;
                 }
 
                 listItem.innerHTML = `
@@ -356,34 +344,23 @@
                             <p class="text-sm mt-1 ${textClasses}">Cliente: ${order.cliente || 'N/A'}</p>
                             <p class="text-sm ${textClasses}">Data: ${formattedDate}</p>
                         </div>
-                        <div class="border-t border-gray-200 my-2"></div>
-                        <div class="flex justify-end items-center pt-2 space-x-2">
-                            ${actionsHtml}
-                        </div>
+                        ${actionsHtml}
                     </div>
                 `;
                 
-                listItem.querySelector('.btn-details').addEventListener('click', (e) => {
-                    const orderId = e.target.dataset.id;
+                listItem.addEventListener('click', (e) => {
+                    // Impede que o modal abra se o clique foi no botão de desarquivar
+                    if (e.target.closest('.btn-unarchive')) {
+                        return;
+                    }
+                    const orderId = listItem.dataset.id;
                     openDetailsModal(orderId);
                 });
-
-                const pdfBtnElement = listItem.querySelector('.btn-pdf');
-                if (pdfBtnElement) {
-                    pdfBtnElement.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const orderId = e.target.dataset.id;
-                        const orderData = allOrdersData.find(o => o.id === orderId);
-                        if (orderData) {
-                            generateOsPdf(orderData, e.target);
-                        }
-                    });
-                }
 
                 const unarchiveBtnElement = listItem.querySelector('.btn-unarchive');
                 if (unarchiveBtnElement) {
                     unarchiveBtnElement.addEventListener('click', (e) => {
-                        e.stopPropagation();
+                        e.stopPropagation(); // Impede que o evento de clique "borbulhe" para o li
                         currentOrderToUnarchive = { id: order.id, os_numero: order.os_numero, button: e.target };
                         osNumberModal.textContent = `OS ${order.os_numero}`;
                         openModal(confirmationModal);
@@ -529,3 +506,4 @@
     </script>
 </body>
 </html>
+
