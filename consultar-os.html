@@ -46,18 +46,21 @@
         .floating-back-btn:hover { background-color: #2980b9; transform: scale(1.05); }
         .floating-back-btn svg { width: 24px; height: 24px; }
 
-        /* Estilos do Modal */
+        /* Estilos do Modal (Padronizados com quadro-os.html) */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background-color: #fff; padding: 20px 30px 30px 30px; border-radius: 10px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; position: relative; }
-        .modal-header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+        .modal-header-container { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+        .modal-header-top { display: flex; justify-content: space-between; align-items: center; width: 100%; }
         .modal-header-container h1 { font-size: 1.5rem; margin: 0; }
         .modal-close { font-size: 2.5rem; font-weight: 300; cursor: pointer; border: none; background: none; padding: 0 10px; line-height: 1; }
         .modal-body .form-section { border: 1px solid #e0e0e0; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         .modal-body h2 { font-size: 1.2rem; color: #3498db; margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
         .modal-body p { font-size: 1rem; margin: 5px 0; white-space: pre-wrap; }
         .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; text-align: center; }
-        .signature-box img { max-height: 80px; margin-bottom: 10px; border: 1px solid #eee; border-radius: 4px; }
-        .signature-line { border-top: 1px solid #ccc; margin: 0 20px; padding-top: 8px; font-weight: 500; font-size: 0.9rem; }
+        .signature-box { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .signature-thumbnail { max-width: 200px; max-height: 100px; border: 1px solid #ccc; border-radius: 6px; }
+        .signature-placeholder { border: 2px dashed #ccc; border-radius: 6px; padding: 20px; text-align: center; color: #7f8c8d; }
+        .signature-line { padding-top: 8px; font-weight: 500; font-size: 0.9rem; width: 100%; }
         .modal-footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 20px; }
         .btn-action { text-decoration: none; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: 500; transition: background-color: 0.2s ease; }
         .btn-history { background-color: #34495e; }
@@ -72,6 +75,7 @@
         @media (max-width: 768px) {
             .header img { max-width: 80% !important; }
             h1.text-2xl { font-size: 1.5rem; }
+            .signature-grid { grid-template-columns: 1fr; gap: 30px; }
         }
     </style>
 </head>
@@ -163,8 +167,10 @@
     <div id="history-modal" class="modal-overlay" style="z-index: 1002;">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header-container">
-                <h1>Histórico da OS</h1>
-                <button class="modal-close-history">&times;</button>
+                <div class="modal-header-top">
+                    <h1>Histórico da OS</h1>
+                    <button class="modal-close-history">&times;</button>
+                </div>
             </div>
             <div id="history-modal-body"></div>
         </div>
@@ -173,7 +179,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getFirestore, collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, arrayUnion } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
-        import { generateOsPdf } from './pdf-generator.js'; // <-- MÓDULO IMPORTADO
+        import { generateOsPdf } from './pdf-generator.js';
         
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
@@ -197,6 +203,28 @@
         const modalBody = document.getElementById('modal-body');
         const historyModal = document.getElementById('history-modal');
         const historyModalBody = document.getElementById('history-modal-body');
+
+        // --- INÍCIO: GERENCIAMENTO DE MODAIS E BOTÃO VOLTAR DO CELULAR ---
+        let openModalsStack = [];
+
+        function openModal(modalElement) {
+            if (!modalElement || modalElement.style.display === 'flex') return;
+            history.pushState({ modalId: modalElement.id }, '');
+            modalElement.style.display = 'flex';
+            openModalsStack.push(modalElement);
+        }
+
+        function closeMostRecentModal() {
+            if (openModalsStack.length > 0) {
+                const modalToClose = openModalsStack.pop();
+                if (modalToClose) modalToClose.style.display = 'none';
+            }
+        }
+        
+        window.addEventListener('popstate', (event) => {
+            closeMostRecentModal();
+        });
+        // --- FIM: GERENCIAMENTO DE MODAIS ---
 
         function formatDate(dateString) {
             if (!dateString) return 'N/A';
@@ -358,7 +386,7 @@
                         e.stopPropagation();
                         currentOrderToUnarchive = { id: order.id, os_numero: order.os_numero, button: e.target };
                         osNumberModal.textContent = `OS ${order.os_numero}`;
-                        confirmationModal.style.display = 'flex';
+                        openModal(confirmationModal);
                     });
                 }
 
@@ -374,10 +402,26 @@
             }
             modalBody.innerHTML = generateDetailsView(order);
             addModalEventListeners(order);
-            detailsModal.style.display = 'flex';
+            openModal(detailsModal);
         }
 
         function generateDetailsView(order) {
+            const isSigned = order.signature_data && order.signature_data.length > 200;
+            let signatureSectionHtml = isSigned
+                ? `<img src="${order.signature_data}" class="signature-thumbnail" alt="Assinatura">`
+                : `<div class="signature-placeholder">Sem Assinatura</div>`;
+
+            let pecasHtml = '<p>Nenhuma peça utilizada.</p>';
+            if (order.pecas_utilizadas && Array.isArray(order.pecas_utilizadas) && order.pecas_utilizadas.length > 0) {
+                pecasHtml = '<ul class="list-disc pl-5 space-y-1">';
+                order.pecas_utilizadas.forEach(part => {
+                    pecasHtml += `<li><strong>${part.qtd}x</strong> - ${part.descricao}</li>`;
+                });
+                pecasHtml += '</ul>';
+            } else if (order.pecas_utilizadas && typeof order.pecas_utilizadas === 'string') {
+                pecasHtml = `<p>${order.pecas_utilizadas.replace(/\n/g, '<br>')}</p>`;
+            }
+
             const formattedRetirada = formatDate(order.data_retirada || order.data_servico);
             const formattedDevolucao = formatDate(order.data_devolucao);
 
@@ -390,14 +434,16 @@
 
             return `
                 <div class="modal-header-container">
-                    <h1>Detalhes da OS: ${order.os_numero}</h1>
-                    <button class="modal-close" onclick="document.getElementById('details-modal').style.display='none'">&times;</button>
+                    <div class="modal-header-top">
+                        <h1>Detalhes da OS: ${order.os_numero}</h1>
+                        <button class="modal-close">&times;</button>
+                    </div>
                 </div>
                 <div class="form-section"><h2>Dados do Cliente</h2><p><strong>Contrato:</strong> ${order.contrato||'N/A'}</p><p><strong>Cliente:</strong> ${order.cliente||'N/A'}</p></div>
                 <div class="form-section"><h2>Dados do Equipamento</h2><p><strong>Equipamento:</strong> ${order.equipamento||'N/A'}</p><p><strong>Marca:</strong> ${order.marca||'N/A'}</p><p><strong>Modelo:</strong> ${order.modelo||'N/A'}</p><p><strong>Serial:</strong> ${order.serial||'N/A'}</p></div>
                 <div class="form-section"><h2>Atendimento</h2>${attendanceHtml}</div>
-                <div class="form-section"><h2>Serviços e Peças</h2><p><strong>Serviços Realizados:</strong><br>${order.servicos_realizados||'Não informado'}</p><p><strong>Peças Utilizadas:</strong><br>${order.pecas_utilizadas||'Nenhuma'}</p></div>
-                <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box">${order.signature_data ? `<img src="${order.signature_data}" alt="Assinatura">` : '<p>(Sem assinatura)</p>'}<div class="signature-line">Responsável do Setor</div></div><div class="signature-box"><img src="./images/assinatura-tecnico.png" alt="Assinatura do Técnico"><div class="signature-line">Responsável Técnico</div></div></div></div>
+                <div class="form-section"><h2>Serviços e Peças</h2><p><strong>Serviços Realizados:</strong><br>${(order.servicos_realizados||'Não informado').replace(/\n/g, '<br>')}</p><p class="mt-4"><strong>Peças Utilizadas:</strong></p>${pecasHtml}</div>
+                <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box">${signatureSectionHtml}<div class="signature-line">Responsável do Setor</div></div><div class="signature-box"><img src="./images/assinatura-tecnico.png" alt="Assinatura do Técnico" class="signature-thumbnail"><div class="signature-line">Responsável Técnico</div></div></div></div>
                 <div class="modal-footer">
                     <button id="modal-btn-history" class="btn-action btn-history">Histórico</button>
                     <button id="modal-btn-pdf" class="btn-action btn-pdf">Gerar PDF</button>
@@ -422,17 +468,17 @@
                 historyHtml += '</ul>';
             }
             historyModalBody.innerHTML = historyHtml;
-            historyModal.style.display = 'flex';
+            openModal(historyModal);
         }
 
         detailsModal.addEventListener('click', (e) => {
-            if (e.target === detailsModal) {
-                detailsModal.style.display = 'none';
+            if (e.target === detailsModal || e.target.classList.contains('modal-close')) {
+                history.back();
             }
         });
         historyModal.addEventListener('click', (e) => {
             if (e.target === historyModal || e.target.classList.contains('modal-close-history')) {
-                historyModal.style.display = 'none';
+                history.back();
             }
         });
 
@@ -463,16 +509,11 @@
                 alert("Ocorreu um erro ao desarquivar a OS.");
                 orderInfo.button.disabled = false;
             } finally {
-                closeModal();
+                history.back();
             }
         }
 
-        function closeModal() {
-            confirmationModal.style.display = 'none';
-            currentOrderToUnarchive = null;
-        }
-
-        cancelBtn.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', () => history.back());
         confirmBtn.addEventListener('click', () => {
             if (currentOrderToUnarchive) {
                 unarchiveOrder(currentOrderToUnarchive);
@@ -481,11 +522,10 @@
 
         confirmationModal.addEventListener('click', (e) => {
             if (e.target === confirmationModal) {
-                closeModal();
+                history.back();
             }
         });
 
     </script>
 </body>
 </html>
-
