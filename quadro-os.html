@@ -540,9 +540,39 @@
         const archiveModal = document.getElementById('archive-modal');
         const historyModal = document.getElementById('history-modal');
         const historyModalBody = document.getElementById('history-modal-body');
+        const signatureModal = document.getElementById('signature-modal-details');
         let currentOrderForAction = null;
         let activePartsManager = null;
         let activeEquipmentSelector = null;
+
+        // --- INÍCIO: GERENCIAMENTO DE MODAIS E BOTÃO VOLTAR DO CELULAR ---
+        let openModalsStack = [];
+
+        function openModal(modalElement) {
+            if (!modalElement || modalElement.style.display === 'flex') return;
+            history.pushState({ modalId: modalElement.id }, '');
+            modalElement.style.display = 'flex';
+            openModalsStack.push(modalElement);
+        }
+
+        function closeMostRecentModal() {
+            if (openModalsStack.length > 0) {
+                const modalToClose = openModalsStack.pop();
+                if (modalToClose) modalToClose.style.display = 'none';
+            }
+        }
+        
+        window.addEventListener('popstate', (event) => {
+            closeMostRecentModal();
+        });
+        
+        function closeAllModals() {
+            const openCount = openModalsStack.length;
+            for (let i = 0; i < openCount; i++) {
+                history.back();
+            }
+        }
+        // --- FIM: GERENCIAMENTO DE MODAIS ---
 
         const statuses = {
             'novas': 'Novas OS',
@@ -552,7 +582,7 @@
         };
 
         const signaturePadManagerDetails = new SignaturePadManager({
-            modal: document.getElementById('signature-modal-details'),
+            modal: signatureModal,
             canvas: document.getElementById('signature-pad-details'),
             saveButton: document.getElementById('signature-save-button-details'),
             clearButton: document.getElementById('signature-clear-button-details'),
@@ -560,6 +590,20 @@
             cancelButton: document.getElementById('signature-cancel-button-details'),
             errorMessage: document.getElementById('signature-error-message-details')
         });
+
+        // MODIFICAÇÃO: Intercepta o método close do signature pad para usar o histórico do navegador
+        const originalSignaturePadClose = signaturePadManagerDetails.close.bind(signaturePadManagerDetails);
+        signaturePadManagerDetails.close = function() {
+            // Verifica se o modal de assinatura está na nossa pilha antes de voltar no histórico
+            const isSignatureModalOpen = openModalsStack.some(m => m.id === this.elements.modal.id);
+            if (isSignatureModalOpen) {
+                history.back();
+            } else {
+                // Se não estiver na pilha (caso raro), apenas esconde o elemento
+                this.elements.modal.style.display = 'none';
+            }
+        };
+
 
         function formatDate(dateString) {
             if (!dateString) return 'N/A';
@@ -779,7 +823,7 @@
                 currentOrderForAction = order;
                 modalBody.innerHTML = generateDetailsView(order);
                 addModalEventListeners(order);
-                modalOverlay.style.display = 'flex';
+                openModal(modalOverlay);
             } catch (error) {
                 console.error("Erro ao abrir detalhes:", error);
                 showToast(`Erro ao buscar detalhes: ${error.message}`);
@@ -975,6 +1019,7 @@
                     signatureContainer.addEventListener('click', () => {
                         const placeholder = document.getElementById('signature-placeholder-details');
                         if (placeholder && placeholder.classList.contains('is-clickable')) {
+                            openModal(signatureModal); // Abre o modal gerenciando o histórico
                             signaturePadManagerDetails.open((dataUrl) => {
                                 const signatureInput = document.getElementById('edit_signature_data');
                                 if (signatureInput) {
@@ -1192,7 +1237,7 @@
             try {
                 await updateDoc(orderRef, updatedData);
                 showToast('OS atualizada com sucesso!');
-                modalOverlay.style.display = 'none';
+                history.back(); // Fecha o modal de edição
             } catch (error) {
                 console.error("Erro ao salvar alterações:", error);
                 showToast("Erro ao salvar. Tente novamente.");
@@ -1209,15 +1254,15 @@
             }
             const dateInput = document.getElementById('completion-date');
             dateInput.value = new Date().toISOString().split('T')[0];
-            finalizeModal.style.display = 'flex';
+            openModal(finalizeModal);
         };
 
         function handleArchiveClick() {
-            archiveModal.style.display = 'flex';
+            openModal(archiveModal);
         };
 
-        document.getElementById('cancel-finalize-btn').addEventListener('click', () => finalizeModal.style.display = 'none');
-        document.getElementById('cancel-archive-btn').addEventListener('click', () => archiveModal.style.display = 'none');
+        document.getElementById('cancel-finalize-btn').addEventListener('click', () => history.back());
+        document.getElementById('cancel-archive-btn').addEventListener('click', () => history.back());
 
         document.getElementById('confirm-finalize-btn').addEventListener('click', async () => {
             const completionDate = document.getElementById('completion-date').value;
@@ -1234,8 +1279,7 @@
                     history: arrayUnion(historyEntry)
                 });
                 showToast("OS finalizada com sucesso!");
-                finalizeModal.style.display = 'none';
-                modalOverlay.style.display = 'none';
+                closeAllModals();
             } catch (error) {
                 showToast("Erro ao finalizar a OS.");
                 console.error("Erro ao finalizar:", error);
@@ -1252,8 +1296,7 @@
                     history: arrayUnion(historyEntry)
                 });
                 showToast("OS arquivada com sucesso!");
-                archiveModal.style.display = 'none';
-                modalOverlay.style.display = 'none';
+                closeAllModals();
             } catch (error) {
                 showToast("Erro ao arquivar a OS.");
                 console.error("Erro ao arquivar:", error);
@@ -1282,18 +1325,18 @@
             }
             
             historyModalBody.innerHTML = historyHtml;
-            historyModal.style.display = 'flex';
+            openModal(historyModal);
         }
 
         historyModal.addEventListener('click', (e) => {
             if (e.target === historyModal || e.target.classList.contains('modal-close-history')) {
-                historyModal.style.display = 'none';
+                history.back();
             }
         });
         
         modalOverlay.addEventListener('click', (e) => {
             if (e.target === modalOverlay || e.target.classList.contains('modal-close')) {
-                modalOverlay.style.display = 'none';
+                history.back();
             }
         });
 
