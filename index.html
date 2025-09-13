@@ -2,8 +2,8 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <!-- AJUSTE: A largura do viewport é definida para 700px, forçando o "zoom out" inicial no celular -->
-    <meta name="viewport" content="width=700">
+    <!-- AJUSTE: Viewport padrão para máxima compatibilidade -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ordem de Serviços - BM Medical</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,8 +22,7 @@
             min-height: 100vh;
         }
         .container {
-            /* Define uma largura mínima para forçar o "zoom out" em celulares */
-            min-width: 700px;
+            width: 100%;
             max-width: 1100px;
             margin: 0 auto;
             padding: 20px;
@@ -106,10 +105,20 @@
             fill: none;
         }
 
+        /* AJUSTE: Técnica de Scale para zoom out em telas menores */
         @media (max-width: 768px) {
+            body {
+                /* Força a largura para compensar o scale */
+                width: 125%; 
+                /* Aplica o "zoom out" */
+                transform: scale(0.8);
+                /* Ajusta a origem da transformação para o canto superior esquerdo */
+                transform-origin: top left;
+                /* Garante que o overflow não crie barras de rolagem */
+                overflow-x: hidden;
+            }
             .main-content { margin-top: 30px; }
             .main-content h1 { font-size: 1.5rem; margin-bottom: 30px; }
-            /* AJUSTE: Garante que os botões se ajustem bem no novo layout */
             .action-buttons {
                 flex-direction: row;
             }
