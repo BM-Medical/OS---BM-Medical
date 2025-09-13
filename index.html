@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <!-- AJUSTE: Viewport padrão para máxima compatibilidade -->
+    <!-- Viewport padrão para máxima compatibilidade -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ordem de Serviços - BM Medical</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,7 +15,7 @@
             font-family: 'Inter', sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f4f7f6;
+            background-color: #f4f7f6;\
             color: #333;
             display: flex;
             flex-direction: column;
@@ -105,26 +105,27 @@
             fill: none;
         }
 
-        /* AJUSTE: Técnica de Scale para zoom out em telas menores */
+        /* AJUSTE: Layout responsivo correto para telas de celular */
         @media (max-width: 768px) {
-            body {
-                /* Força a largura para compensar o scale */
-                width: 125%; 
-                /* Aplica o "zoom out" */
-                transform: scale(0.8);
-                /* Ajusta a origem da transformação para o canto superior esquerdo */
-                transform-origin: top left;
-                /* Garante que o overflow não crie barras de rolagem */
-                overflow-x: hidden;
+            .container {
+                padding: 10px;
+            }
+             .header img {
+                max-width: 90%;
             }
             .main-content { margin-top: 30px; }
             .main-content h1 { font-size: 1.5rem; margin-bottom: 30px; }
             .action-buttons {
-                flex-direction: row;
+                flex-direction: column;
+                align-items: center;
+                width: 100%;
+                gap: 15px;
             }
             .btn {
-                padding: 15px 25px;
+                padding: 15px;
                 font-size: 1.1rem;
+                width: 100%;
+                max-width: 400px;
             }
         }
     </style>
