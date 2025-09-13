@@ -231,12 +231,12 @@
         }
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: flex-start; /* Alinha no topo */ overflow-y: auto; /* Permite rolagem */ z-index: 1000; padding: 1rem; box-sizing: border-box;}
-        .modal-content { background-color: #fff; padding: 20px; border-radius: 10px; width: 100%; max-width: 800px; max-height: none; /* Remove limitação de altura */ position: relative; margin: 0 auto; /* Centraliza */}
+        .modal-content { background-color: #fff; padding: 15px; border-radius: 10px; width: 100%; max-width: 800px; max-height: none; /* Remove limitação de altura */ position: relative; margin: 0 auto; /* Centraliza */}
         
         .modal-header-container {
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
+            align-items: center; /* Centraliza o conteúdo do header */
             margin-bottom: 20px;
             padding-bottom: 10px;
             border-bottom: 1px solid #eee;
@@ -258,17 +258,17 @@
         .maintenance-type-modal {
             font-size: 1rem;
             font-weight: 500;
-            color: #555;
-            margin-top: 5px;
-            background-color: #f0f0f0;
-            padding: 4px 10px;
+            margin-top: 8px;
+            padding: 4px 12px;
             border-radius: 5px;
-            /* Centraliza o tipo de manutenção abaixo do título */
-            display: block;
-            text-align: center;
-            width: fit-content;
-            margin-left: auto;
-            margin-right: auto;
+        }
+        .type-mp {
+            color: #2563eb; /* Azul */
+            background-color: #dbeafe; /* Azul claro */
+        }
+        .type-mc {
+            color: #dc2626; /* Vermelho */
+            background-color: #fee2e2; /* Vermelho claro */
         }
         .modal-close { 
             display: none; /* Remove o botão 'X' */
@@ -276,7 +276,7 @@
 
         .modal-body .form-section { border: 1px solid #e0e0e0; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         .modal-body h2 { font-size: 1.2rem; color: #3498db; margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
-        .modal-body p, .modal-body .details-grid p { font-size: 1rem; margin: 5px 0; white-space: pre-wrap; }
+        .modal-body p, .modal-body .details-grid p { font-size: 0.95rem; margin: 5px 0; white-space: pre-wrap; } /* Fonte reduzida */
         .modal-body .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
         .modal-body .form-group { margin-bottom: 15px; }
         .modal-body .form-group label { display: block; font-weight: 500; margin-bottom: 5px; }
@@ -296,14 +296,13 @@
         }
         .uppercase-input { text-transform: uppercase; }
 
-        /* --- NOVO LAYOUT PARA OS BOTÕES DO RODAPÉ --- */
         .modal-footer {
             display: grid;
             grid-template-columns: 1fr 1fr;
             grid-template-areas:
                 "edit finalize"
                 "middle middle";
-            gap: 12px;
+            gap: 10px;
             margin-top: 20px;
         }
         #modal-btn-edit { grid-area: edit; }
@@ -312,14 +311,13 @@
             grid-area: middle;
             display: flex;
             justify-content: space-between;
-            gap: 12px;
+            gap: 10px;
         }
         .middle-buttons .btn-action {
             flex-grow: 1; /* Faz os botões ocuparem o espaço igualmente */
         }
-        /* --- FIM DO NOVO LAYOUT --- */
 
-        .btn-action { text-decoration: none; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s ease; font-size: 0.9rem; text-align: center;}
+        .btn-action { text-decoration: none; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s ease; font-size: 0.875rem; text-align: center;}
         .btn-history { background-color: #34495e; }
         .modal-footer .btn-edit { background-color: #f39c12; }
         .btn-pdf { background-color: #3498db; }
@@ -881,11 +879,12 @@
 
             const formattedRetirada = formatDate(order.data_servico || order.data_retirada);
             const formattedDevolucao = formatDate(order.data_devolucao);
-            let maintenanceTypeFullText = '';
+            
+            let maintenanceTypeHtml = '';
             if (order.tipo_manutencao === 'preventiva') {
-                maintenanceTypeFullText = 'MP - Manutenção Preventiva';
+                maintenanceTypeHtml = `<p class="maintenance-type-modal type-mp">MP - Manutenção Preventiva</p>`;
             } else if (order.tipo_manutencao === 'corretiva') {
-                maintenanceTypeFullText = 'MC - Manutenção Corretiva';
+                maintenanceTypeHtml = `<p class="maintenance-type-modal type-mc">MC - Manutenção Corretiva</p>`;
             }
             
             let attendanceHtml = '';
@@ -907,7 +906,7 @@
                         <h1>Detalhes da OS ${order.os_numero}</h1>
                         <button class="modal-close">&times;</button>
                     </div>
-                    ${maintenanceTypeFullText ? `<p class="maintenance-type-modal">${maintenanceTypeFullText}</p>` : ''}
+                    ${maintenanceTypeHtml}
                 </div>
                 <div class="form-section"><h2>Dados do Cliente</h2><p><strong>Contrato:</strong> ${order.contrato||'N/A'}</p><p><strong>Cliente:</strong> ${order.cliente||'N/A'}</p><p><strong>Endereço:</strong> ${order.endereco||'N/A'}</p></div>
                 <div class="form-section"><h2>Dados do Equipamento</h2><p><strong>Equipamento:</strong> ${order.equipamento||'N/A'}</p><p><strong>Marca:</strong> ${order.marca||'N/A'}</p><p><strong>Modelo:</strong> ${order.modelo||'N/A'}</p><p><strong>Serial:</strong> ${order.serial||'N/A'}</p></div>
