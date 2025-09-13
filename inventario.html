@@ -23,47 +23,17 @@
         .contract-section summary::-webkit-details-marker { display: none; }
         .contract-section summary { list-style: none; }
         .uppercase-input { text-transform: uppercase; }
-
-        /* --- INÍCIO: AJUSTES DE RESPONSIVIDADE --- */
-        @media (max-width: 768px) {
-            /* Ajusta o container principal ("retângulo branco") */
-            main.max-w-4xl {
-                max-width: none; /* Remove a limitação de largura máxima */
-                width: 100%;     /* Faz o container ocupar toda a largura */
-                padding-left: 15px;
-                padding-right: 15px;
-            }
-
-            /* Ajusta o logo para ser responsivo */
-            header.w-full.text-center.py-5 img {
-                max-width: 80%; /* Limita a largura do logo a 80% da tela */
-                height: auto;
-            }
-
-            /* Ajusta os itens da lista para empilhar em telas pequenas */
-            #inventory-list .flex {
-                flex-direction: column;
-                align-items: flex-start; /* Alinha o conteúdo à esquerda */
-            }
-
-            /* Ajusta os botões de ação dentro dos cards */
-            #inventory-list .flex .space-x-2 {
-                margin-top: 12px; /* Adiciona espaço acima dos botões */
-                width: 100%;
-                justify-content: flex-end; /* Alinha os botões à direita */
-            }
-        }
-        /* --- FIM: AJUSTES DE RESPONSIVIDADE --- */
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
-    <!-- O container agora tem padding horizontal geral para telas pequenas -->
-    <div class="container mx-auto p-4 sm:p-0 flex-grow flex flex-col items-center">
+    <div class="container mx-auto p-4 flex-grow flex flex-col items-center">
         <header class="w-full text-center py-5">
-            <a href="index.html"><img src="./images/logo.png" alt="Logo da Empresa" class="mx-auto" style="max-width: 450px;"></a>
+            <!-- CORREÇÃO: Aplicado classes responsivas para o logo -->
+            <a href="index.html"><img src="./images/logo.png" alt="Logo da Empresa" class="mx-auto w-4/5 max-w-[450px]"></a>
         </header>
 
-        <main class="w-full max-w-4xl bg-white p-6 rounded-lg shadow-lg">
+        <!-- CORREÇÃO: Aplicado classes responsivas para o "retângulo branco" (main) -->
+        <main class="w-full md:max-w-4xl bg-white p-4 md:p-6 rounded-lg shadow-lg">
             <div class="flex flex-col md:flex-row justify-between items-center mb-6 pb-4 border-b">
                 <h1 class="text-2xl font-bold text-gray-800 mb-4 md:mb-0">Gestão de Inventário</h1>
                 <button id="add-new-btn" class="w-full md:w-auto px-5 py-2 bg-green-600 text-white text-center font-semibold rounded-lg shadow-md hover:bg-green-700">
@@ -230,7 +200,6 @@
 
                 items.forEach(item => {
                     const itemDiv = document.createElement('div');
-                    // A classe 'flex' será ajustada pela Media Query em telas pequenas
                     itemDiv.className = 'p-3 border rounded-md bg-white flex flex-col md:flex-row justify-between items-start md:items-center';
                     itemDiv.innerHTML = `
                         <div class="flex-grow">
@@ -395,3 +364,4 @@
     </script>
 </body>
 </html>
+
