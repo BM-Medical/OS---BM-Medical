@@ -37,14 +37,14 @@
         
         .actions-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
         #os-list { list-style: none; padding: 0; margin: 0; }
-        #os-list li { background-color: #f9f9f9; border: 1px solid #eee; padding: 15px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .os-info { display: flex; align-items: center; gap: 15px; }
+        #os-list li { background-color: #f9f9f9; border: 1px solid #eee; padding: 15px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .os-info { display: flex; align-items: center; gap: 15px; flex-grow: 1; }
         .os-info input[type="checkbox"] { width: 20px; height: 20px; }
         .os-details-text strong { font-size: 1.1rem; color: #333; display: block; }
         .os-details-text span { font-size: 0.9rem; color: #777; }
         .os-status { padding: 5px 10px; border-radius: 15px; font-size: 0.8rem; font-weight: 700; background-color: #2ecc71; color: white; }
         
-        .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; }
+        .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; margin-top: auto;}
         #loading-message { text-align: center; padding: 20px; font-size: 1.1rem; color: #777; }
         
         .floating-back-btn { 
@@ -63,6 +63,15 @@
             h1 { font-size: 1.8rem; }
             .filters { flex-direction: column; align-items: stretch; }
             .filter-group { min-width: 0; }
+            #os-list li {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .os-status {
+                margin-top: 10px;
+                width: 100%;
+                text-align: center;
+            }
         }
     </style>
 </head>
@@ -280,3 +289,4 @@
     </script>
 </body>
 </html>
+
