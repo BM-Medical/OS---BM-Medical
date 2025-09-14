@@ -166,7 +166,7 @@
             position: absolute;
             bottom: 8px;
             left: 15px;
-            font-size: 1.1rem;
+            font-size: 0.9rem; /* Fonte ajustada */
             font-weight: 700;
         }
         .type-mp-card {
@@ -739,9 +739,9 @@
             const formattedDate = formatDate(order.data_servico || order.data_retirada);
             let maintenanceTypeHtml = '';
             if (order.tipo_manutencao === 'preventiva') {
-                maintenanceTypeHtml = '<p class="maintenance-type-card type-mp-card">MP</p>';
+                maintenanceTypeHtml = '<span class="maintenance-type-card type-mp-card">MP</span>';
             } else if (order.tipo_manutencao === 'corretiva') {
-                maintenanceTypeHtml = '<p class="maintenance-type-card type-mc-card">MC</p>';
+                maintenanceTypeHtml = '<span class="maintenance-type-card type-mc-card">MC</span>';
             }
             card.innerHTML = `
                 <div class="card-status-icon">${isSigned ? signedIcon : unsignedIcon}</div>
