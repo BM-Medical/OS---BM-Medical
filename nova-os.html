@@ -10,7 +10,6 @@
     <script src="auth-guard.js" type="module"></script>
     <style>
         body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
-        /* AJUSTE: Container agora é um flex-column para distribuir o espaço */
         .container { 
             width: 90%; 
             max-width: 1100px; 
@@ -34,14 +33,13 @@
             margin: 0 auto;
         }
         
-        /* AJUSTE: flex-grow expande esta área, empurrando o rodapé e o botão sair para baixo */
         .main-content { 
             margin-top: 40px; 
             width: 100%; 
             flex-grow: 1;
             display: flex;
             flex-direction: column;
-            justify-content: center; /* Centraliza o conteúdo principal verticalmente no espaço que ele ocupa */
+            justify-content: center;
         }
         .main-content h1 { font-size: 2.2rem; color: #333; margin-bottom: 10px; }
         .main-content p { font-size: 1.2rem; color: #666; margin-bottom: 40px; }
@@ -65,20 +63,10 @@
 	.footer p { 
    	   margin: 5px 10px; 
 	}
-
-        .logout-icon {
-            width: 1.25rem;
-            height: 1.25rem;
-            stroke: white;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            fill: none;
-        }
         
         .floating-back-btn { 
             position: fixed; 
-            bottom: 90px;
+            bottom: 24px;
             right: 24px; 
             background-color: #3498db;
             color: white; 
@@ -98,14 +86,6 @@
             transform: scale(1.05);
         }
         .floating-back-btn svg { width: 24px; height: 24px; }
-        
-        /* AJUSTE: Container para o botão de sair */
-        .logout-container {
-            width: 100%;
-            padding-bottom: 1rem; /* Pequeno espaçamento do fundo */
-            margin-top: auto; /* Esta é a mágica: empurra o botão para baixo */
-            padding-top: 1.5rem; /* Garante espaço acima do botão */
-        }
 
         @media (max-width: 768px) {
             .header img { max-width: 80%; }
@@ -121,7 +101,7 @@
             <img src="./images/logo.png" alt="Logo da Empresa">
         </header>
         <main class="main-content">
-            <div> <!-- Div extra para agrupar o conteúdo que deve ser centralizado -->
+            <div>
                 <h1>Nova Ordem de Serviço</h1>
                 <p>Selecione o Contrato</p>
                 <div class="action-buttons">
@@ -131,18 +111,6 @@
                 </div>
             </div>
         </main>
-        
-        <!-- AJUSTE: Botão de sair agora dentro de um container próprio para melhor controle de espaçamento -->
-        <div class="logout-container">
-            <button id="logout-button" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; background-color: #e53e3e; color: white; padding: 8px 16px; font-weight: 600; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); transition: background-color 0.2s;">
-                <svg class="logout-icon" viewBox="0 0 24 24">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-                <span>Sair</span>
-            </button>
-        </div>
     </div>
 
     <a href="index.html" class="floating-back-btn">

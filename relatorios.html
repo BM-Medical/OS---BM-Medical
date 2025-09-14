@@ -11,13 +11,12 @@
     <script src="auth-guard.js?v=1.2" type="module"></script>
     <style>
         body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
-        /* AJUSTE: Container agora é um flex-column para distribuir o espaço */
         .container { 
             width: 90%; 
             max-width: 1200px; 
             margin: 0 auto; 
             padding: 20px; 
-            flex: 1; /* Faz o container principal crescer */
+            flex: 1; 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
@@ -48,18 +47,8 @@
         .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; }
         #loading-message { text-align: center; padding: 20px; font-size: 1.1rem; color: #777; }
         
-        .logout-icon { width: 1.25rem; height: 1.25rem; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-        /* AJUSTE: Novo container para o botão de sair */
-        .logout-container {
-            width: 100%;
-            text-align: center;
-            margin-top: auto; /* Esta é a mágica que empurra o botão para baixo */
-            padding-top: 20px; /* Garante um espaço acima do botão */
-            padding-bottom: 20px; /* Garante um espaço abaixo do botão */
-        }
-
         .floating-back-btn { 
-            position: fixed; bottom: 90px; right: 24px; background-color: #3498db;
+            position: fixed; bottom: 24px; right: 24px; background-color: #3498db;
             color: white; width: 56px; height: 56px; border-radius: 50%; 
             display: flex; align-items: center; justify-content: center; 
             box-shadow: 0 4px 12px rgba(0,0,0,0.25); text-decoration: none; 
@@ -112,18 +101,6 @@
             </div>
             <div id="loading-message" style="display: none;">Carregando...</div>
         </main>
-        
-        <!-- AJUSTE: Botão de sair movido para seu próprio container -->
-        <div class="logout-container">
-            <button id="logout-button" class="inline-flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-2 font-semibold rounded-lg shadow-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; background-color: #e53e3e; color: white; padding: 8px 16px; font-weight: 600; border-radius: 8px;">
-                <svg class="logout-icon" viewBox="0 0 24 24">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-                <span>Sair</span>
-            </button>
-        </div>
     </div>
     
     <a href="index.html" class="floating-back-btn">
@@ -303,4 +280,3 @@
     </script>
 </body>
 </html>
-
