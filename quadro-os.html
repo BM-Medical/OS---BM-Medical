@@ -17,7 +17,7 @@
             height: 100%;
         }
         body { font-family: 'Inter', sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
-        .board-container { display: flex; flex-direction: column; height: 100vh; }
+        .board-container { display: flex; flex-direction: column; height: 100%; } /* Alterado de 100vh para 100% */
         
         .board-header {
             padding: 15px 20px;
@@ -168,7 +168,12 @@
             left: 15px;
             font-size: 1.1rem;
             font-weight: 700;
-            color: #e74c3c;
+        }
+        .type-mp-card {
+            color: #2563eb; /* Azul */
+        }
+        .type-mc-card {
+            color: #dc2626; /* Vermelho */
         }
 
         .card-status-icon {
@@ -734,9 +739,9 @@
             const formattedDate = formatDate(order.data_servico || order.data_retirada);
             let maintenanceTypeHtml = '';
             if (order.tipo_manutencao === 'preventiva') {
-                maintenanceTypeHtml = '<p class="maintenance-type-card">MP</p>';
+                maintenanceTypeHtml = '<p class="maintenance-type-card type-mp-card">MP</p>';
             } else if (order.tipo_manutencao === 'corretiva') {
-                maintenanceTypeHtml = '<p class="maintenance-type-card">MC</p>';
+                maintenanceTypeHtml = '<p class="maintenance-type-card type-mc-card">MC</p>';
             }
             card.innerHTML = `
                 <div class="card-status-icon">${isSigned ? signedIcon : unsignedIcon}</div>
