@@ -26,14 +26,12 @@
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
-    <div class="container mx-auto p-4 flex-grow flex flex-col items-center">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex-grow flex flex-col items-center">
         <header class="w-full text-center py-5">
-            <!-- CORREÇÃO: Aplicado classes responsivas para o logo -->
             <a href="index.html"><img src="./images/logo.png" alt="Logo da Empresa" class="mx-auto w-4/5 max-w-[450px]"></a>
         </header>
 
-        <!-- CORREÇÃO: Aplicado classes responsivas para o "retângulo branco" (main) -->
-        <main class="w-full md:max-w-4xl bg-white p-4 md:p-6 rounded-lg shadow-lg">
+        <main class="w-full md:max-w-6xl bg-white p-4 md:p-6 rounded-lg shadow-lg">
             <div class="flex flex-col md:flex-row justify-between items-center mb-6 pb-4 border-b">
                 <h1 class="text-2xl font-bold text-gray-800 mb-4 md:mb-0">Gestão de Inventário</h1>
                 <button id="add-new-btn" class="w-full md:w-auto px-5 py-2 bg-green-600 text-white text-center font-semibold rounded-lg shadow-md hover:bg-green-700">
@@ -41,13 +39,31 @@
                 </button>
             </div>
             
-            <div>
-                <label for="search-inventory" class="block text-sm font-medium text-gray-700">Buscar equipamento</label>
-                <input type="text" id="search-inventory" placeholder="Digite o nome, marca, modelo ou serial..." class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+            <!-- SEÇÃO DE FILTROS -->
+            <div id="filters-section" class="mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="md:col-span-1">
+                        <label for="contract-filter" class="block text-sm font-medium text-gray-700">Contrato</label>
+                        <select id="contract-filter" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                            <option value="todos">Todos</option>
+                            <option value="Contrato Nº 138/2024">Capão do Leão</option>
+                            <option value="Contrato Nº 10/2025">Exército Brasileiro</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="search-inventory" class="block text-sm font-medium text-gray-700">Buscar por nome, marca, modelo ou serial</label>
+                        <input type="text" id="search-inventory" placeholder="Digite aqui para buscar..." class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                </div>
+                <div class="flex justify-end mt-4">
+                     <button id="search-btn" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700">
+                        Buscar
+                    </button>
+                </div>
             </div>
 
             <div id="inventory-list" class="mt-6 space-y-4">
-                <p class="text-center text-gray-500 py-8">Carregando inventário...</p>
+                <p class="text-center text-gray-500 py-8">Utilize os filtros e clique em "Buscar" para carregar os equipamentos.</p>
             </div>
         </main>
     </div>
@@ -82,7 +98,6 @@
                             <label for="contract" class="block text-sm font-medium text-gray-700">Contrato</label>
                             <select id="contract" name="contract" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
                                 <option value="" disabled selected>Selecione o contrato</option>
-                                <!-- A opção da UFPEL foi removida daqui, conforme a regra de negócio -->
                                 <option value="Contrato Nº 138/2024">Capão do Leão</option>
                                 <option value="Contrato Nº 10/2025">Exército Brasileiro</option>
                             </select>
@@ -129,7 +144,7 @@
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, deleteDoc, setDoc, addDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, deleteDoc, setDoc, addDoc, query, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
@@ -145,7 +160,8 @@
         // --- Elementos Globais ---
         const inventoryListContainer = document.getElementById('inventory-list');
         const searchInput = document.getElementById('search-inventory');
-        let allEquipment = [];
+        const contractFilter = document.getElementById('contract-filter');
+        const searchBtn = document.getElementById('search-btn');
 
         // --- Lógica de Exclusão ---
         const deleteModal = document.getElementById('delete-modal');
@@ -178,15 +194,15 @@
             }, {});
 
             if (Object.keys(groupedByContract).length === 0) {
-                inventoryListContainer.innerHTML = `<p class="text-center text-gray-500 py-8">Nenhum equipamento encontrado.</p>`;
+                inventoryListContainer.innerHTML = `<p class="text-center text-gray-500 py-8">Nenhum equipamento encontrado com os filtros aplicados.</p>`;
                 return;
             }
 
-            const contractOrder = ['Contrato N° 03/2024', 'Contrato Nº 138/2024', 'Contrato Nº 10/2025'];
+            const contractOrder = ['Contrato Nº 138/2024', 'Contrato Nº 10/2025'];
             contractOrder.forEach(contract => {
                 if (!groupedByContract[contract]) return;
 
-                const items = groupedByContract[contract];
+                const items = groupedByContract[contract].sort((a,b) => a.name.localeCompare(b.name));
                 const section = document.createElement('details');
                 section.className = 'contract-section bg-gray-50 rounded-lg open:shadow-lg';
                 section.open = true;
@@ -208,7 +224,7 @@
                             <p class="text-sm text-gray-500">Serial: ${item.serial || 'N/A'} | Local: ${item.location || 'N/A'}</p>
                         </div>
                         <div class="flex space-x-2 mt-2 md:mt-0">
-                            <button data-id="${item.id}" class="btn-edit px-3 py-1 bg-blue-500 text-white text-xs font-semibold rounded hover:bg-blue-600">Editar</button>
+                            <button data-id="${item.id}" data-item='${JSON.stringify(item)}' class="btn-edit px-3 py-1 bg-blue-500 text-white text-xs font-semibold rounded hover:bg-blue-600">Editar</button>
                             <button data-id="${item.id}" data-name="${item.name}" class="btn-delete px-3 py-1 bg-red-500 text-white text-xs font-semibold rounded hover:bg-red-600">Excluir</button>
                         </div>
                     `;
@@ -222,8 +238,7 @@
             
             document.querySelectorAll('.btn-edit').forEach(button => {
                 button.addEventListener('click', (e) => {
-                    const equipmentId = e.target.dataset.id;
-                    const equipmentData = allEquipment.find(item => item.id === equipmentId);
+                    const equipmentData = JSON.parse(e.target.dataset.item);
                     openFormModal(equipmentData);
                 });
             });
@@ -237,20 +252,42 @@
             });
         }
         
-        function filterInventory() {
-            const searchTerm = searchInput.value.toLowerCase();
-            if (!searchTerm) {
-                renderInventory(allEquipment);
-                return;
+        async function loadAndRenderInventory() {
+            inventoryListContainer.innerHTML = `<p class="text-center text-gray-500 py-8">Buscando equipamentos...</p>`;
+            
+            const selectedContract = contractFilter.value;
+            const searchTerm = searchInput.value.toLowerCase().trim();
+
+            try {
+                const inventoryRef = collection(db, "inventory_equipment");
+                let constraints = [];
+                if (selectedContract !== 'todos') {
+                    constraints.push(where("contract", "==", selectedContract));
+                }
+                
+                const q = constraints.length > 0 ? query(inventoryRef, ...constraints) : inventoryRef;
+                const querySnapshot = await getDocs(q);
+                
+                let equipmentFromDb = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // Filtro de texto em JavaScript
+                if (searchTerm) {
+                    equipmentFromDb = equipmentFromDb.filter(item => 
+                        item.name.toLowerCase().includes(searchTerm) ||
+                        item.brand.toLowerCase().includes(searchTerm) ||
+                        item.model.toLowerCase().includes(searchTerm) ||
+                        (item.serial && item.serial.toLowerCase().includes(searchTerm))
+                    );
+                }
+                
+                renderInventory(equipmentFromDb);
+
+            } catch (error) {
+                console.error("Erro ao buscar inventário:", error);
+                inventoryListContainer.innerHTML = `<p class="text-center text-red-500 py-8">Ocorreu um erro ao buscar os dados.</p>`;
             }
-            const filtered = allEquipment.filter(item => 
-                item.name.toLowerCase().includes(searchTerm) ||
-                item.brand.toLowerCase().includes(searchTerm) ||
-                item.model.toLowerCase().includes(searchTerm) ||
-                (item.serial && item.serial.toLowerCase().includes(searchTerm))
-            );
-            renderInventory(filtered);
         }
+
 
         // --- Funções do Modal de Formulário ---
         function openFormModal(equipmentData = null) {
@@ -269,7 +306,6 @@
                 
                 updateLocationOptions();
                 form.location.value = equipmentData.location;
-                // Em modo de edição, não permite alterar o contrato para evitar inconsistências.
                 contractSelect.disabled = true;
 
             } else { // MODO ADIÇÃO
@@ -302,13 +338,7 @@
         }
         
         // --- Event Listeners ---
-        onSnapshot(collection(db, "inventory_equipment"), (snapshot) => {
-            allEquipment = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            allEquipment.sort((a, b) => a.name.localeCompare(b.name));
-            filterInventory();
-        });
-
-        searchInput.addEventListener('keyup', filterInventory);
+        searchBtn.addEventListener('click', loadAndRenderInventory);
         
         // Listeners de Exclusão
         cancelDeleteBtn.addEventListener('click', () => {
@@ -320,6 +350,7 @@
                 await deleteDoc(doc(db, "inventory_equipment", equipmentToDelete.id));
                 deleteModal.classList.add('hidden');
                 equipmentToDelete = null;
+                loadAndRenderInventory(); // Recarrega a lista
             }
         });
 
@@ -353,6 +384,7 @@
                     await addDoc(collection(db, "inventory_equipment"), equipmentData);
                 }
                 closeFormModal();
+                loadAndRenderInventory(); // Recarrega a lista
             } catch (error) {
                 console.error("Erro ao salvar equipamento: ", error);
                 alert("Ocorreu um erro ao salvar. Tente novamente.");
