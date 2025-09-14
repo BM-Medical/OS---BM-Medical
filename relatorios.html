@@ -69,8 +69,20 @@
             }
             .os-status {
                 margin-top: 10px;
-                width: 100%;
+                width: fit-content;
+                align-self: flex-end;
+            }
+            .actions-bar {
+                gap: 1rem;
+            }
+            .actions-bar > div {
+                flex-shrink: 0;
+            }
+            .actions-bar .btn {
+                flex-grow: 1;
                 text-align: center;
+                padding: 10px 15px;
+                font-size: 0.9rem;
             }
         }
     </style>
