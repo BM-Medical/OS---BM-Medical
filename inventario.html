@@ -26,7 +26,7 @@
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
-    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex-grow flex flex-col items-center">
+    <div class="container mx-auto px-2 sm:px-6 lg:px-8 py-4 flex-grow flex flex-col items-center">
         <header class="w-full text-center py-5">
             <a href="index.html"><img src="./images/logo.png" alt="Logo da Empresa" class="mx-auto w-4/5 max-w-[450px]"></a>
         </header>
@@ -186,6 +186,15 @@
         };
 
         // --- Funções Principais ---
+        function normalizeText(text) {
+            if (!text) return '';
+            return text
+                .toString()
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "");
+        }
+
         function renderInventory(equipmentData) {
             inventoryListContainer.innerHTML = '';
             const groupedByContract = equipmentData.reduce((acc, item) => {
@@ -256,7 +265,7 @@
             inventoryListContainer.innerHTML = `<p class="text-center text-gray-500 py-8">Buscando equipamentos...</p>`;
             
             const selectedContract = contractFilter.value;
-            const searchTerm = searchInput.value.toLowerCase().trim();
+            const searchTerm = searchInput.value.trim();
 
             try {
                 const inventoryRef = collection(db, "inventory_equipment");
@@ -272,11 +281,12 @@
 
                 // Filtro de texto em JavaScript
                 if (searchTerm) {
+                    const normalizedSearch = normalizeText(searchTerm);
                     equipmentFromDb = equipmentFromDb.filter(item => 
-                        item.name.toLowerCase().includes(searchTerm) ||
-                        item.brand.toLowerCase().includes(searchTerm) ||
-                        item.model.toLowerCase().includes(searchTerm) ||
-                        (item.serial && item.serial.toLowerCase().includes(searchTerm))
+                        normalizeText(item.name).includes(normalizedSearch) ||
+                        normalizeText(item.brand).includes(normalizedSearch) ||
+                        normalizeText(item.model).includes(normalizedSearch) ||
+                        (item.serial && normalizeText(item.serial).includes(normalizedSearch))
                     );
                 }
                 
