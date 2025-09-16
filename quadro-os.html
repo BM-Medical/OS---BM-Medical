@@ -1,4 +1,542 @@
-<!-- ... existing code ... -->
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quadro de Ordens de Serviço</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="auth-guard.js" type="module"></script>
+    <style>
+        /* ESTILOS GERAIS E DO QUADRO */
+        html, body {
+            overflow: hidden;
+            height: 100%;
+        }
+        body { font-family: 'Inter', sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
+        .board-container { display: flex; flex-direction: column; height: 100%; } /* Alterado de 100vh para 100% */
+        
+        .board-header {
+            padding: 15px 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .board-header img {
+            height: 50px;
+            margin-bottom: 12px;
+        }
+        .board-header h1 {
+            font-size: 1.5rem;
+            margin: 0 0 8px 0;
+        }
+        
+        .header-legend {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #555;
+        }
+        .legend-color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .board { 
+            display: flex; 
+            gap: 15px; 
+            padding: 20px; 
+            overflow-x: auto; 
+            flex-grow: 1; 
+            align-items: flex-start;
+            box-sizing: border-box; 
+            touch-action: pan-x pan-y;
+        }
+
+        .list { background-color: #e9ecef; border-radius: 8px; width: 300px; min-width: 300px; max-height: 100%; display: flex; flex-direction: column; }
+        .list-header { 
+            padding: 12px 15px; 
+            font-weight: 700; 
+            font-size: 1rem; 
+            border-bottom: 1px solid #ced4da; 
+            position: sticky; 
+            top: 0; 
+            background-color: inherit; 
+            z-index: 2;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .cards { padding: 10px; flex-grow: 1; min-height: 100px; overflow-y: auto; }
+        
+        .add-os-container {
+            position: relative;
+        }
+        .add-os-button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            line-height: 28px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color: 0.2s;
+        }
+        .add-os-button:hover {
+            background-color: #2980b9;
+        }
+        .new-os-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: white;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100;
+            padding: 5px 0;
+            min-width: 250px;
+            margin-top: 5px;
+        }
+        .new-os-menu.show {
+            display: block;
+        }
+        .new-os-menu a {
+            display: block;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #333;
+            text-decoration: none;
+            font-weight: normal;
+        }
+        .new-os-menu a:hover {
+            background-color: #f5f5f5;
+        }
+
+        .card { 
+            background-color: #fff; 
+            border-radius: 6px; 
+            padding: 15px; 
+            padding-bottom: 40px;
+            margin-bottom: 10px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+            cursor: pointer; 
+            position: relative; 
+            user-select: none;
+            border-left: 5px solid transparent; 
+            transition: box-shadow 0.2s ease-in-out;
+        }
+        .card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+        }
+        .card strong {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+            padding-right: 45px;
+        }
+        .card p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .maintenance-type-card {
+            position: absolute;
+            bottom: 8px;
+            left: 15px;
+            font-size: 0.9rem; /* Fonte ajustada */
+            font-weight: 700;
+        }
+        .type-mp-card {
+            color: #2563eb; /* Azul */
+        }
+        .type-mc-card {
+            color: #dc2626; /* Vermelho */
+        }
+
+        .card-status-icon {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            align-items: center;
+        }
+        .icon-signed { width: 22px; height: 22px; }
+        .icon-signed .checkmark__circle { stroke-dasharray: 166; stroke-dashoffset: 166; stroke-width: 3; stroke-miterlimit: 10; stroke: #2ecc71; fill: none; animation: stroke .6s cubic-bezier(0.65, 0, 0.45, 1) forwards; }
+        .icon-signed .checkmark__check { transform-origin: 50% 50%; stroke-dasharray: 48; stroke-dashoffset: 48; stroke-width: 4; stroke: #2ecc71; animation: stroke .3s cubic-bezier(0.65, 0, 0.45, 1) .8s forwards; }
+        @keyframes stroke { 100% { stroke-dashoffset: 0; } }
+        .icon-unsigned { display: flex; align-items: center; gap: 4px; }
+
+        .card-move-action {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+        }
+        .card-move-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color: 0.2s;
+        }
+        .card-move-icon:hover {
+            background-color: #e0e0e0;
+        }
+        .card-move-icon svg {
+            width: 20px;
+            height: 20px;
+            fill: #6c757d;
+        }
+        
+        .move-menu {
+            display: none;
+            position: fixed;
+            background-color: #fff;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1100;
+            padding: 5px 0;
+            min-width: 200px;
+        }
+        .move-menu.show {
+            display: block;
+        }
+        .move-menu-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .move-menu-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: flex-start; /* Alinha no topo */ overflow-y: auto; /* Permite rolagem */ z-index: 1000; padding: 1rem; box-sizing: border-box;}
+        .modal-content { background-color: #fff; padding: 15px; border-radius: 10px; width: 100%; max-width: 800px; max-height: none; /* Remove limitação de altura */ position: relative; margin: 0 auto; /* Centraliza */}
+        
+        .modal-header-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Centraliza o conteúdo do header */
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .modal-header-top {
+            display: flex;
+            justify-content: center; /* Centraliza o título */
+            align-items: center;
+            width: 100%;
+            position: relative;
+        }
+        .modal-header-container h1 {
+            font-size: 1.5rem;
+            margin: 0;
+            flex-grow: 1;
+            text-align: center; /* Garante centralização do texto */
+            word-break: break-word; /* Quebra palavras longas */
+        }
+        .maintenance-type-modal {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-top: 8px;
+            padding: 4px 12px;
+            border-radius: 5px;
+        }
+        .type-mp {
+            color: #2563eb; /* Azul */
+            background-color: #dbeafe; /* Azul claro */
+        }
+        .type-mc {
+            color: #dc2626; /* Vermelho */
+            background-color: #fee2e2; /* Vermelho claro */
+        }
+        .modal-close { 
+            display: none; /* Remove o botão 'X' */
+        }
+
+        .modal-body .form-section { border: 1px solid #e0e0e0; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .modal-body h2 { font-size: 1.2rem; color: #3498db; margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .modal-body p, .modal-body .details-grid p { font-size: 0.95rem; margin: 5px 0; white-space: pre-wrap; } /* Fonte reduzida */
+        .modal-body .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+        .modal-body .form-group { margin-bottom: 15px; }
+        .modal-body .form-group label { display: block; font-weight: 500; margin-bottom: 5px; }
+        .modal-body .form-group input, .modal-body .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        
+        .modal-body .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+            resize: none;
+            overflow-y: hidden;
+            min-height: 80px;
+        }
+        .uppercase-input { text-transform: uppercase; }
+
+        .modal-footer {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-areas:
+                "edit finalize"
+                "middle middle";
+            gap: 10px;
+            margin-top: 20px;
+        }
+        #modal-btn-edit { grid-area: edit; }
+        #modal-btn-finalize { grid-area: finalize; }
+        .middle-buttons {
+            grid-area: middle;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .middle-buttons .btn-action {
+            flex-grow: 1; /* Faz os botões ocuparem o espaço igualmente */
+        }
+
+        .btn-action { text-decoration: none; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s ease; font-size: 0.875rem; text-align: center;}
+        .btn-history { background-color: #34495e; }
+        .modal-footer .btn-edit { background-color: #f39c12; }
+        .btn-pdf { background-color: #3498db; }
+        .btn-pdf:disabled { background-color: #bdc3c7; }
+        .btn-save { background-color: #2ecc71; }
+        .btn-finalize { background-color: #27ae60; }
+        .btn-archive { background-color: #7f8c8d; }
+        
+        .signature-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: center; z-index: 2000; }
+        .signature-modal-content { background-color: #fff; padding: 20px; border-radius: 10px; width: 95%; max-width: 600px; text-align: center; display: flex; flex-direction: column; }
+        .signature-modal-content canvas { border: 2px dashed #ccc; border-radius: 6px; cursor: crosshair; width: 100%; height: 250px; }
+        .signature-modal-buttons { margin-top: 15px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0; }
+        .signature-modal-buttons button { padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer; font-size: 1rem; }
+        #signature-save-button-details { background-color: #2ecc71; color: white; }
+        #signature-undo-button-details { background-color: #f39c12; color: white; }
+        #signature-clear-button-details { background-color: #e74c3c; color: white; }
+        #signature-cancel-button-details { background-color: #95a5a6; color: white; }
+        #signature-error-message-details { color: #e74c3c; font-weight: 500; margin-top: 10px; display: none; }
+        .signature-placeholder { border: 2px dashed #ccc; border-radius: 6px; padding: 20px; text-align: center; color: #7f8c8d; }
+        .signature-placeholder.is-clickable { cursor: pointer; }
+        .signature-thumbnail { max-width: 200px; max-height: 100px; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; }
+
+        .signature-modal-overlay:fullscreen { background-color: #fff; }
+        .signature-modal-overlay:fullscreen .signature-modal-content { height: 100%; width: 100%; max-width: none; border-radius: 0; padding: 15px; box-sizing: border-box; }
+        .signature-modal-overlay:fullscreen .signature-modal-content canvas { flex-grow: 1; height: auto; }
+
+        #toast-notification {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 2000;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 30px;
+            font-size: 1rem;
+            opacity: 0;
+            transition: opacity 0.5s, bottom 0.5s;
+        }
+
+        #toast-notification.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
+        
+        .confirmation-modal-content {
+            background-color: white;
+            padding: 25px;
+            border-radius: 8px;
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+        .confirmation-modal-content h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        .confirmation-modal-content p {
+            margin-bottom: 25px;
+        }
+        .confirmation-modal-content .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .confirmation-modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .history-list { list-style: none; padding: 0; margin: 0; }
+        .history-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .history-list li:last-child {
+            border-bottom: none;
+        }
+        .history-list strong {
+            color: #333;
+        }
+        .history-list span {
+            color: #777;
+            font-size: 0.9em;
+            text-align: right;
+        }
+        .signature-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Centraliza horizontalmente */
+            justify-content: center; /* Centraliza verticalmente */
+        }
+
+        @media (max-width: 768px) {
+            .board-header img {
+                height: 40px; 
+                margin-bottom: 10px;
+                max-width: 80%; /* Garante que o logo não ultrapasse a tela */
+            }
+            .board-header h1 {
+                font-size: 1.2rem;
+                margin-bottom: 10px;
+            }
+            .board { 
+                padding: 10px;
+                gap: 10px;
+                scroll-snap-type: x mandatory; /* Melhora a experiência de scroll */
+            }
+            .list { 
+                scroll-snap-align: center;
+                min-width: 280px;
+                width: 85vw; /* Faz a coluna ocupar 85% da largura da tela */
+            }
+            
+            .modal-header-top { flex-direction: row; }
+
+        }
+    </style>
+</head>
+<body>
+    <div class="board-container">
+        <header class="board-header">
+            <a href="index.html"><img src="./images/logo.png" alt="Logo BM Medical"></a>
+            <h1>Quadro de Ordens de Serviço</h1>
+            <div class="header-legend">
+                <div class="legend-item">
+                    <span class="legend-color-dot" style="background-color: #2980b9;"></span>
+                    UFPEL
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color-dot" style="background-color: #f39c12;"></span>
+                    Capão do Leão
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color-dot" style="background: repeating-linear-gradient(to bottom, #2F4F2F, #2F4F2F 25%, #8B4513 25%, #8B4513 50%, #6B8E23 50%, #6B8E23 75%, #556B2F 75%, #556B2F 100%);"></span>
+                    Exército
+                </div>
+            </div>
+        </header>
+
+        <main class="board" id="board">
+        </main>
+        
+    </div>
+
+    <div id="global-move-menu" class="move-menu"></div>
+
+    <div id="details-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div id="modal-body" class="modal-body"></div>
+        </div>
+    </div>
+    <div id="signature-modal-details" class="signature-modal-overlay">
+        <div class="signature-modal-content">
+            <h3>Assine no campo abaixo:</h3>
+            <canvas id="signature-pad-details"></canvas>
+            <p id="signature-error-message-details">Por favor, desenhe uma assinatura para salvar.</p>
+            <div class="signature-modal-buttons">
+                <button type="button" id="signature-undo-button-details">Desfazer</button>
+                <button type="button" id="signature-clear-button-details">Limpar</button>
+                <button type="button" id="signature-save-button-details">Salvar</button>
+                <button type="button" id="signature-cancel-button-details">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="finalize-modal" class="modal-overlay" style="z-index: 1001;">
+        <div class="confirmation-modal-content">
+            <h3>Finalizar Ordem de Serviço</h3>
+            <div class="form-group">
+                <label for="completion-date">Data de Conclusão</label>
+                <input type="date" id="completion-date" class="form-group-input">
+            </div>
+            <div class="confirmation-modal-buttons">
+                <button type="button" id="cancel-finalize-btn" class="btn-action btn-archive">Cancelar</button>
+                <button type="button" id="confirm-finalize-btn" class="btn-action btn-finalize">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="archive-modal" class="modal-overlay" style="z-index: 1001;">
+        <div class="confirmation-modal-content">
+            <h3>Arquivar Ordem de Serviço</h3>
+            <p>Deseja realmente arquivar (cancelar) esta OS? Esta ação não pode ser desfeita do quadro.</p>
+            <div class="confirmation-modal-buttons">
+                <button type="button" id="cancel-archive-btn" class="btn-action btn-archive">Cancelar</button>
+                <button type="button" id="confirm-archive-btn" class="btn-action btn-edit">Sim, Arquivar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="history-modal" class="modal-overlay" style="z-index: 1002;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header-container">
+                <div class="modal-header-top">
+                    <h1>Histórico da OS</h1>
+                    <button class="modal-close-history">&times;</button>
+                </div>
+            </div>
+            <div id="history-modal-body"></div>
+        </div>
+    </div>
+
     <div id="toast-notification"></div>
 
     <script type="module">
@@ -8,11 +546,335 @@
         import { generateOsPdf } from './pdf-generator.js';
         import { PartsManager } from './modulo-pecas.js';
         import { EquipmentSelector } from './equipment-selector.js';
-        import { escapeHTML } from './security-helpers.js'; // IMPORTA A NOVA FUNÇÃO
+        
+        // CORREÇÃO: Função movida para dentro do script para remover dependência externa.
+        /**
+         * Escapa caracteres HTML de uma string para prevenir ataques XSS.
+         * @param {string} unsafeText - O texto que pode conter HTML.
+         * @returns {string} O texto seguro para ser inserido via innerHTML.
+         */
+        function escapeHTML(unsafeText) {
+          if (typeof unsafeText !== 'string') {
+            return '';
+          }
+          return unsafeText
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+        }
 
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
-<!-- ... existing code ... -->
+            authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
+            projectId: "ordem-de-servicos---bm-medical",
+            storageBucket: "ordem-de-servicos---bm-medical.firebasestorage.app",
+            messagingSenderId: "92355637827",
+            appId: "1:92355637827:web:850b89afa5054781475af6"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const board = document.getElementById('board');
+        const modalOverlay = document.getElementById('details-modal');
+        const modalBody = document.getElementById('modal-body');
+        const globalMoveMenu = document.getElementById('global-move-menu');
+        
+        const finalizeModal = document.getElementById('finalize-modal');
+        const archiveModal = document.getElementById('archive-modal');
+        const historyModal = document.getElementById('history-modal');
+        const historyModalBody = document.getElementById('history-modal-body');
+        const signatureModal = document.getElementById('signature-modal-details');
+        let currentOrderForAction = null;
+        let activePartsManager = null;
+        let activeEquipmentSelector = null;
+
+        // --- INÍCIO: GERENCIAMENTO DE MODAIS E BOTÃO VOLTAR DO CELULAR ---
+        let openModalsStack = [];
+
+        function openModal(modalElement) {
+            if (!modalElement || modalElement.style.display === 'flex') return;
+            history.pushState({ modalId: modalElement.id }, '');
+            modalElement.style.display = 'flex';
+            openModalsStack.push(modalElement);
+        }
+
+        function closeMostRecentModal() {
+            if (openModalsStack.length > 0) {
+                const modalToClose = openModalsStack.pop();
+                if (modalToClose) modalToClose.style.display = 'none';
+            }
+        }
+        
+        window.addEventListener('popstate', (event) => {
+            closeMostRecentModal();
+        });
+        
+        function closeAllModals() {
+            const openCount = openModalsStack.length;
+            for (let i = 0; i < openCount; i++) {
+                history.back();
+            }
+        }
+        // --- FIM: GERENCIAMENTO DE MODAIS ---
+
+        const statuses = {
+            'novas': 'Novas OS',
+            'em_execucao': 'Em Execução',
+            'aguardando_pecas': 'Aguardando Peças',
+            'pronto_entrega': 'Pronto para Entrega'
+        };
+
+        const signaturePadManagerDetails = new SignaturePadManager({
+            modal: signatureModal,
+            canvas: document.getElementById('signature-pad-details'),
+            saveButton: document.getElementById('signature-save-button-details'),
+            clearButton: document.getElementById('signature-clear-button-details'),
+            undoButton: document.getElementById('signature-undo-button-details'),
+            cancelButton: document.getElementById('signature-cancel-button-details'),
+            errorMessage: document.getElementById('signature-error-message-details')
+        });
+
+        // MODIFICAÇÃO: Intercepta o método close do signature pad para usar o histórico do navegador
+        const originalSignaturePadClose = signaturePadManagerDetails.close.bind(signaturePadManagerDetails);
+        signaturePadManagerDetails.close = function() {
+            // Verifica se o modal de assinatura está na nossa pilha antes de voltar no histórico
+            const isSignatureModalOpen = openModalsStack.some(m => m.id === this.elements.modal.id);
+            if (isSignatureModalOpen) {
+                history.back();
+            } else {
+                // Se não estiver na pilha (caso raro), apenas esconde o elemento
+                this.elements.modal.style.display = 'none';
+            }
+        };
+
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const [year, month, day] = dateString.split('-');
+            return `${day}/${month}/${year}`;
+        }
+
+        function formatTimestampForHistory(timestamp) {
+            if (!timestamp) return 'N/A';
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            if (isNaN(date.getTime())) return 'Data inválida';
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${day}/${month}/${year} às ${hours}:${minutes}`;
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast-notification');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function initializeBoard() {
+            for (const statusKey in statuses) {
+                const list = document.createElement('div');
+                list.className = 'list';
+                list.dataset.status = statusKey;
+                let headerTitle = `<span>${statuses[statusKey]}</span>`;
+                let headerContent = headerTitle;
+                if (statusKey === 'novas') {
+                    headerContent = `
+                        ${headerTitle}
+                        <div class="add-os-container">
+                            <button id="add-os-btn" class="add-os-button" title="Criar nova OS">+</button>
+                            <div id="new-os-menu" class="new-os-menu">
+                                <a href="form-ufpel.html">Contrato Autoclave BAUMER HE-UFPEL</a>
+                                <a href="form-capao.html">Contrato Capão do Leão</a>
+                                <a href="form-exercito.html">Contrato Exército Brasileiro</a>
+                            </div>
+                        </div>
+                    `;
+                }
+                list.innerHTML = `
+                    <div class="list-header">${headerContent}</div>
+                    <div class="cards"></div>
+                `;
+                board.appendChild(list);
+            }
+        }
+
+        function listenToOrders() {
+            const activeStatuses = ['novas', 'em_execucao', 'aguardando_pecas', 'pronto_entrega'];
+            const q = query(collection(db, "orders"), where("status", "in", activeStatuses));
+            onSnapshot(q, (snapshot) => {
+                const ordersByStatus = {};
+                for (const key in statuses) {
+                    ordersByStatus[key] = [];
+                }
+                snapshot.forEach(doc => {
+                    const order = { id: doc.id, ...doc.data() };
+                    if (typeof order.position === 'undefined') {
+                        order.position = order.createdAt?.toMillis() || Date.now();
+                    }
+                    if (order.status && statuses.hasOwnProperty(order.status)) {
+                        ordersByStatus[order.status].push(order);
+                    }
+                });
+                for (const status in ordersByStatus) {
+                    const listContainer = document.querySelector(`.list[data-status="${status}"] .cards`);
+                    if (!listContainer) continue;
+                    const scrollTop = listContainer.scrollTop;
+                    listContainer.innerHTML = '';
+                    ordersByStatus[status]
+                        .sort((a, b) => a.position - b.position)
+                        .forEach(order => listContainer.appendChild(createCard(order)));
+                    listContainer.scrollTop = scrollTop;
+                }
+            });
+        }
+
+        function createCard(order) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.dataset.id = order.id;
+            card.dataset.status = order.status;
+            const contractColors = {
+                'Contrato N° 03/2024': '#2980b9',
+                'Contrato Nº 138/2024': '#f39c12',
+                'Contrato Nº 10/2025': 'gradient',
+            };
+            const color = contractColors[order.contrato];
+            if (color === 'gradient') {
+                card.style.borderImage = 'repeating-linear-gradient(to bottom, #2F4F2F, #2F4F2F 25%, #8B4513 25%, #8B4513 50%, #6B8E23 50%, #6B8E23 75%, #556B2F 75%, #556B2F 100%) 1';
+            } else {
+                card.style.borderLeftColor = color || '#3498db';
+            }
+            const isSigned = (order.signature_data && order.signature_data.length > 200) || order.assinaturaDesconsiderada === true;
+            const signedIcon = `<div class="icon-signed" title="OS Assinada"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/><path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/></svg></div>`;
+            const unsignedIcon = `<div class="icon-unsigned" title="Assinatura pendente"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6c757d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg></div>`;
+            const formattedDate = formatDate(order.data_servico || order.data_retirada);
+            let maintenanceTypeHtml = '';
+            if (order.tipo_manutencao === 'preventiva') {
+                maintenanceTypeHtml = '<span class="maintenance-type-card type-mp-card">MP</span>';
+            } else if (order.tipo_manutencao === 'corretiva') {
+                maintenanceTypeHtml = '<span class="maintenance-type-card type-mc-card">MC</span>';
+            }
+            card.innerHTML = `
+                <div class="card-status-icon">${isSigned ? signedIcon : unsignedIcon}</div>
+                <strong>${order.os_numero || 'N/A'}</strong>
+                <p>${order.equipamento || 'N/A'}</p>
+                <p>Data: ${formattedDate}</p>
+                ${maintenanceTypeHtml}
+                <div class="card-move-action">
+                    <div class="card-move-icon" title="Mover cartão">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 6V3L18.5 8.5L13 14V11H4V6H13M20 16V18H4V21H20V16Z"/></svg>
+                    </div>
+                </div>
+            `;
+            card.addEventListener('click', (e) => {
+                if (!e.target.closest('.card-move-action')) {
+                    openDetailsModal(order.id);
+                }
+            });
+            const moveIcon = card.querySelector('.card-move-icon');
+            moveIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showMoveMenu(card, moveIcon);
+            });
+            return card;
+        }
+        
+        function showMoveMenu(card, icon) {
+            const orderId = card.dataset.id;
+            const currentStatus = card.dataset.status;
+            globalMoveMenu.innerHTML = '';
+            for (const statusKey in statuses) {
+                if (statusKey !== currentStatus) {
+                    const item = document.createElement('div');
+                    item.className = 'move-menu-item';
+                    item.textContent = statuses[statusKey];
+                    item.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        moveCardToStatus(orderId, statusKey);
+                        globalMoveMenu.classList.remove('show');
+                    });
+                    globalMoveMenu.appendChild(item);
+                }
+            }
+            globalMoveMenu.style.visibility = 'hidden';
+            globalMoveMenu.style.left = '-1000px'; 
+            globalMoveMenu.classList.add('show'); 
+            const menuWidth = globalMoveMenu.offsetWidth;
+            const menuHeight = globalMoveMenu.offsetHeight;
+            globalMoveMenu.classList.remove('show');
+            globalMoveMenu.style.visibility = 'visible';
+            globalMoveMenu.style.left = '0px';
+            const iconRect = icon.getBoundingClientRect();
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            const margin = 8; 
+            let topPos = iconRect.bottom + margin;
+            let leftPos = iconRect.left;
+            if (topPos + menuHeight > windowHeight) {
+                topPos = iconRect.top - menuHeight - margin;
+            }
+            if (topPos < 0) {
+                topPos = margin;
+            }
+            if (leftPos + menuWidth > windowWidth) {
+                leftPos = windowWidth - menuWidth - margin;
+            }
+            if (leftPos < 0) {
+                leftPos = margin;
+            }
+            globalMoveMenu.style.top = `${topPos}px`;
+            globalMoveMenu.style.left = `${leftPos}px`;
+            globalMoveMenu.classList.add('show');
+        }
+
+        async function moveCardToStatus(orderId, newStatus) {
+            const orderRef = doc(db, "orders", orderId);
+            try {
+                const docSnap = await getDoc(orderRef);
+                if (!docSnap.exists()) {
+                    throw new Error("OS não encontrada para mover.");
+                }
+                const oldStatus = docSnap.data().status;
+                const historyEntry = {
+                    action: 'Movida',
+                    details: `De "${statuses[oldStatus] || oldStatus}" para "${statuses[newStatus]}"`,
+                    timestamp: new Date()
+                };
+                await updateDoc(orderRef, { 
+                    status: newStatus, 
+                    position: Date.now(),
+                    history: arrayUnion(historyEntry)
+                });
+                showToast(`OS movida para "${statuses[newStatus]}"`);
+            } catch (error) {
+                console.error("Erro ao mover a OS:", error);
+                showToast("Erro ao mover o cartão.");
+            }
+        }
+
+        async function openDetailsModal(orderId) {
+            try {
+                const docRef = doc(db, "orders", orderId);
+                const docSnap = await getDoc(docRef);
+                if (!docSnap.exists()) throw new Error('OS não encontrada');
+                const order = { id: docSnap.id, ...docSnap.data() };
+                currentOrderForAction = order;
+                modalBody.innerHTML = generateDetailsView(order);
+                addModalEventListeners(order);
+                openModal(modalOverlay);
+            } catch (error) {
+                console.error("Erro ao abrir detalhes:", error);
+                showToast(`Erro ao buscar detalhes: ${error.message}`);
+            }
+        }
+
         function generateDetailsView(order) {
             const isSigned = order.signature_data && order.signature_data.length > 200;
             let signatureSectionHtml = isSigned
@@ -42,4 +904,534 @@
 
             const formattedRetirada = formatDate(order.data_servico || order.data_retirada);
             const formattedDevolucao = formatDate(order.data_devolucao);
-<!-- ... existing code ... -->
+            
+            let maintenanceTypeHtml = '';
+            if (order.tipo_manutencao === 'preventiva') {
+                maintenanceTypeHtml = `<p class="maintenance-type-modal type-mp">MP - Manutenção Preventiva</p>`;
+            } else if (order.tipo_manutencao === 'corretiva') {
+                maintenanceTypeHtml = `<p class="maintenance-type-modal type-mc">MC - Manutenção Corretiva</p>`;
+            }
+            
+            let attendanceHtml = '';
+            const ufpelContract = 'Contrato N° 03/2024';
+            const capaoContract = 'Contrato Nº 138/2024';
+            const exercitoContract = 'Contrato Nº 10/2025';
+
+            if (order.contrato === ufpelContract) {
+                attendanceHtml = `<p><strong>Data do Serviço:</strong> ${formattedRetirada}</p><p><strong>Hora de Chegada:</strong> ${order.hora_chegada || 'N/A'}</p><p><strong>Hora de Saída:</strong> ${order.hora_saida || 'N/A'}</p><p><strong>Local do Atendimento:</strong> CME / HE-UFPEL</p>`;
+            } else if (order.contrato === capaoContract || order.contrato === exercitoContract) {
+                 attendanceHtml = `<p><strong>Data da Retirada / Serviço:</strong> ${formattedRetirada}</p><p><strong>Data da Devolução:</strong> ${formattedDevolucao}</p><p><strong>Local do Atendimento:</strong> ${order.local_atendimento || 'N/A'}</p>`;
+            } else {
+                attendanceHtml = `<p><strong>Data da Retirada / Serviço:</strong> ${formattedRetirada}</p><p><strong>Data da Devolução:</strong> ${formattedDevolucao}</p>`;
+            }
+
+            return `
+                <div class="modal-header-container">
+                    <div class="modal-header-top">
+                        <h1>Detalhes da OS ${order.os_numero}</h1>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    ${maintenanceTypeHtml}
+                </div>
+                <div class="form-section"><h2>Dados do Cliente</h2><p><strong>Contrato:</strong> ${order.contrato||'N/A'}</p><p><strong>Cliente:</strong> ${order.cliente||'N/A'}</p><p><strong>Endereço:</strong> ${order.endereco||'N/A'}</p></div>
+                <div class="form-section"><h2>Dados do Equipamento</h2><p><strong>Equipamento:</strong> ${order.equipamento||'N/A'}</p><p><strong>Marca:</strong> ${order.marca||'N/A'}</p><p><strong>Modelo:</strong> ${order.modelo||'N/A'}</p><p><strong>Serial:</strong> ${order.serial||'N/A'}</p></div>
+                <div class="form-section"><h2>Atendimento</h2>${attendanceHtml}</div>
+                <div class="form-section">
+                    <h2>Serviços e Peças</h2>
+                    ${servicosDisplayHtml}
+                    <p class="mt-4"><strong>Peças Utilizadas:</strong></p>
+                    ${pecasHtml}
+                </div>
+                <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><div id="signature-container-details">${signatureSectionHtml}</div><div class="signature-line">Responsável do Setor</div></div><div class="signature-box"><img src="./images/assinatura-tecnico.png" style="max-width:200px;"><div class="signature-line">Responsável Técnico</div></div></div></div>
+                <div class="modal-footer">
+                    <button id="modal-btn-edit" class="btn-action btn-edit">Editar OS</button>
+                    <button id="modal-btn-finalize" class="btn-action btn-finalize">Finalizar OS</button>
+                    <div class="middle-buttons">
+                        <button id="modal-btn-history" class="btn-action btn-history">Histórico</button>
+                        <button id="modal-btn-pdf" class="btn-action btn-pdf">Gerar PDF</button>
+                        <button id="modal-btn-archive" class="btn-action btn-archive">Arquivar OS</button>
+                    </div>
+                </div>`;
+        }
+
+        function addModalEventListeners(order) {
+            document.getElementById('modal-btn-history').addEventListener('click', () => openHistoryModal(order));
+            document.getElementById('modal-btn-archive').addEventListener('click', handleArchiveClick);
+            document.getElementById('modal-btn-edit').addEventListener('click', () => switchToEditMode(order.id));
+            document.getElementById('modal-btn-pdf').addEventListener('click', (e) => generateOsPdf(order, e.target));
+            document.getElementById('modal-btn-finalize').addEventListener('click', handleFinalizeClick);
+        }
+        
+        function autoGrowTextarea(element) {
+            element.style.height = 'auto';
+            element.style.height = (element.scrollHeight) + 'px';
+            if (element.scrollHeight > 250) {
+                element.style.overflowY = 'auto';
+                element.style.height = '250px';
+            } else {
+                element.style.overflowY = 'hidden';
+            }
+        }
+
+        async function switchToEditMode(orderId) {
+            const docRef = doc(db, "orders", orderId);
+            const docSnap = await getDoc(docRef);
+            if(docSnap.exists()){
+                const order = { id: docSnap.id, ...docSnap.data() };
+                modalBody.innerHTML = generateEditForm(order);
+
+                // --- INICIALIZAÇÃO DO SELETOR DE EQUIPAMENTO ---
+                if (order.contrato !== 'Contrato N° 03/2024') {
+                    activeEquipmentSelector = new EquipmentSelector({
+                        contractId: order.contrato,
+                        elements: {
+                            equipmentSelect: document.getElementById('equipamento_select_edit'),
+                            brandSelect: document.getElementById('marca_select_edit'),
+                            modelSelect: document.getElementById('modelo_select_edit'),
+                            serialSelect: document.getElementById('serial_select_edit'),
+                            locationSelect: document.getElementById('edit_local_atendimento'),
+                            manualEquipmentDiv: document.getElementById('manual_equipment_name_edit'),
+                            manualBrandDiv: document.getElementById('manual_brand_name_edit'),
+                            manualModelDiv: document.getElementById('manual_model_name_edit'),
+                            manualSerialDiv: document.getElementById('manual_serial_name_edit'),
+                            equipmentManualInput: document.getElementById('equipamento_manual_edit'),
+                            brandManualInput: document.getElementById('marca_manual_edit'),
+                            modelManualInput: document.getElementById('modelo_manual_edit'),
+                            serialManualInput: document.getElementById('serial_manual_edit')
+                        }
+                    });
+
+                    await activeEquipmentSelector.init();
+                    activeEquipmentSelector.preselect(order);
+                }
+
+
+                const editForm = document.getElementById('edit-os-form');
+                
+                const textareas = editForm.querySelectorAll('textarea');
+                textareas.forEach(textarea => {
+                    textarea.addEventListener('input', () => autoGrowTextarea(textarea));
+                    autoGrowTextarea(textarea);
+                });
+                
+                // --- INICIALIZAÇÃO DO MODAL DE PEÇAS ---
+                let currentParts = Array.isArray(order.pecas_utilizadas) ? [...order.pecas_utilizadas] : [];
+                const partsInitialView = document.getElementById('parts-initial-view-edit');
+                const partsSummaryView = document.getElementById('parts-summary-view-edit');
+                const editPartsBtns = document.querySelectorAll('.btn-edit-parts');
+                const partsSummaryList = document.getElementById('parts-summary-list-edit');
+
+                function updatePartsUI() {
+                    if (currentParts.length > 0) {
+                        partsInitialView.classList.add('hidden');
+                        partsSummaryView.classList.remove('hidden');
+                        const listHtml = currentParts.map(part => `<li><strong>${part.qtd}x</strong> - ${escapeHTML(part.descricao)}</li>`).join('');
+                        partsSummaryList.innerHTML = `<ul class="list-disc pl-5 space-y-1">${listHtml}</ul>`;
+                    } else {
+                        partsInitialView.classList.remove('hidden');
+                        partsSummaryView.classList.add('hidden');
+                    }
+                }
+                
+                // Se o gerenciador não existir, cria uma única vez.
+                if (!activePartsManager) {
+                     activePartsManager = new PartsManager({
+                        onConfirm: () => {}, // Callbacks vazios na inicialização
+                        onCancel: () => {}
+                    });
+                }
+                
+                // SEMPRE atualiza os callbacks para o contexto da OS atual
+                activePartsManager.updateCallbacks({
+                    onConfirm: (updatedParts) => {
+                        currentParts = updatedParts;
+                        updatePartsUI();
+                    }
+                });
+                
+                editPartsBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        activePartsManager.open(currentParts);
+                    });
+                });
+
+                updatePartsUI(); 
+                
+                editForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    saveOrderChanges(orderId, currentParts);
+                });
+
+
+                // --- LÓGICA DE ASSINATURA ---
+                const signatureContainer = document.getElementById('signature-container-details');
+                if (signatureContainer) {
+                    signatureContainer.addEventListener('click', () => {
+                        const placeholder = document.getElementById('signature-placeholder-details');
+                        if (placeholder && placeholder.classList.contains('is-clickable')) {
+                            openModal(signatureModal); // Abre o modal gerenciando o histórico
+                            signaturePadManagerDetails.open((dataUrl) => {
+                                const signatureInput = document.getElementById('edit_signature_data');
+                                if (signatureInput) {
+                                    signatureInput.value = dataUrl;
+                                }
+                                signatureContainer.innerHTML = `<img src="${dataUrl}" class="signature-thumbnail" alt="Assinatura">`;
+                            });
+                        }
+                    });
+                }
+                
+                const desconsiderarCheck = editForm.querySelector('#edit-desconsiderar-assinatura-check');
+                if (desconsiderarCheck) {
+                    const signatureArea = editForm.querySelector('.signature-area');
+                    const signatureDataInput = editForm.querySelector('#edit_signature_data');
+                    
+                    const updateSignatureArea = () => {
+                        const placeholder = document.getElementById('signature-placeholder-details');
+                        if (desconsiderarCheck.checked) {
+                            signatureArea.style.opacity = '0.5';
+                            signatureArea.style.pointerEvents = 'none';
+                             if(placeholder) placeholder.classList.remove('is-clickable');
+                        } else {
+                            signatureArea.style.opacity = '1';
+                            signatureArea.style.pointerEvents = 'auto';
+                            if(placeholder) placeholder.classList.add('is-clickable');
+                        }
+                    };
+
+                    desconsiderarCheck.addEventListener('change', () => {
+                        if (desconsiderarCheck.checked) {
+                            signatureDataInput.value = ''; 
+                            const currentHtml = document.getElementById('signature-container-details').innerHTML;
+                            if (!currentHtml.includes('<img')) {
+                                document.getElementById('signature-container-details').innerHTML = `<div id="signature-placeholder-details" class="signature-placeholder">Assinatura não necessária</div>`;
+                            }
+                        } else {
+                             const currentHtml = document.getElementById('signature-container-details').innerHTML;
+                             if (!currentHtml.includes('<img')) {
+                                document.getElementById('signature-container-details').innerHTML = `<div id="signature-placeholder-details" class="signature-placeholder is-clickable">Adicionar Assinatura</div>`;
+                            }
+                        }
+                        updateSignatureArea();
+                    });
+                    updateSignatureArea(); 
+                }
+            }
+        }
+
+        function generateEditForm(order) {
+            const isSigned = order.signature_data && order.signature_data.length > 200;
+            let signatureSectionHtml = isSigned 
+                ? `<img src="${order.signature_data}" class="signature-thumbnail" alt="Assinatura">` 
+                : `<div id="signature-placeholder-details" class="signature-placeholder is-clickable">Adicionar Assinatura</div>`;
+            
+            let attendanceFields = '';
+            let equipmentFields = '';
+            const ufpelContract = 'Contrato N° 03/2024';
+            const capaoContract = 'Contrato Nº 138/2024';
+            const exercitoContract = 'Contrato Nº 10/2025';
+
+            let desconsiderarCheckboxHtml = '';
+            if (order.contrato === exercitoContract) {
+                const isChecked = order.assinaturaDesconsiderada === true;
+                desconsiderarCheckboxHtml = `
+                    <div class="checkbox-group" style="margin-bottom: 20px;">
+                        <input type="checkbox" id="edit-desconsiderar-assinatura-check" ${isChecked ? 'checked' : ''}>
+                        <label for="edit-desconsiderar-assinatura-check">Desconsiderar Assinatura</label>
+                    </div>`;
+            }
+
+            if (order.contrato === ufpelContract) {
+                 attendanceFields = `<div class="form-group"><label for="edit_data_servico">Data do Serviço:</label><input type="date" id="edit_data_servico" name="data_servico" value="${order.data_servico||''}"></div><div class="form-group"><label for="edit_hora_chegada">Hora de Chegada:</label><input type="time" id="edit_hora_chegada" name="hora_chegada" value="${order.hora_chegada||''}"></div><div class="form-group"><label for="edit_hora_saida">Hora de Saída:</label><input type="time" id="edit_hora_saida" name="hora_saida" value="${order.hora_saida||''}"></div>`;
+                 equipmentFields = `<div class="bg-gray-100 p-4 rounded-md"><p><strong>Equipamento:</strong> ${order.equipamento}</p><p><strong>Marca:</strong> ${order.marca}</p><p><strong>Modelo:</strong> ${order.modelo}</p><p><strong>Serial:</strong> ${order.serial}</p></div>`;
+            } else {
+                attendanceFields = `<div class="form-group"><label for="edit_data_retirada">Data da Retirada:</label><input type="date" id="edit_data_retirada" name="data_retirada" value="${order.data_retirada||''}"></div><div class="form-group"><label for="edit_data_devolucao">Data da Devolução:</label><input type="date" id="edit_data_devolucao" name="data_devolucao" value="${order.data_devolucao||''}"></div>`;
+                
+                let locationOptions = order.contrato === capaoContract 
+                    ? ['PA','UBS CENTRAL','UBS CASABOM','UBS I - PARQUE FRAGATA','UBS II - JARDIM AMÉRICA','UBS III - JARDIM AMÉRICA','CAPS']
+                    : ['GO1', 'GO2', 'GO3', 'GO4', 'PMGUPEL'];
+                
+                const locationHtml = locationOptions.map(opt => `<option value="${opt}" ${order.local_atendimento===opt?'selected':''}>${opt}</option>`).join('');
+                attendanceFields += `<div class="form-group"><label for="edit_local_atendimento">Local:</label><select id="edit_local_atendimento" name="local_atendimento"><option value="" disabled>Selecione um local</option>${locationHtml}</select></div>`;
+
+                equipmentFields = `
+                    <div class="form-group">
+                        <label for="equipamento_select_edit">Equipamento:</label>
+                        <select id="equipamento_select_edit" name="equipamento_select_edit" required></select>
+                    </div>
+                    <div id="manual_equipment_name_edit" class="form-group" style="display: none;">
+                        <label for="equipamento_manual_edit">Qual equipamento?</label>
+                        <input type="text" id="equipamento_manual_edit" name="equipamento_manual_edit" class="uppercase-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="marca_select_edit">Marca:</label>
+                        <select id="marca_select_edit" name="marca_select_edit" required disabled></select>
+                    </div>
+                    <div id="manual_brand_name_edit" class="form-group" style="display: none;">
+                        <label for="marca_manual_edit">Qual marca?</label>
+                        <input type="text" id="marca_manual_edit" name="marca_manual_edit" class="uppercase-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="modelo_select_edit">Modelo:</label>
+                        <select id="modelo_select_edit" name="modelo_select_edit" required disabled></select>
+                    </div>
+                    <div id="manual_model_name_edit" class="form-group" style="display: none;">
+                        <label for="modelo_manual_edit">Qual modelo?</label>
+                        <input type="text" id="modelo_manual_edit" name="modelo_manual_edit" class="uppercase-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="serial_select_edit">Número de Série:</label>
+                        <select id="serial_select_edit" name="serial_select_edit" disabled></select>
+                    </div>
+                    <div id="manual_serial_name_edit" class="form-group" style="display: none;">
+                        <label for="serial_manual_edit">Qual número de série?</label>
+                        <input type="text" id="serial_manual_edit" name="serial_manual_edit" class="uppercase-input">
+                    </div>
+                `;
+            }
+            return `
+                <div class="modal-header-container">
+                    <div class="modal-header-top">
+                        <h1>Editar OS: ${order.os_numero}</h1>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                </div>
+                <form id="edit-os-form">
+                    <input type="hidden" id="edit_signature_data" value="${order.signature_data || ''}">
+                    <div class="form-section"><h2>Dados do Equipamento</h2>${equipmentFields}</div>
+                    <div class="form-section"><h2>Atendimento</h2>${attendanceFields}</div>
+                    <div class="form-section">
+                        <h2>Serviços e Peças</h2>
+                        <div class="form-group">
+                            <label for="edit_servicos_realizados">Serviços Realizados:</label>
+                            <textarea id="edit_servicos_realizados">${order.servicos_realizados||''}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Peças Utilizadas:</label>
+                            <div id="parts-initial-view-edit">
+                                <button type="button" class="btn-edit-parts px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 w-full sm:w-auto">
+                                    Gerenciar Peças
+                                </button>
+                            </div>
+                            <div id="parts-summary-view-edit" class="hidden">
+                                <div id="parts-summary-list-edit" class="mb-4 bg-gray-50 p-3 rounded-md border"></div>
+                                <button type="button" class="btn-edit-parts px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 w-full sm:w-auto">
+                                    Editar Peças
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-section">
+                        <h2>Assinaturas</h2>
+                        ${desconsiderarCheckboxHtml}
+                        <div class="signature-area">
+                            <div class="signature-grid">
+                                <div class="signature-box"><div id="signature-container-details">${signatureSectionHtml}</div><div class="signature-line">Responsável do Setor</div></div>
+                                <div class="signature-box"><img src="./images/assinatura-tecnico.png" style="max-width:200px;"><div class="signature-line">Responsável Técnico</div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer"><button type="submit" class="btn-action btn-save">Salvar Alterações</button></div>
+                </form>`;
+        }
+        
+        async function saveOrderChanges(orderId, currentParts) {
+            const form = document.getElementById('edit-os-form');
+            let equipmentData = {};
+            
+            if (activeEquipmentSelector) {
+                equipmentData = activeEquipmentSelector.getSelection();
+            }
+
+            const updatedData = { ...equipmentData };
+            const historyEntries = [];
+
+            if(form.data_servico) updatedData.data_servico=form.data_servico.value;
+            if(form.hora_chegada) updatedData.hora_chegada=form.hora_chegada.value;
+            if(form.hora_saida) updatedData.hora_saida=form.hora_saida.value;
+            if(form.data_retirada) updatedData.data_retirada=form.data_retirada.value;
+            if(form.data_devolucao) updatedData.data_devolucao=form.data_devolucao.value;
+            if(form.local_atendimento) updatedData.local_atendimento=form.local_atendimento.value;
+            
+            updatedData.servicos_realizados = document.getElementById('edit_servicos_realizados').value;
+            updatedData.pecas_utilizadas = currentParts;
+
+            const signatureInput = document.getElementById('edit_signature_data');
+            if (signatureInput) updatedData.signature_data = signatureInput.value;
+
+            const desconsiderarCheck = form.querySelector('#edit-desconsiderar-assinatura-check');
+            if (desconsiderarCheck) {
+                updatedData.assinaturaDesconsiderada = desconsiderarCheck.checked;
+                if (desconsiderarCheck.checked) updatedData.signature_data = ''; 
+            }
+            
+            const wasSigned = (currentOrderForAction.signature_data && currentOrderForAction.signature_data.length > 200) || currentOrderForAction.assinaturaDesconsiderada === true;
+            const isNowSigned = (updatedData.signature_data && updatedData.signature_data.length > 200) || updatedData.assinaturaDesconsiderada === true;
+
+            if (isNowSigned && !wasSigned) {
+                updatedData.signedAt = new Date();
+                historyEntries.push({ action: 'Assinada', details: 'Assinatura adicionada/confirmada.', timestamp: new Date() });
+            } else if (!isNowSigned && wasSigned) {
+                updatedData.signedAt = deleteField();
+                historyEntries.push({ action: 'Assinatura Removida', details: 'Assinatura removida/desconsiderada.', timestamp: new Date() });
+            }
+
+            if (updatedData.signature_data && updatedData.signature_data.length > 200) {
+                 updatedData.assinaturaDesconsiderada = false;
+            }
+
+            historyEntries.push({ action: 'Editada', details: 'Os dados da OS foram alterados.', timestamp: new Date() });
+            updatedData.history = arrayUnion(...historyEntries);
+
+            const orderRef = doc(db, "orders", orderId);
+            try {
+                await updateDoc(orderRef, updatedData);
+                showToast('OS atualizada com sucesso!');
+                history.back(); // Fecha o modal de edição
+            } catch (error) {
+                console.error("Erro ao salvar alterações:", error);
+                showToast("Erro ao salvar. Tente novamente.");
+            }
+        }
+
+        function handleFinalizeClick() {
+            const isSigned = currentOrderForAction.signature_data && currentOrderForAction.signature_data.length > 200;
+            const signatureWasDisregarded = currentOrderForAction.assinaturaDesconsiderada === true;
+
+            if (!isSigned && !signatureWasDisregarded) {
+                showToast("Não é possível finalizar: a OS não está assinada.");
+                return;
+            }
+            const dateInput = document.getElementById('completion-date');
+            dateInput.value = new Date().toISOString().split('T')[0];
+            openModal(finalizeModal);
+        };
+
+        function handleArchiveClick() {
+            openModal(archiveModal);
+        };
+
+        document.getElementById('cancel-finalize-btn').addEventListener('click', () => history.back());
+        document.getElementById('cancel-archive-btn').addEventListener('click', () => history.back());
+
+        document.getElementById('confirm-finalize-btn').addEventListener('click', async () => {
+            const completionDate = document.getElementById('completion-date').value;
+            if (!completionDate) {
+                showToast("Por favor, selecione uma data de conclusão.");
+                return;
+            }
+            const orderRef = doc(db, "orders", currentOrderForAction.id);
+            try {
+                const historyEntry = { action: 'Finalizada', timestamp: new Date(), details: `Concluída em ${formatDate(completionDate)}` };
+                await updateDoc(orderRef, {
+                    status: 'finalizada',
+                    data_conclusao: completionDate,
+                    history: arrayUnion(historyEntry)
+                });
+                showToast("OS finalizada com sucesso!");
+                closeAllModals();
+            } catch (error) {
+                showToast("Erro ao finalizar a OS.");
+                console.error("Erro ao finalizar:", error);
+            }
+        });
+
+        document.getElementById('confirm-archive-btn').addEventListener('click', async () => {
+            const orderRef = doc(db, "orders", currentOrderForAction.id);
+            try {
+                const historyEntry = { action: 'Arquivada', timestamp: new Date(), details: 'A OS foi arquivada (cancelada).' };
+                await updateDoc(orderRef, {
+                    status: 'arquivada',
+                    archivedAt: new Date(),
+                    history: arrayUnion(historyEntry)
+                });
+                showToast("OS arquivada com sucesso!");
+                closeAllModals();
+            } catch (error) {
+                showToast("Erro ao arquivar a OS.");
+                console.error("Erro ao arquivar:", error);
+            }
+        });
+        
+        function openHistoryModal(order) {
+            let historyHtml = '<p>Nenhum histórico de eventos para esta OS.</p>';
+
+            if (order.history && order.history.length > 0) {
+                const sortedHistory = order.history.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+
+                historyHtml = '<ul class="history-list">';
+                sortedHistory.forEach(event => {
+                    const eventDate = formatTimestampForHistory(event.timestamp);
+                    historyHtml += `
+                        <li>
+                            <div>
+                                <strong>${event.action}</strong>
+                                ${event.details ? `<p style="font-size: 0.85em; color: #666;">${escapeHTML(event.details)}</p>` : ''}
+                            </div>
+                            <span>${eventDate}</span>
+                        </li>`;
+                });
+                historyHtml += '</ul>';
+            }
+            
+            historyModalBody.innerHTML = historyHtml;
+            openModal(historyModal);
+        }
+
+        historyModal.addEventListener('click', (e) => {
+            if (e.target === historyModal || e.target.classList.contains('modal-close-history')) {
+                history.back();
+            }
+        });
+        
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay || e.target.classList.contains('modal-close')) {
+                history.back();
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.card-move-action')) {
+                globalMoveMenu.classList.remove('show');
+            }
+        });
+
+        board.addEventListener('touchstart', () => {
+            if (globalMoveMenu.classList.contains('show')) {
+                globalMoveMenu.classList.remove('show');
+            }
+        }, { passive: true });
+
+        document.addEventListener('wheel', () => {
+            if (globalMoveMenu.classList.contains('show')) {
+                globalMoveMenu.classList.remove('show');
+            }
+        }, { passive: true });
+        
+        initializeBoard();
+        listenToOrders();
+        
+        setTimeout(() => {
+            const addOsBtn = document.getElementById('add-os-btn');
+            const newOsMenu = document.getElementById('new-os-menu');
+
+            if (addOsBtn && newOsMenu) {
+                addOsBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    newOsMenu.classList.toggle('show');
+                });
+            }
+
+            window.addEventListener('click', (e) => {
+                if (newOsMenu && newOsMenu.classList.contains('show')) {
+                    if (!newOsMenu.contains(e.target) && e.target !== addOsBtn) {
+                        newOsMenu.classList.remove('show');
+                    }
+                }
+            });
+        }, 0);
+
+    </script>
+</body>
+</html>
+
