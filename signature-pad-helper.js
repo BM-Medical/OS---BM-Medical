@@ -24,7 +24,6 @@ export class SignaturePadManager {
         this.signatureHistory = [];
         this.onSaveCallback = null;
         
-        // Armazena a referência da função para poder removê-la depois
         this.boundResizeCanvas = this.resizeCanvas.bind(this);
 
         this.attachEventListeners();
@@ -35,19 +34,13 @@ export class SignaturePadManager {
      */
     attachEventListeners() {
         const canvas = this.elements.canvas;
-
-        // Eventos de mouse
         canvas.addEventListener('mousedown', this.startDrawing.bind(this));
         canvas.addEventListener('mouseup', this.stopDrawing.bind(this));
         canvas.addEventListener('mousemove', this.draw.bind(this));
         canvas.addEventListener('mouseleave', this.stopDrawing.bind(this));
-
-        // Eventos de toque (com passive: false para permitir preventDefault)
         canvas.addEventListener('touchstart', this.startDrawing.bind(this), { passive: false });
         canvas.addEventListener('touchend', this.stopDrawing.bind(this), { passive: false });
         canvas.addEventListener('touchmove', this.draw.bind(this), { passive: false });
-
-        // Eventos dos botões
         this.elements.saveButton.addEventListener('click', this.saveSignature.bind(this));
         this.elements.clearButton.addEventListener('click', this.clearCanvas.bind(this));
         this.elements.undoButton.addEventListener('click', this.undoLastStroke.bind(this));
@@ -62,31 +55,27 @@ export class SignaturePadManager {
         this.onSaveCallback = onSave;
         this.clearCanvas();
         this.isSignatureDrawn = false;
-        this.elements.errorMessage.style.display = 'none';
+        if(this.elements.errorMessage) this.elements.errorMessage.style.display = 'none';
         
-        // Adiciona o listener de redimensionamento quando o modal abre
         window.addEventListener('resize', this.boundResizeCanvas);
 
         const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
         
         try {
-            // Tenta ativar tela cheia e travar a orientação apenas em dispositivos móveis que suportam a API
             if (isMobile && typeof screen.orientation?.lock === 'function') {
                 await document.documentElement.requestFullscreen();
                 await screen.orientation.lock('landscape-primary');
             }
         } catch (err) {
-            console.warn("Não foi possível ativar o modo paisagem/tela cheia. Isso é esperado em dispositivos iOS ou se não for acionado por um clique do usuário.", err);
-            // Se falhar (ex: no iOS), mostra uma mensagem para o usuário
+            console.warn("Não foi possível ativar o modo paisagem/tela cheia.", err);
             if (this.elements.orientationMessage) {
                 this.elements.orientationMessage.style.display = 'block';
             }
         } finally {
             this.elements.modal.style.display = 'flex';
-            // Adiciona um pequeno delay para garantir que o modal esteja visível antes de redimensionar
             setTimeout(() => {
                 this.resizeCanvas();
-                this.saveSignatureState(); // Salva o estado inicial (em branco)
+                this.saveSignatureState();
             }, 50);
         }
     }
@@ -96,19 +85,17 @@ export class SignaturePadManager {
      */
     async close() {
         this.elements.modal.style.display = 'none';
-        
-        // Remove o listener de redimensionamento para evitar memory leaks
         window.removeEventListener('resize', this.boundResizeCanvas);
 
-        // Esconde mensagens de UI
         if (this.elements.orientationMessage) {
             this.elements.orientationMessage.style.display = 'none';
         }
 
         try {
-            // Apenas tenta desbloquear/sair da tela cheia se estivermos nela
             if (document.fullscreenElement) {
-                await screen.orientation.unlock();
+                if (screen.orientation && typeof screen.orientation.unlock === 'function') {
+                    await screen.orientation.unlock();
+                }
                 await document.exitFullscreen();
             }
         } catch (err) {
@@ -116,20 +103,13 @@ export class SignaturePadManager {
         }
     }
     
-    // --- Funções de Desenho ---
-
     resizeCanvas() {
         const canvas = this.elements.canvas;
-        
         const ratio = Math.max(window.devicePixelRatio || 1, 1);
         canvas.width = canvas.offsetWidth * ratio;
         canvas.height = canvas.offsetHeight * ratio;
         this.ctx.scale(ratio, ratio);
-        
-        // Restaura a assinatura depois de redimensionar para não perdê-la
         this.redrawSignatureFromHistory();
-
-        console.log(`Canvas redimensionado para: ${canvas.width}x${canvas.height}`);
     }
     
     getPos(event) {
@@ -141,18 +121,17 @@ export class SignaturePadManager {
     startDrawing(e) {
         e.preventDefault();
         this.drawing = true;
-        this.elements.errorMessage.style.display = 'none';
+        if(this.elements.errorMessage) this.elements.errorMessage.style.display = 'none';
         const pos = this.getPos(e);
         this.ctx.beginPath();
         this.ctx.moveTo(pos.x, pos.y);
     }
 
     stopDrawing(e) {
-        // Usa `e.preventDefault()` para evitar "eventos fantasma" de clique após o toque
         e.preventDefault();
         if (!this.drawing) return;
         this.drawing = false;
-        this.ctx.beginPath(); // Finaliza o caminho atual
+        this.ctx.beginPath();
         this.saveSignatureState();
     }
 
@@ -166,45 +145,42 @@ export class SignaturePadManager {
         this.ctx.strokeStyle = '#000';
         this.ctx.lineTo(pos.x, pos.y);
         this.ctx.stroke();
-        this.ctx.beginPath(); // Começa um novo caminho para o próximo ponto
+        this.ctx.beginPath();
         this.ctx.moveTo(pos.x, pos.y);
     }
     
-    // --- Funções de Controle ---
-
     clearCanvas() {
         this.ctx.clearRect(0, 0, this.elements.canvas.width, this.elements.canvas.height);
         this.isSignatureDrawn = false;
-        this.signatureHistory = []; // Limpa todo o histórico
-        this.saveSignatureState(); // Salva o novo estado em branco
+        this.signatureHistory = [];
+        this.saveSignatureState();
     }
     
     saveSignatureState() {
-        // Evita salvar estados duplicados se nada mudou
         if (this.drawing) return; 
         const data = this.ctx.getImageData(0, 0, this.elements.canvas.width, this.elements.canvas.height);
         this.signatureHistory.push(data);
     }
     
     undoLastStroke() {
-        if (this.signatureHistory.length > 1) { // Mantém o estado inicial em branco
+        if (this.signatureHistory.length > 1) {
             this.signatureHistory.pop();
             this.redrawSignatureFromHistory();
         }
     }
     
     redrawSignatureFromHistory() {
+        if (!this.ctx) return;
         this.ctx.clearRect(0, 0, this.elements.canvas.width, this.elements.canvas.height);
         if (this.signatureHistory.length > 0) {
             this.ctx.putImageData(this.signatureHistory[this.signatureHistory.length - 1], 0, 0);
         }
-        // Atualiza o estado para saber se há algo desenhado
         this.isSignatureDrawn = this.signatureHistory.length > 1;
     }
 
     saveSignature() {
         if (!this.isSignatureDrawn) {
-            this.elements.errorMessage.style.display = 'block';
+            if(this.elements.errorMessage) this.elements.errorMessage.style.display = 'block';
             return;
         }
 
@@ -220,11 +196,14 @@ export class SignaturePadManager {
         this.ctx.clearRect(0, 0, this.elements.canvas.width, this.elements.canvas.height);
         this.ctx.putImageData(originalImageData, 0, 0);
         this.ctx.globalCompositeOperation = originalCompositeOperation;
+        
+        // *** CORREÇÃO IMPORTANTE ***
+        // Fecha o modal e libera a tela ANTES de executar o callback.
+        // Isso resolve o problema de a tela ficar travada na horizontal.
+        this.close();
 
         if (this.onSaveCallback) {
             this.onSaveCallback(dataUrl);
         }
-        
-        this.close();
     }
 }
