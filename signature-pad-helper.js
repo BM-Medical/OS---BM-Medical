@@ -14,6 +14,7 @@ export class SignaturePadManager {
      * @param {HTMLElement} elements.undoButton - O botão para desfazer o último traço.
      * @param {HTMLElement} elements.cancelButton - O botão para cancelar e fechar o modal.
      * @param {HTMLElement} elements.errorMessage - O elemento para exibir mensagens de erro.
+     * @param {HTMLElement} [elements.orientationMessage] - (Opcional) Elemento para pedir ao usuário para virar a tela.
      */
     constructor(elements) {
         this.elements = elements;
@@ -22,6 +23,9 @@ export class SignaturePadManager {
         this.isSignatureDrawn = false;
         this.signatureHistory = [];
         this.onSaveCallback = null;
+        
+        // Armazena a referência da função para poder removê-la depois
+        this.boundResizeCanvas = this.resizeCanvas.bind(this);
 
         this.attachEventListeners();
     }
@@ -38,7 +42,7 @@ export class SignaturePadManager {
         canvas.addEventListener('mousemove', this.draw.bind(this));
         canvas.addEventListener('mouseleave', this.stopDrawing.bind(this));
 
-        // Eventos de toque
+        // Eventos de toque (com passive: false para permitir preventDefault)
         canvas.addEventListener('touchstart', this.startDrawing.bind(this), { passive: false });
         canvas.addEventListener('touchend', this.stopDrawing.bind(this), { passive: false });
         canvas.addEventListener('touchmove', this.draw.bind(this), { passive: false });
@@ -52,7 +56,7 @@ export class SignaturePadManager {
 
     /**
      * Abre o modal de assinatura e prepara o canvas.
-     * @param {function} onSave - A função de callback a ser executada quando a assinatura for salva. Recebe a dataURL da imagem como argumento.
+     * @param {function} onSave - A função de callback a ser executada quando a assinatura for salva.
      */
     async open(onSave) {
         this.onSaveCallback = onSave;
@@ -60,15 +64,23 @@ export class SignaturePadManager {
         this.isSignatureDrawn = false;
         this.elements.errorMessage.style.display = 'none';
         
+        // Adiciona o listener de redimensionamento quando o modal abre
+        window.addEventListener('resize', this.boundResizeCanvas);
+
         const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
         
         try {
+            // Tenta ativar tela cheia e travar a orientação apenas em dispositivos móveis que suportam a API
             if (isMobile && typeof screen.orientation?.lock === 'function') {
                 await document.documentElement.requestFullscreen();
                 await screen.orientation.lock('landscape-primary');
             }
         } catch (err) {
-            console.warn("Não foi possível ativar o modo paisagem/tela cheia.", err);
+            console.warn("Não foi possível ativar o modo paisagem/tela cheia. Isso é esperado em dispositivos iOS ou se não for acionado por um clique do usuário.", err);
+            // Se falhar (ex: no iOS), mostra uma mensagem para o usuário
+            if (this.elements.orientationMessage) {
+                this.elements.orientationMessage.style.display = 'block';
+            }
         } finally {
             this.elements.modal.style.display = 'flex';
             // Adiciona um pequeno delay para garantir que o modal esteja visível antes de redimensionar
@@ -84,7 +96,17 @@ export class SignaturePadManager {
      */
     async close() {
         this.elements.modal.style.display = 'none';
+        
+        // Remove o listener de redimensionamento para evitar memory leaks
+        window.removeEventListener('resize', this.boundResizeCanvas);
+
+        // Esconde mensagens de UI
+        if (this.elements.orientationMessage) {
+            this.elements.orientationMessage.style.display = 'none';
+        }
+
         try {
+            // Apenas tenta desbloquear/sair da tela cheia se estivermos nela
             if (document.fullscreenElement) {
                 await screen.orientation.unlock();
                 await document.exitFullscreen();
@@ -98,11 +120,16 @@ export class SignaturePadManager {
 
     resizeCanvas() {
         const canvas = this.elements.canvas;
+        
         const ratio = Math.max(window.devicePixelRatio || 1, 1);
         canvas.width = canvas.offsetWidth * ratio;
         canvas.height = canvas.offsetHeight * ratio;
         this.ctx.scale(ratio, ratio);
+        
+        // Restaura a assinatura depois de redimensionar para não perdê-la
         this.redrawSignatureFromHistory();
+
+        console.log(`Canvas redimensionado para: ${canvas.width}x${canvas.height}`);
     }
     
     getPos(event) {
@@ -121,10 +148,11 @@ export class SignaturePadManager {
     }
 
     stopDrawing(e) {
+        // Usa `e.preventDefault()` para evitar "eventos fantasma" de clique após o toque
         e.preventDefault();
         if (!this.drawing) return;
         this.drawing = false;
-        this.ctx.beginPath();
+        this.ctx.beginPath(); // Finaliza o caminho atual
         this.saveSignatureState();
     }
 
@@ -138,7 +166,7 @@ export class SignaturePadManager {
         this.ctx.strokeStyle = '#000';
         this.ctx.lineTo(pos.x, pos.y);
         this.ctx.stroke();
-        this.ctx.beginPath();
+        this.ctx.beginPath(); // Começa um novo caminho para o próximo ponto
         this.ctx.moveTo(pos.x, pos.y);
     }
     
@@ -147,18 +175,19 @@ export class SignaturePadManager {
     clearCanvas() {
         this.ctx.clearRect(0, 0, this.elements.canvas.width, this.elements.canvas.height);
         this.isSignatureDrawn = false;
-        if(this.signatureHistory.length > 0) {
-            this.signatureHistory = [this.signatureHistory[0]]; // Mantém apenas o estado inicial em branco
-        }
+        this.signatureHistory = []; // Limpa todo o histórico
+        this.saveSignatureState(); // Salva o novo estado em branco
     }
     
     saveSignatureState() {
+        // Evita salvar estados duplicados se nada mudou
+        if (this.drawing) return; 
         const data = this.ctx.getImageData(0, 0, this.elements.canvas.width, this.elements.canvas.height);
         this.signatureHistory.push(data);
     }
     
     undoLastStroke() {
-        if (this.signatureHistory.length > 1) {
+        if (this.signatureHistory.length > 1) { // Mantém o estado inicial em branco
             this.signatureHistory.pop();
             this.redrawSignatureFromHistory();
         }
@@ -169,6 +198,7 @@ export class SignaturePadManager {
         if (this.signatureHistory.length > 0) {
             this.ctx.putImageData(this.signatureHistory[this.signatureHistory.length - 1], 0, 0);
         }
+        // Atualiza o estado para saber se há algo desenhado
         this.isSignatureDrawn = this.signatureHistory.length > 1;
     }
 
@@ -178,16 +208,15 @@ export class SignaturePadManager {
             return;
         }
 
-        // Cria um fundo branco para a imagem JPEG
         const originalImageData = this.ctx.getImageData(0, 0, this.elements.canvas.width, this.elements.canvas.height);
         const originalCompositeOperation = this.ctx.globalCompositeOperation;
+        
         this.ctx.globalCompositeOperation = "destination-over";
         this.ctx.fillStyle = '#FFFFFF';
         this.ctx.fillRect(0, 0, this.elements.canvas.width, this.elements.canvas.height);
         
         const dataUrl = this.elements.canvas.toDataURL('image/jpeg', 0.5);
 
-        // Restaura o canvas para o estado original (com transparência)
         this.ctx.clearRect(0, 0, this.elements.canvas.width, this.elements.canvas.height);
         this.ctx.putImageData(originalImageData, 0, 0);
         this.ctx.globalCompositeOperation = originalCompositeOperation;
