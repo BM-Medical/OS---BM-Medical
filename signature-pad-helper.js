@@ -113,9 +113,27 @@ export class SignaturePadManager {
     }
     
     getPos(event) {
-        const rect = this.elements.canvas.getBoundingClientRect();
+        const canvas = this.elements.canvas;
+        const rect = canvas.getBoundingClientRect();
+
+        // *** INÍCIO DA CORREÇÃO PARA O PROBLEMA DE DESLOCAMENTO ***
+        // Em alguns dispositivos móveis (especialmente com telas de alta resolução ou
+        // dimensionamento de tela personalizado), getBoundingClientRect().width pode
+        // ser ligeiramente diferente de offsetWidth. Isso cria um erro de escala
+        // que faz com que o traço se desloque do ponto de toque.
+        // O código abaixo calcula um fator de correção para garantir que as
+        // coordenadas do toque sejam mapeadas com precisão para o canvas.
+
+        const cssScaleX = canvas.offsetWidth / rect.width;
+        const cssScaleY = canvas.offsetHeight / rect.height;
+
         const touch = event.touches ? event.touches[0] : event;
-        return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+        
+        const x = (touch.clientX - rect.left) * cssScaleX;
+        const y = (touch.clientY - rect.top) * cssScaleY;
+        // *** FIM DA CORREÇÃO ***
+
+        return { x: x, y: y };
     }
 
     startDrawing(e) {
@@ -197,9 +215,6 @@ export class SignaturePadManager {
         this.ctx.putImageData(originalImageData, 0, 0);
         this.ctx.globalCompositeOperation = originalCompositeOperation;
         
-        // *** CORREÇÃO IMPORTANTE ***
-        // Fecha o modal e libera a tela ANTES de executar o callback.
-        // Isso resolve o problema de a tela ficar travada na horizontal.
         this.close();
 
         if (this.onSaveCallback) {
@@ -207,3 +222,4 @@ export class SignaturePadManager {
         }
     }
 }
+
