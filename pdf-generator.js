@@ -1,10 +1,22 @@
 /**
  * pdf-generator.js
  * Módulo centralizado para a criação de PDFs de Ordens de Serviço.
- * * Funções exportadas:
+ * ATUALIZADO: Ajustes de espaçamento (Gap 18, Y+7) e lógica de Local para Lote (Secretaria de Saúde).
+ *
+ * Funções exportadas:
  * - generateOsPdf(order, buttonElement): Gera e salva um PDF para uma única OS.
  * - addOrderPageToPdf(docPDF, order, assets): Adiciona a página de uma OS a um documento PDF existente.
  */
+
+// Pega a instância global do jsPDF
+const { jsPDF } = window.jspdf;
+
+// NOVO: Constantes de Tema e Layout
+const THEME = {
+    FONT_BOLD: 'bold',
+    FONT_NORMAL: 'normal'
+};
+const KV_SPACING = 2; // Espaço padrão entre a chave (key) e o valor (value)
 
 /**
  * Converte uma URL de imagem para um formato de dados (Data URL) em JPEG.
@@ -44,6 +56,82 @@ function formatDate(dateString) {
 }
 
 /**
+ * Função auxiliar para capitalizar a primeira letra de uma string e deixar o resto minúsculo.
+ * Ex: "VÁRIAS" -> "Várias", "premium" -> "Premium"
+ */
+function capitalizeFirstLetter(string) {
+    if (!string) return '';
+    return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+}
+
+/**
+ * NOVO: Função auxiliar para desenhar Chave-Valor com espaçamento dinâmico.
+ */
+function drawKeyValue(doc, x, y, key, value) {
+    // Garante que a chave termine com dois pontos (ou adiciona se faltar)
+    const keyText = key.endsWith(':') ? key : `${key}:`;
+    
+    doc.setFont(undefined, THEME.FONT_BOLD).text(keyText, x, y);
+    
+    // Calcula a largura da chave e adiciona o espaçamento
+    const keyWidth = doc.getTextWidth(keyText);
+    const valueX = x + keyWidth + KV_SPACING;
+    
+    doc.setFont(undefined, THEME.FONT_NORMAL).text(value || 'N/A', valueX, y);
+    
+    // Retorna a posição X final para referência (útil em layouts de 2 colunas)
+    return valueX + doc.getTextWidth(value || 'N/A');
+}
+
+/**
+ * Função auxiliar para desenhar uma linha de item de lote com rótulos em negrito.
+ * Formato: Marca: [Valor]       Modelo: [Valor]       Serial: [Valor]
+ */
+function drawBatchItemLine(doc, x, y, item, maxWidth) {
+    const startX = x;
+    let currentX = x;
+    // ALTERADO: Aumentado para 18 conforme solicitado
+    const FIELD_GAP = 18; // Espaçamento largo entre campos (sem hífen)
+    
+    // Helper local para desenhar partes
+    const drawPart = (label, value, isLast = false) => {
+        // Rótulo em Negrito
+        doc.setFont(undefined, THEME.FONT_BOLD);
+        doc.text(label, currentX, y);
+        currentX += doc.getTextWidth(label) + 2;
+        
+        // Valor Normal
+        doc.setFont(undefined, THEME.FONT_NORMAL);
+        const valText = value || '-';
+        doc.text(valText, currentX, y);
+        currentX += doc.getTextWidth(valText);
+        
+        // Separador (se não for o último) - Agora apenas adiciona espaço
+        if (!isLast) {
+            currentX += FIELD_GAP;
+        }
+    };
+
+    // Prepara os dados
+    let marcaRaw = item.marca || '-';
+    const marca = capitalizeFirstLetter(marcaRaw);
+    const modelo = item.modelo || '-';
+    const sn = item.serial || item.numeroSerie || 'S/N';
+    const pat = (item.codigoPatrimonio || item.patrimonio) ? ` (Pat: ${item.codigoPatrimonio || item.patrimonio})` : '';
+
+    // Verifica se cabe tudo em uma linha (estimativa simples)
+    // Se for muito longo, teremos que quebrar, mas para simplificar vamos tentar desenhar linearmente
+    // Para garantir alinhamento, vamos desenhar parte a parte
+    
+    drawPart('Marca:', marca);
+    drawPart('Modelo:', modelo);
+    drawPart('Serial:', sn + pat, true);
+    
+    return 5; // Retorna altura da linha (fixa para simplificar, assumindo que cabe)
+}
+
+
+/**
  * Função interna que desenha o conteúdo de uma OS em um documento jsPDF.
  * @param {jsPDF} docPDF - A instância do documento jsPDF.
  * @param {object} order - O objeto com os dados da OS.
@@ -53,140 +141,222 @@ async function drawOrderContent(docPDF, order, assets) {
     const { logoDataUrl, techSigDataUrl } = assets;
     const pageHeight = docPDF.internal.pageSize.height;
     const pageWidth = docPDF.internal.pageSize.width;
-    const margin = 15;
+    const margin = 7;
     let yPosition = 10;
 
-    // --- Cabeçalho ---
-    docPDF.addImage(logoDataUrl, 'JPEG', margin, yPosition, 72, 32);
-    docPDF.setFontSize(9).setFont(undefined, 'bold');
-    docPDF.text('BM MEDICAL Engenharia Clínica', pageWidth - margin, yPosition + 5, { align: 'right' });
-    docPDF.setFontSize(8).setFont(undefined, 'normal');
-    docPDF.text('CNPJ: 48.673.158/0001-59', pageWidth - margin, yPosition + 9, { align: 'right' });
-    docPDF.text('Av. Duque de Caxias, 915-B403, Pelotas-RS', pageWidth - margin, yPosition + 13, { align: 'right' });
-    docPDF.text('Fone: (51) 99377-5933', pageWidth - margin, yPosition + 17, { align: 'right' });
-    docPDF.text('central.bmmedical@outlook.com', pageWidth - margin, yPosition + 21, { align: 'right' });
-    yPosition += 38;
+    // --- FUNÇÃO REUTILIZÁVEL PARA DESENHAR O CABEÇALHO ---
+    const drawHeader = () => {
+        const headerY = 10;
+        // ATUALIZADO: Altura definida como 0 para manter a proporção
+        docPDF.addImage(logoDataUrl, 'JPEG', margin, headerY, 72, 0);
+        docPDF.setFontSize(9).setFont(undefined, THEME.FONT_BOLD);
+        docPDF.text('BM MEDICAL Engenharia Clínica', pageWidth - margin, headerY + 5, { align: 'right' });
+        docPDF.setFontSize(8).setFont(undefined, THEME.FONT_NORMAL);
+        docPDF.text('CNPJ: 48.673.158/0001-59', pageWidth - margin, headerY + 9, { align: 'right' });
+        docPDF.text('Av. Duque de Caxias, 915-B403, Pelotas-RS', pageWidth - margin, headerY + 13, { align: 'right' });
+        docPDF.text('Fone: (51) 99377-5933', pageWidth - margin, headerY + 17, { align: 'right' });
+        docPDF.text('central.bmmedical@outlook.com', pageWidth - margin, headerY + 21, { align: 'right' });
+    };
+    
+    // --- FUNÇÃO PARA VERIFICAR E ADICIONAR NOVA PÁGINA ---
+    const checkAndAddPage = (requiredHeight) => {
+        if (yPosition + requiredHeight > pageHeight - 35) { // Reserva espaço para assinaturas
+            docPDF.addPage();
+            drawHeader(); // Redesenha o cabeçalho na nova página
+            yPosition = 50; // Reseta a posição Y para o conteúdo
+        }
+    };
+
+    // --- Desenha o cabeçalho na primeira página ---
+    drawHeader();
+    yPosition += 38; // Ajustar esta altura se a proporção do logo mudar muito
 
     // --- Título da OS ---
-    docPDF.setFontSize(20).setFont(undefined, 'bold');
+    docPDF.setFontSize(20).setFont(undefined, THEME.FONT_BOLD);
     docPDF.text(`OS ${order.os_numero}`, pageWidth / 2, yPosition, { align: 'center' });
     yPosition += 8;
 
     if (order.tipo_manutencao) {
-        docPDF.setFontSize(12).setFont(undefined, 'normal');
+        docPDF.setFontSize(12).setFont(undefined, THEME.FONT_NORMAL);
         const typeText = order.tipo_manutencao === 'preventiva' ? 'MP - Manutenção Preventiva' : 'MC - Manutenção Corretiva';
         docPDF.text(typeText, pageWidth / 2, yPosition, { align: 'center' });
     }
     yPosition += 12;
 
     // --- Função auxiliar para desenhar seções ---
-   // VERSÃO NOVA E FLEXÍVEL
-const drawSection = (title, contentCallback, options = {}) => {
-    const paddingTop = options.paddingTop || 10; // Pega o padding customizado ou usa 10 como padrão
-    
-    // O 'dryRun' precisa usar o mesmo padding para o cálculo de altura ser correto
-    const dryRunFinalY = contentCallback(0, true);
-    const contentHeight = dryRunFinalY;
-    // Note que a altura da caixa agora depende do padding customizado
-    const boxHeight = contentHeight + paddingTop + 8; 
+    const drawSection = (title, contentCallback, options = {}) => {
+        const paddingTop = options.paddingTop || 10;
+        
+        // dryRun para calcular altura
+        const dryRunFinalY = contentCallback(0, true, docPDF);
+        const contentHeight = dryRunFinalY; // O callback retorna a altura total usada
+        const boxHeight = contentHeight + paddingTop + 8; 
 
-    if (yPosition + boxHeight > pageHeight - 50) { 
-        docPDF.addPage();
-        yPosition = 20;
-    }
-    
-    docPDF.setDrawColor('#e0e0e0').setFillColor('#ffffff');
-    docPDF.roundedRect(margin, yPosition - 5, pageWidth - (margin * 2), boxHeight, 3, 3, 'FD');
-    
-    docPDF.setFontSize(14).setTextColor('#3498db').setFont(undefined, 'bold');
-    docPDF.text(title, margin + 4, yPosition);
-    docPDF.setDrawColor('#3498db').setLineWidth(0.5).line(margin + 4, yPosition + 2, pageWidth - margin - 4, yPosition + 2);
+        checkAndAddPage(boxHeight);
+        
+        docPDF.setDrawColor('#e0e0e0').setFillColor('#ffffff');
+        docPDF.roundedRect(margin, yPosition - 5, pageWidth - (margin * 2), boxHeight, 3, 3, 'FD');
+        
+        docPDF.setFontSize(14).setTextColor('#3498db').setFont(undefined, THEME.FONT_BOLD);
+        docPDF.text(title, margin + 4, yPosition);
+        docPDF.setDrawColor('#3498db').setLineWidth(0.5).line(margin + 4, yPosition + 2, pageWidth - margin - 4, yPosition + 2);
 
-    docPDF.setFontSize(12).setTextColor('#000000').setFont(undefined, 'normal');
-    contentCallback(yPosition + paddingTop, false); // <--- USA A VARIÁVEL 'paddingTop'
+        docPDF.setFontSize(12).setTextColor('#000000').setFont(undefined, THEME.FONT_NORMAL);
+        
+        // Desenho real
+        contentCallback(yPosition + paddingTop, false, docPDF);
 
-    yPosition += boxHeight + 3;
-};
+        yPosition += boxHeight + 3;
+    };
     
     // --- Desenho das seções ---
-    drawSection('Dados do Cliente', (currentY, isDryRun) => {
+    
+    drawSection('Dados do Cliente', (currentY, isDryRun, doc) => {
         let y = currentY;
         if (!isDryRun) {
-            docPDF.setFont(undefined, 'bold').text('Contrato:', margin + 4, y);
-            docPDF.setFont(undefined, 'normal').text(order.contrato || 'N/A', margin + 27, y);
+            drawKeyValue(doc, margin + 4, y, 'Contrato', order.contrato);
             y += 6;
-            docPDF.setFont(undefined, 'bold').text('Cliente:', margin + 4, y);
-            docPDF.setFont(undefined, 'normal').text(order.cliente || 'N/A', margin + 27, y);
+            drawKeyValue(doc, margin + 4, y, 'Cliente', order.cliente);
             y += 6;
-            docPDF.setFont(undefined, 'bold').text('Endereço:', margin + 4, y);
-            docPDF.setFont(undefined, 'normal').text(order.endereco || 'N/A', margin + 27, y);
+            drawKeyValue(doc, margin + 4, y, 'Endereço', order.endereco);
         }
-        return (y - currentY) + 14; // Retorna a altura calculada
+        return 14; 
     });
     
-    drawSection('Dados do Equipamento', (currentY, isDryRun) => {
+    // --- SEÇÃO DADOS DO EQUIPAMENTO (COM SUPORTE A LOTE) ---
+    drawSection('Dados do Equipamento', (currentY, isDryRun, doc) => {
         let y = currentY;
-        const equipLines = docPDF.splitTextToSize(order.equipamento || 'N/A', pageWidth - margin * 2 - 40);
-        if (!isDryRun) {
-            docPDF.setFont(undefined, 'bold').text('Equipamento:', margin + 4, y);
-            docPDF.setFont(undefined, 'normal').text(equipLines, margin + 34, y);
-            docPDF.setFont(undefined, 'bold').text('Marca:', margin + 117, y);
-            docPDF.setFont(undefined, 'normal').text(order.marca || 'N/A', margin + 132, y);
+        const col1X = margin + 4;
+        
+        // >>> Verifica se é Lote (tem itens) <<<
+        if (order.itens && Array.isArray(order.itens) && order.itens.length > 0) {
+            
+            // 1. Agrupamento
+            const gruposPorTipo = {};
+            order.itens.forEach(item => {
+                const tipo = item.nome || 'Equipamento';
+                if (!gruposPorTipo[tipo]) gruposPorTipo[tipo] = [];
+                gruposPorTipo[tipo].push(item);
+            });
+
+            const tipos = Object.keys(gruposPorTipo);
+            
+            // 2. Renderização
+            tipos.forEach((tipo, index) => {
+                if (index > 0) y += 5; // Espaço entre grupos
+
+                // Título do Grupo (Ex: ESFIGMOMANÔMETRO ADULTO)
+                if (!isDryRun) {
+                    // ALTERADO: PONTO 1 - Negrito ativado para o título do grupo
+                    doc.setFont(undefined, THEME.FONT_BOLD).setTextColor('#000000');
+                    doc.text(tipo, col1X, y);
+                    doc.setTextColor('#000000'); 
+                    doc.setFont(undefined, THEME.FONT_NORMAL); // Reseta para normal
+                }
+                // ALTERADO: Aumentado para 7 conforme solicitado
+                y += 7;
+
+                // Lista de Itens
+                const listaItens = gruposPorTipo[tipo];
+                listaItens.forEach(item => {
+                    // ALTERADO: PONTO 2 - Usando função auxiliar para desenhar linha estruturada
+                    // "Marca: Valor      Modelo: Valor      Serial: Valor"
+                    
+                    if (!isDryRun) {
+                        drawBatchItemLine(doc, col1X + 3, y, item, pageWidth - (margin * 2) - 10);
+                    }
+                    y += 5; // Altura fixa da linha
+                });
+            });
+
+            return (y - currentY) + 2;
+
+        } else {
+            // >>> LÓGICA ORIGINAL (Item Único) <<<
+            const ufpelContractId = 'Contrato N° 03/2024';
+            const col2X = (order.contrato === ufpelContractId) ? margin + 138 : margin + 117;
+            
+            const equipLines = doc.splitTextToSize(order.equipamento || 'N/A', col2X - col1X - 30); 
+
+            if (!isDryRun) {
+                doc.setFont(undefined, THEME.FONT_BOLD).text('Equipamento:', col1X, y);
+                const keyWidthEq = doc.getTextWidth('Equipamento:');
+                doc.setFont(undefined, THEME.FONT_NORMAL).text(equipLines, col1X + keyWidthEq + KV_SPACING, y);
+                
+                drawKeyValue(doc, col2X, y, 'Marca', order.marca);
+                
+                y += 6 * equipLines.length; 
+
+                drawKeyValue(doc, col1X, y, 'Modelo', order.modelo);
+                drawKeyValue(doc, col2X, y, 'Serial', order.serial);
+            }
+            return (6 * equipLines.length) + 8;
         }
-        y += 6 * equipLines.length;
-        if(!isDryRun) {
-            docPDF.setFont(undefined, 'bold').text('Modelo:', margin + 4, y);
-            docPDF.setFont(undefined, 'normal').text(order.modelo || 'N/A', margin + 22, y);
-            docPDF.setFont(undefined, 'bold').text('Serial:', margin + 117, y);
-            docPDF.setFont(undefined, 'normal').text(order.serial || 'N/A', margin + 131, y);
-        }
-        return (y - currentY) + 2;
     });
 
-    drawSection('Atendimento', (currentY, isDryRun) => {
+    // --- SEÇÃO ATENDIMENTO (AJUSTADA PARA LOCAL VS RETIRADA E LOTE) ---
+    drawSection('Atendimento', (currentY, isDryRun, doc) => {
         const ufpelContractId = 'Contrato N° 03/2024';
         let y = currentY;
+        const col1X = margin + 4;
+        const col2X = margin + 80;
+
+        // Verifica se é Lote (para definir o local fixo)
+        const isLote = order.itens && Array.isArray(order.itens) && order.itens.length > 0;
+
+        // Lógica Baumer / UFPEL (Mantida)
         if (order.contrato === ufpelContractId) {
             if (!isDryRun) {
-                docPDF.setFont(undefined, 'bold').text('Data do Serviço:', margin + 4, y);
-                docPDF.setFont(undefined, 'normal').text(formatDate(order.data_servico), margin + 39, y);
+                drawKeyValue(doc, col1X, y, 'Data do Serviço', formatDate(order.data_servico));
+                drawKeyValue(doc, col2X, y, 'Local', 'CME / HE-UFPEL');
                 y += 6;
-                docPDF.setFont(undefined, 'bold').text('Hora de Chegada:', margin + 4, y);
-                docPDF.setFont(undefined, 'normal').text(order.hora_chegada || 'N/A', margin + 42, y);
-                docPDF.setFont(undefined, 'bold').text('Hora de Saída:', margin + 80, y);
-                docPDF.setFont(undefined, 'normal').text(order.hora_saida || 'N/A', margin + 111, y);
-                y += 6;
-                docPDF.setFont(undefined, 'bold').text('Local:', margin + 4, y);
-                docPDF.setFont(undefined, 'normal').text('CME / HE-UFPEL', margin + 18, y);
+                drawKeyValue(doc, col1X, y, 'Hora de Chegada', order.hora_chegada);
+                drawKeyValue(doc, col2X, y, 'Hora de Saída', order.hora_saida);
             }
-            return (y - currentY) + 6;
-        } else {
-            if (!isDryRun) {
-                docPDF.setFont(undefined, 'bold').text('Data da Retirada:', margin + 4, y);
-                docPDF.setFont(undefined, 'normal').text(formatDate(order.data_retirada), margin + 40, y);
-                docPDF.setFont(undefined, 'bold').text('Data da Devolução:', margin + 80, y);
-                docPDF.setFont(undefined, 'normal').text(formatDate(order.data_devolucao), margin + 120, y);
-                y += 6;
-                docPDF.setFont(undefined, 'bold').text('Local:', margin + 4, y);
-                docPDF.setFont(undefined, 'normal').text(order.local_atendimento || 'N/A', margin + 18, y);
+            return 16; // 2 linhas
+        } 
+        
+        // Lógica Geral (Capão, Exército)
+        else {
+            // Se for Atendimento no Local, simplifica a exibição
+            if (order.atendimento_no_local) {
+                if (!isDryRun) {
+                    drawKeyValue(doc, col1X, y, 'Data do Serviço', formatDate(order.data_servico));
+                    // LÓGICA DE LOCAL PARA LOTE: Se for lote, força "SECRETARIA DE SAÚDE", senão usa o local original
+                    const localParaExibir = isLote ? 'SECRETARIA DE SAÚDE' : order.local_atendimento;
+                    drawKeyValue(doc, col2X, y, 'Local', localParaExibir);
+                }
+                return 10; // 1 linha apenas
+            } 
+            // Se houver retirada/devolução
+            else {
+                if (!isDryRun) {
+                    drawKeyValue(doc, col1X, y, 'Data da Retirada', formatDate(order.data_retirada));
+                    drawKeyValue(doc, col2X, y, 'Data da Devolução', formatDate(order.data_devolucao));
+                    y += 6;
+                    // LÓGICA DE LOCAL PARA LOTE: Se for lote, força "SECRETARIA DE SAÚDE", senão usa o local original
+                    const localParaExibir = isLote ? 'SECRETARIA DE SAÚDE' : order.local_atendimento;
+                    drawKeyValue(doc, col1X, y, 'Local', localParaExibir);
+                }
+                return 16; // 2 linhas
             }
-            return (y - currentY) + 8;
         }
     });
 
-    drawSection('Descrição dos Serviços Realizados', (currentY, isDryRun) => {
+    drawSection('Descrição dos Serviços Realizados', (currentY, isDryRun, doc) => {
         const text = order.servicos_realizados || 'Não informado.';
-        const lines = docPDF.splitTextToSize(text, pageWidth - (margin * 2) - 8);
-        if (!isDryRun) docPDF.text(lines, margin + 4, currentY);
-        return (lines.length * 4);
-    });
+        const textWidth = pageWidth - (margin * 2) - 8;
+        const lines = doc.splitTextToSize(text, textWidth);
+        if (!isDryRun) doc.text(lines, margin + 4, currentY, { align: 'justify', maxWidth: textWidth });
+        return (lines.length * 5);    
+	});
 
-    drawSection('Peças Utilizadas', (currentY, isDryRun) => {
+    drawSection('Peças Utilizadas', (currentY, isDryRun, doc) => {
         const pecas = order.pecas_utilizadas;
 
         if (!Array.isArray(pecas) || pecas.length === 0) {
             if (!isDryRun) {
-                docPDF.text('Nenhuma peça utilizada.', margin + 4, currentY+5);
+                doc.text('Nenhuma peça utilizada.', margin + 4, currentY+5);
             }
             return 10;
         }
@@ -202,88 +372,86 @@ const drawSection = (title, contentCallback, options = {}) => {
         let tableCurrentY = currentY;
         const lineHeight = 4;
 
-        // --- Desenhar Cabeçalho da Tabela (Estilo Minimalista) ---
-	// --- VERSÃO NOVA E CENTRALIZADA ---
-	const drawHeader = () => {
-    		docPDF.setFontSize(10).setFont(undefined, 'bold');
-
-    	// Posição X centralizada para os cabeçalhos 'Item' e 'Qtd.'
+	    const drawTableHeader = () => {
+    		doc.setFontSize(10).setFont(undefined, THEME.FONT_BOLD);
     		const itemHeaderX = tableX + (colWidths.item / 2);
-   		const qtdHeaderX = tableX + colWidths.item + (colWidths.qtd / 2);
-    		const textY = tableCurrentY + rowPadding + (lineHeight / 2); // Posição Y verticalmente centralizada
+   		    const qtdHeaderX = tableX + colWidths.item + (colWidths.qtd / 2);
+    		const textY = tableCurrentY + rowPadding + (lineHeight / 2); 
 
-    	// Desenha os textos do cabeçalho usando a opção 'align: center'
-    		docPDF.text('Item', itemHeaderX, textY, { align: 'center', baseline: 'middle' });
-    		docPDF.text('Qtd.', qtdHeaderX, textY, { align: 'center', baseline: 'middle' });
-    		docPDF.text('Descrição', tableX + colWidths.item + colWidths.qtd + rowPadding, textY, { baseline: 'middle' });
+    		doc.text('Item', itemHeaderX, textY, { align: 'center', baseline: 'middle' });
+    		doc.text('Qtd.', qtdHeaderX, textY, { align: 'center', baseline: 'middle' });
+    		doc.text('Descrição', tableX + colWidths.item + colWidths.qtd + rowPadding, textY, { baseline: 'middle' });
     
-    		tableCurrentY += lineHeight + (rowPadding * 2); // A altura total do cabeçalho
-    		docPDF.setLineWidth(0.5);
-    		docPDF.setDrawColor(0, 0, 0); // Linha preta
-    	// A linha é desenhada abaixo do espaço total do cabeçalho
-    		docPDF.line(tableX, tableCurrentY, tableX + tableWidth, tableCurrentY); 
-    		tableCurrentY += rowPadding; // Espaçamento extra após a linha do cabeçalho foi removido para ficar mais limpo
-	};
+    		tableCurrentY += lineHeight + (rowPadding * 2); 
+    		doc.setLineWidth(0.5);
+    		doc.setDrawColor(0, 0, 0); 
+    		doc.line(tableX, tableCurrentY, tableX + tableWidth, tableCurrentY); 
+	    };
         
         if (!isDryRun) {
-            drawHeader();
+            drawTableHeader();
         } else {
              tableCurrentY += lineHeight + (rowPadding * 2);
         }
 
-        // --- Desenhar Linhas da Tabela ---
-        docPDF.setFontSize(10).setFont(undefined, 'normal');
+        doc.setFontSize(10).setFont(undefined, THEME.FONT_NORMAL);
         pecas.forEach((part, index) => {
-            const descLines = docPDF.splitTextToSize(part.descricao, colWidths.desc - (rowPadding * 2));
+            const descLines = doc.splitTextToSize(part.descricao, colWidths.desc - (rowPadding * 2));
             const rowHeight = (descLines.length * lineHeight) + (rowPadding * 2);
 
-	// --- VERSÃO NOVA COM ALINHAMENTO VERTICAL ---
-	    if (!isDryRun) {
-    		// Calcula o centro vertical da linha
-   		const verticalCenter = tableCurrentY + (rowHeight / 2);
+            if (!isDryRun && (yPosition + (tableCurrentY - currentY) + rowHeight > pageHeight - 45)) {
+                doc.addPage();
+                drawHeader(); 
+                yPosition = 50;
+                tableCurrentY = yPosition; 
+                drawTableHeader(); 
+            }
 
-    	// Adiciona a opção 'baseline: middle' para centralizar verticalmente
-   		const itemX = tableX + (colWidths.item / 2);
-    		const qtdX = tableX + colWidths.item + (colWidths.qtd / 2);
-    		const descX = tableX + colWidths.item + colWidths.qtd + rowPadding;
+	        if (!isDryRun) {
+    		    const verticalCenter = tableCurrentY + (rowHeight / 2);
+   		        const itemX = tableX + (colWidths.item / 2);
+    		    const qtdX = tableX + colWidths.item + (colWidths.qtd / 2);
+    		    const descX = tableX + colWidths.item + colWidths.qtd + rowPadding;
 
-    	// Coluna "Item": Centralizado horizontalmente e verticalmente
-    		docPDF.text(`${index + 1}`, itemX, verticalCenter, { align: 'center', baseline: 'middle' });
+    		    doc.text(`${index + 1}`, itemX, verticalCenter, { align: 'center', baseline: 'middle' });
+    		    doc.text(`${part.qtd}`, qtdX, verticalCenter, { align: 'center', baseline: 'middle' });
+    		    doc.text(descLines, descX, verticalCenter, { baseline: 'middle' });
 
-    	// Coluna "Qtd.": Centralizado horizontalmente e verticalmente
-    		docPDF.text(`${part.qtd}`, qtdX, verticalCenter, { align: 'center', baseline: 'middle' });
-
-    	// Coluna "Descrição": Alinhado à esquerda e centralizado verticalmente
-    		docPDF.text(descLines, descX, verticalCenter, { baseline: 'middle' });
-
-    	// Linha inferior
-    		docPDF.setLineWidth(0.2);
-    		docPDF.setDrawColor(200, 200, 200);
-    		docPDF.line(tableX, tableCurrentY + rowHeight, tableX + tableWidth, tableCurrentY + rowHeight);
-	    }
+    		    doc.setLineWidth(0.2);
+    		    doc.setDrawColor(200, 200, 200);
+    		    doc.line(tableX, tableCurrentY + rowHeight, tableX + tableWidth, tableCurrentY + rowHeight);
+	        }
             tableCurrentY += rowHeight;
         });
 
-        // Retorna a altura total da tabela
         return tableCurrentY - currentY;
     },{ paddingTop: 5 });
 
 
-    // --- Assinaturas (sempre no final da página) ---
+    // --- Assinaturas ---
     const signatureY = pageHeight - 40;
     const signatureHeight = 25;
     const signatureWidth = 60;
     const roleY = signatureY + signatureHeight + 2;
     const lineY = roleY - 3;
     
+    // Assinatura do Cliente
     if (order.signature_data && order.signature_data.length > 200) {
         docPDF.addImage(order.signature_data, 'JPEG', margin + 15, signatureY, signatureWidth, signatureHeight);
     }
+    // Caso a assinatura tenha sido dispensada (ex: Exército), podemos colocar um texto ou deixar em branco
+    else if (order.assinaturaDesconsiderada) {
+         docPDF.setFontSize(8).setFont(undefined, THEME.FONT_NORMAL).setTextColor('#999');
+         docPDF.text('(Assinatura Dispensada)', margin + 45, signatureY + signatureHeight - 5, { align: 'center' });
+         docPDF.setTextColor('#000'); // Reseta cor
+    }
+
     docPDF.setDrawColor('#333333').setLineWidth(0.3);
     docPDF.line(margin + 10, lineY, margin + 10 + signatureWidth + 10, lineY);
-    docPDF.setFontSize(9).setFont(undefined, 'bold');
+    docPDF.setFontSize(9).setFont(undefined, THEME.FONT_BOLD);
     docPDF.text('Responsável do Setor', margin + 45, roleY, { align: 'center' });
 
+    // Assinatura do Técnico (Fixo)
     const techSignatureX = pageWidth - margin - 15 - signatureWidth;
     docPDF.addImage(techSigDataUrl, 'JPEG', techSignatureX, signatureY, signatureWidth, signatureHeight);
     docPDF.line(techSignatureX - 5, lineY, techSignatureX + signatureWidth + 5, lineY);
@@ -320,16 +488,13 @@ export async function generateOsPdf(order, buttonElement) {
     } finally {
         if (buttonElement) {
             buttonElement.disabled = false;
-            buttonElement.textContent = 'Gerar PDF';
+            buttonElement.textContent = 'PDF'; // Texto curto para o botão da tabela
         }
     }
 }
 
 /**
- * Função para adicionar uma página de OS a um documento PDF existente (para relatórios compilados).
- * @param {jsPDF} docPDF - A instância do documento jsPDF já criada.
- * @param {object} order - O objeto com os dados da OS.
- * @param {object} assets - Objeto contendo as Data URLs das imagens.
+ * Função para adicionar uma página de OS a um documento PDF existente.
  */
 export async function addOrderPageToPdf(docPDF, order, assets) {
     if (!docPDF || !order || !assets) {
@@ -337,4 +502,3 @@ export async function addOrderPageToPdf(docPDF, order, assets) {
     }
     await drawOrderContent(docPDF, order, assets);
 }
-

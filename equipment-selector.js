@@ -1,263 +1,321 @@
 /**
  * equipment-selector.js
- * Módulo para gerenciar a seleção de equipamentos em cascata (Equipamento -> Marca -> Modelo -> Serial).
- * Exporta a classe EquipmentSelector.
+ * Módulo para gerenciar a seleção de equipamentos via BUSCA FLEXÍVEL.
+ * ATUALIZADO:
+ * 1. Busca ignora acentos (Normalization NFD).
+ * 2. Compatibilidade v9.15.0 mantida.
  */
-import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+
+// Log para confirmar carregamento
+console.log("Módulo equipment-selector.js carregado (v9.15.0 - Accent Insensitive)!");
 
 export class EquipmentSelector {
-    /**
-     * @param {object} config - Objeto de configuração.
-     * @param {string} config.contractId - O ID do contrato para filtrar o inventário.
-     * @param {object} config.elements - Os elementos do DOM a serem controlados.
-     */
-    constructor({ contractId, elements }) {
-        if (!contractId || !elements) {
-            throw new Error("ID do Contrato e elementos do DOM são obrigatórios.");
+    constructor({ contractId, database, elements }) {
+        this.isBroken = false;
+
+        if (!elements) {
+            console.error("❌ ERRO NO SELETOR: Objeto 'elements' não fornecido.");
+            this.isBroken = true;
+            this.elements = {}; 
+        } else {
+            this.elements = elements;
         }
-        this.contractId = contractId;
-        this.elements = elements;
-        this.db = getFirestore();
+
+        if (!database) {
+            console.error("❌ ERRO CRÍTICO: Instância 'database' (db) não foi passada para o seletor.");
+            this.isBroken = true;
+        } else {
+            this.db = database;
+        }
+
+        this.contractId = contractId || null;
+        this.inventory = [];
+        this.isManualMode = false;
+    }
+
+    setContractId(id) {
+        if (this.isBroken) return;
+        this.contractId = id;
         this.inventory = [];
     }
 
     async init() {
+        if (this.isBroken) return;
+        if (!this.contractId) {
+            this.attachEventListeners();
+            return;
+        }
         await this.loadInventory();
         this.attachEventListeners();
-        // Dispara o evento inicial para carregar as marcas, caso um equipamento já esteja selecionado.
-        if (this.elements.equipmentSelect && this.elements.equipmentSelect.value) {
-            this.elements.equipmentSelect.dispatchEvent(new Event('change'));
-        }
     }
 
     async loadInventory() {
-        const { equipmentSelect } = this.elements;
+        if (this.isBroken || !this.contractId || !this.db) return;
+
         const cacheKey = `inventory_${this.contractId}`;
         try {
             const cachedInventory = sessionStorage.getItem(cacheKey);
             if (cachedInventory && cachedInventory !== '[]') {
                 this.inventory = JSON.parse(cachedInventory);
+                console.log(`📦 Inventário (Cache): ${this.inventory.length} itens.`);
             } else {
+                console.log(`☁️ Buscando inventário no Firebase...`);
                 const q = query(collection(this.db, "inventory_equipment"), where("contract", "==", this.contractId));
                 const querySnapshot = await getDocs(q);
                 this.inventory = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
                 if (this.inventory.length > 0) {
                     sessionStorage.setItem(cacheKey, JSON.stringify(this.inventory));
                 }
             }
-            this.populateEquipmentSelect();
         } catch (error) {
             console.error("Erro ao carregar inventário: ", error);
-            if (equipmentSelect) {
-                equipmentSelect.innerHTML = `<option value="" disabled selected>Erro ao carregar</option>`;
-            }
-        }
-    }
-
-    populateSelectWithOptions(selectElement, options, defaultText) {
-        selectElement.innerHTML = `<option value="" disabled selected>${defaultText}</option>`;
-        options.forEach(opt => {
-            const option = document.createElement('option');
-            option.value = opt;
-            option.textContent = opt;
-            selectElement.appendChild(option);
-        });
-        const otherOption = document.createElement('option');
-        otherOption.value = 'Outro';
-        otherOption.textContent = 'Outro (Digitar Manualmente)';
-        selectElement.appendChild(otherOption);
-    }
-
-    populateEquipmentSelect() {
-        if (!this.elements.equipmentSelect) return;
-        const equipmentNames = [...new Set(this.inventory.map(item => item.name))].sort();
-        this.populateSelectWithOptions(this.elements.equipmentSelect, equipmentNames, "Selecione um equipamento");
-    }
-    
-    resetAndDisable(select, manualDiv, manualInput) {
-        if (select) {
-            select.innerHTML = '';
-            select.disabled = true;
-        }
-        if (manualDiv) manualDiv.style.display = 'none';
-        if (manualInput) {
-            manualInput.value = '';
-            manualInput.required = false;
-        }
-    }
-
-    updateLocationFromSerial() {
-        const { serialSelect, locationSelect } = this.elements;
-        if (!locationSelect) return;
-
-        const selectedSerial = serialSelect ? serialSelect.value : null;
-
-        if (!selectedSerial || selectedSerial === 'Outro') {
-            locationSelect.value = '';
-            return;
-        }
-
-        const currentSelection = this.getSelection();
-        const uniqueItem = this.inventory.find(item =>
-            item.name === currentSelection.equipamento &&
-            item.brand === currentSelection.marca &&
-            item.model === currentSelection.modelo &&
-            item.serial === selectedSerial
-        );
-
-        if (uniqueItem && uniqueItem.location) {
-            locationSelect.value = uniqueItem.location;
-        } else {
-            locationSelect.value = '';
         }
     }
 
     attachEventListeners() {
-        const {
-            equipmentSelect, brandSelect, modelSelect, serialSelect,
-            manualEquipmentDiv, manualBrandDiv, manualModelDiv, manualSerialDiv,
-            equipmentManualInput, brandManualInput, modelManualInput, serialManualInput,
-        } = this.elements;
+        if (this.isBroken) return;
 
-        equipmentSelect?.addEventListener('change', () => {
-            const selected = equipmentSelect.value;
-            this.resetAndDisable(brandSelect, manualBrandDiv, brandManualInput);
-            this.resetAndDisable(modelSelect, manualModelDiv, modelManualInput);
-            this.resetAndDisable(serialSelect, manualSerialDiv, serialManualInput);
+        const { btnSearch, searchInputs, manualMode, selectedCard } = this.elements;
 
-            if (selected === 'Outro') {
-                if (manualEquipmentDiv) manualEquipmentDiv.style.display = 'block';
-                if (equipmentManualInput) equipmentManualInput.required = true;
-                if (brandSelect) {
-                   brandSelect.innerHTML = `<option value="Outro" selected>Outro (Digitar Manualmente)</option>`;
-                   brandSelect.disabled = false;
-                   brandSelect.dispatchEvent(new Event('change'));
-                }
-            } else {
-                if (manualEquipmentDiv) manualEquipmentDiv.style.display = 'none';
-                if (equipmentManualInput) equipmentManualInput.required = false;
-                const brands = [...new Set(this.inventory.filter(item => item.name === selected).map(item => item.brand))].sort();
-                this.populateSelectWithOptions(brandSelect, brands, "Selecione a marca");
-                if (brandSelect) brandSelect.disabled = false;
-            }
-        });
-
-        brandSelect?.addEventListener('change', () => {
-            const selected = brandSelect.value;
-            this.resetAndDisable(modelSelect, manualModelDiv, modelManualInput);
-            this.resetAndDisable(serialSelect, manualSerialDiv, serialManualInput);
-
-            if (selected === 'Outro') {
-                if(manualBrandDiv) manualBrandDiv.style.display = 'block';
-                if(brandManualInput) brandManualInput.required = true;
-                if(modelSelect) {
-                    modelSelect.innerHTML = `<option value="Outro" selected>Outro (Digitar Manualmente)</option>`;
-                    modelSelect.disabled = false;
-                    modelSelect.dispatchEvent(new Event('change'));
-                }
-            } else {
-                if(manualBrandDiv) manualBrandDiv.style.display = 'none';
-                if(brandManualInput) brandManualInput.required = false;
-                const models = [...new Set(this.inventory.filter(item => item.name === equipmentSelect.value && item.brand === selected).map(item => item.model))].sort();
-                this.populateSelectWithOptions(modelSelect, models, "Selecione o modelo");
-                if (modelSelect) modelSelect.disabled = false;
-            }
-        });
-
-        modelSelect?.addEventListener('change', () => {
-            const selected = modelSelect.value;
-            this.resetAndDisable(serialSelect, manualSerialDiv, serialManualInput);
-            
-            if (selected === 'Outro') {
-                if(manualModelDiv) manualModelDiv.style.display = 'block';
-                if(modelManualInput) modelManualInput.required = true;
-                if(serialSelect) {
-                    serialSelect.innerHTML = `<option value="Outro" selected>Outro (Digitar Manualmente)</option>`;
-                    serialSelect.disabled = false;
-                    serialSelect.dispatchEvent(new Event('change'));
-                }
-            } else {
-                if(manualModelDiv) manualModelDiv.style.display = 'none';
-                if(modelManualInput) modelManualInput.required = false;
-                const serials = [...new Set(this.inventory.filter(item => item.name === equipmentSelect.value && item.brand === brandSelect.value && item.model === selected).map(item => item.serial))].sort();
-                this.populateSelectWithOptions(serialSelect, serials, "Selecione o N/S");
-                if (serialSelect) serialSelect.disabled = false;
-            }
-        });
-
-        serialSelect?.addEventListener('change', () => {
-            const selectedSerial = serialSelect.value;
-            if (selectedSerial === 'Outro') {
-                if(manualSerialDiv) manualSerialDiv.style.display = 'block';
-                if(serialManualInput) serialManualInput.required = true;
-            } else {
-                 if(manualSerialDiv) manualSerialDiv.style.display = 'none';
-                 if(serialManualInput) serialManualInput.required = false;
-            }
-            this.updateLocationFromSerial();
-        });
-    }
-
-    preselect(orderData) {
-        const {
-            equipmentSelect, brandSelect, modelSelect, serialSelect, locationSelect,
-            manualEquipmentDiv, manualBrandDiv, manualModelDiv, manualSerialDiv,
-            equipmentManualInput, brandManualInput, modelManualInput, serialManualInput,
-        } = this.elements;
-
-        const setSelectValue = (select, value, manualDiv, manualInput) => {
-            const optionExists = Array.from(select.options).some(opt => opt.value === value);
-            if (value && optionExists) {
-                select.value = value;
-                manualDiv.style.display = 'none';
-                manualInput.required = false;
-            } else if (value) {
-                select.value = 'Outro';
-                manualDiv.style.display = 'block';
-                manualInput.value = value;
-                manualInput.required = true;
-            } else {
-                 manualDiv.style.display = 'none';
-                 manualInput.required = false;
-            }
-        };
-
-        // Etapa 1: Equipamento
-        setSelectValue(equipmentSelect, orderData.equipamento, manualEquipmentDiv, equipmentManualInput);
-        equipmentSelect.dispatchEvent(new Event('change'));
-
-        // Etapa 2: Marca
-        setSelectValue(brandSelect, orderData.marca, manualBrandDiv, brandManualInput);
-        brandSelect.dispatchEvent(new Event('change'));
-
-        // Etapa 3: Modelo
-        setSelectValue(modelSelect, orderData.modelo, manualModelDiv, modelManualInput);
-        modelSelect.dispatchEvent(new Event('change'));
-
-        // Etapa 4: Serial
-        setSelectValue(serialSelect, orderData.serial, manualSerialDiv, serialManualInput);
-        serialSelect.dispatchEvent(new Event('change'));
-        
-        // Etapa 5: Local (define o valor da OS como prioritário, se existir)
-        if (locationSelect && orderData.local_atendimento) {
-            locationSelect.value = orderData.local_atendimento;
+        if (btnSearch) {
+            const newBtn = btnSearch.cloneNode(true);
+            btnSearch.parentNode.replaceChild(newBtn, btnSearch);
+            this.elements.btnSearch = newBtn;
+            newBtn.addEventListener('click', () => this.performSearch());
         }
+
+        if (searchInputs) {
+            Object.values(searchInputs).forEach(input => {
+                if(input) {
+                    input.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            this.performSearch();
+                        }
+                    });
+                }
+            });
+        }
+
+        selectedCard?.btnChange?.addEventListener('click', () => this.resetSelection());
+        manualMode?.btnTrigger?.addEventListener('click', () => this.enableManualMode());
+        manualMode?.btnCancel?.addEventListener('click', () => this.disableManualMode());
     }
 
-    getSelection() {
-        const {
-            equipmentSelect, brandSelect, modelSelect, serialSelect,
-            equipmentManualInput, brandManualInput, modelManualInput, serialManualInput
-        } = this.elements;
+    // --- FUNÇÃO AUXILIAR DE NORMALIZAÇÃO ---
+    // Remove acentos e caracteres especiais para comparação
+    normalizeStr(str) {
+        if (!str) return "";
+        return str.toString()
+            .normalize("NFD") // Separa acentos das letras
+            .replace(/[\u0300-\u036f]/g, "") // Remove os acentos
+            .toLowerCase()
+            .trim();
+    }
 
-        const isManual = (select, input) => select && select.value === 'Outro' && input;
+    performSearch() {
+        if (this.isBroken) return;
+        
+        if (!this.contractId) {
+            alert("Selecione um contrato/cliente primeiro.");
+            return;
+        }
 
-        return {
-            equipamento: isManual(equipmentSelect, equipmentManualInput) ? equipmentManualInput.value.toUpperCase() : (equipmentSelect ? equipmentSelect.value : ''),
-            marca: isManual(brandSelect, brandManualInput) ? brandManualInput.value.toUpperCase() : (brandSelect ? brandSelect.value : ''),
-            modelo: isManual(modelSelect, modelManualInput) ? modelManualInput.value.toUpperCase() : (modelSelect ? modelSelect.value : ''),
-            serial: isManual(serialSelect, serialManualInput) ? serialManualInput.value.toUpperCase() : (serialSelect ? serialSelect.value : '')
+        const { searchInputs, resultsContainer } = this.elements;
+        if (!searchInputs || !resultsContainer) return;
+
+        // Normaliza os termos de busca digitados
+        const criteria = {
+            name: this.normalizeStr(searchInputs.name?.value),
+            brand: this.normalizeStr(searchInputs.brand?.value),
+            serial: this.normalizeStr(searchInputs.serial?.value),
+            loc: this.normalizeStr(searchInputs.loc?.value)
         };
+
+        const hasCriteria = Object.values(criteria).some(val => val.length > 0);
+        if (!hasCriteria) {
+            alert("Digite algo para pesquisar.");
+            return;
+        }
+
+        resultsContainer.innerHTML = '<p class="p-4 text-gray-500 text-center">Pesquisando...</p>';
+        resultsContainer.classList.remove('hidden');
+
+        // Filtra usando a normalização
+        const results = this.inventory.filter(item => {
+            // Normaliza os dados do item para comparação
+            const iName = this.normalizeStr(item.name || item.equipamento);
+            const iBrand = this.normalizeStr(item.brand || item.marca);
+            const iModel = this.normalizeStr(item.model || item.modelo);
+            const iSerial = this.normalizeStr(item.serial || item.num_serie || item.serie);
+            const iLoc = this.normalizeStr(item.location || item.localizacao || item.setor);
+
+            const matchName = !criteria.name || iName.includes(criteria.name);
+            // Marca busca em Marca E Modelo
+            const matchBrand = !criteria.brand || iBrand.includes(criteria.brand) || iModel.includes(criteria.brand);
+            const matchSerial = !criteria.serial || iSerial.includes(criteria.serial);
+            const matchLoc = !criteria.loc || iLoc.includes(criteria.loc);
+
+            return matchName && matchBrand && matchSerial && matchLoc;
+        });
+
+        this.renderResults(results);
+    }
+
+    renderResults(results) {
+        const { resultsContainer } = this.elements;
+        if (!resultsContainer) return;
+        
+        resultsContainer.innerHTML = '';
+
+        if (results.length === 0) {
+            resultsContainer.innerHTML = `
+                <div class="p-4 text-center">
+                    <p class="text-red-500 font-medium">Nenhum equipamento encontrado.</p>
+                    <p class="text-xs text-gray-400 mt-1">Tente a inserção manual.</p>
+                </div>
+            `;
+            return;
+        }
+
+        results.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'flex justify-between items-center p-3 border-b hover:bg-gray-50 transition-colors last:border-b-0 cursor-pointer';
+            
+            // Tratamento de campos híbridos (inglês/português)
+            const name = item.name || item.equipamento || 'Sem Nome';
+            const brand = item.brand || item.marca || '';
+            const model = item.model || item.modelo || '';
+            const serial = item.serial || item.serie || item.num_serie || 'N/A';
+            const location = item.location || item.localizacao || item.setor || 'Sem Local';
+
+            row.innerHTML = `
+                <div>
+                    <p class="font-bold text-sm text-gray-800">${name}</p>
+                    <p class="text-xs text-gray-500">
+                        ${brand} ${model} - S/N: ${serial}
+                    </p>
+                    <p class="text-xs text-blue-600 font-medium">${location}</p>
+                </div>
+                <button type="button" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-xs font-bold hover:bg-blue-200">
+                    Selecionar
+                </button>
+            `;
+            
+            row.addEventListener('click', () => this.selectItem(item));
+            resultsContainer.appendChild(row);
+        });
+    }
+
+    selectItem(item) {
+        const { finalInputs, selectedCard, resultsContainer, manualMode } = this.elements;
+        if (!finalInputs) return;
+
+        // Mapeamento inteligente de campos
+        const name = item.name || item.equipamento || '';
+        const brand = item.brand || item.marca || '';
+        const model = item.model || item.modelo || '';
+        const serial = item.serial || item.serie || item.num_serie || '';
+        const location = item.location || item.localizacao || item.setor || '';
+
+        if (finalInputs.equipamento) {
+            finalInputs.equipamento.value = name;
+            finalInputs.equipamento.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        if (finalInputs.marca) finalInputs.marca.value = brand;
+        if (finalInputs.modelo) finalInputs.modelo.value = model;
+        if (finalInputs.serial) finalInputs.serial.value = serial;
+
+        if (location && manualMode?.locationSelect) {
+            manualMode.locationSelect.value = location;
+        }
+
+        if (selectedCard) {
+            if (selectedCard.nameEl) {
+                selectedCard.nameEl.textContent = name || 'Equipamento Selecionado';
+            }
+            if (selectedCard.detailsEl) {
+                selectedCard.detailsEl.textContent = `${brand} ${model} - S/N: ${serial}`;
+            }
+            if (selectedCard.container) selectedCard.container.classList.remove('hidden');
+        }
+        
+        manualMode?.searchPanel?.classList.add('hidden');
+        resultsContainer?.classList.add('hidden');
+        finalInputs.container?.classList.add('hidden');
+    }
+
+    resetSelection() {
+        const { selectedCard, manualMode, finalInputs } = this.elements;
+
+        if (finalInputs) {
+            if (finalInputs.equipamento) {
+                finalInputs.equipamento.value = '';
+                finalInputs.equipamento.dispatchEvent(new Event('input'));
+            }
+            if (finalInputs.marca) finalInputs.marca.value = '';
+            if (finalInputs.modelo) finalInputs.modelo.value = '';
+            if (finalInputs.serial) finalInputs.serial.value = '';
+            finalInputs.container?.classList.add('hidden');
+        }
+
+        selectedCard?.container?.classList.add('hidden');
+        // Importante: Limpar o texto para disparar o MutationObserver corretamente na página pai
+        if (selectedCard?.nameEl) selectedCard.nameEl.textContent = ''; 
+        
+        manualMode?.searchPanel?.classList.remove('hidden');
+    }
+
+    enableManualMode() {
+        const { manualMode, selectedCard, resultsContainer, finalInputs } = this.elements;
+        
+        manualMode?.searchPanel?.classList.add('hidden');
+        resultsContainer?.classList.add('hidden');
+        selectedCard?.container?.classList.add('hidden');
+        
+        if(manualMode?.btnTrigger?.parentElement) {
+            manualMode.btnTrigger.parentElement.classList.add('hidden');
+        }
+
+        if (finalInputs?.container) {
+            finalInputs.container.classList.remove('hidden');
+            
+            [finalInputs.equipamento, finalInputs.marca, finalInputs.modelo, finalInputs.serial].forEach(input => {
+                if(input) {
+                    input.removeAttribute('readonly');
+                    input.classList.remove('bg-gray-100');
+                    input.classList.add('bg-white');
+                    input.value = '';
+                }
+            });
+        }
+
+        manualMode?.btnCancel?.classList.remove('hidden');
+        this.isManualMode = true;
+    }
+
+    disableManualMode() {
+        const { manualMode, finalInputs } = this.elements;
+
+        finalInputs?.container?.classList.add('hidden');
+        manualMode?.btnCancel?.classList.add('hidden');
+
+        if (finalInputs) {
+            [finalInputs.equipamento, finalInputs.marca, finalInputs.modelo, finalInputs.serial].forEach(input => {
+                if(input) {
+                    input.setAttribute('readonly', true);
+                    input.classList.add('bg-gray-100');
+                    input.classList.remove('bg-white');
+                }
+            });
+        }
+
+        manualMode?.searchPanel?.classList.remove('hidden');
+        if(manualMode?.btnTrigger?.parentElement) {
+            manualMode.btnTrigger.parentElement.classList.remove('hidden');
+        }
+        this.isManualMode = false;
     }
 }
-

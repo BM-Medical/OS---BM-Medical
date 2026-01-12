@@ -166,7 +166,9 @@
         .maintenance-type-card {
             position: absolute;
             bottom: 8px;
-            left: 15px;
+            /* Alterado de 'left: 15px;' para 'right: 15px;' para padronizar */
+            left: auto;
+            right: 15px; 
             font-size: 0.9rem; /* Fonte ajustada */
             font-weight: 700;
         }
@@ -186,7 +188,13 @@
         @keyframes stroke { 100% { stroke-dashoffset: 0; } }
         .icon-unsigned { display: flex; align-items: center; gap: 4px; }
 
-        .card-move-action { position: absolute; bottom: 8px; right: 8px; }
+        .card-move-action { 
+            position: absolute; 
+            bottom: 8px; 
+            /* Alterado de 'right: 8px;' para 'left: 8px;' para padronizar */
+            right: auto;
+            left: 8px; 
+        }
         .card-move-icon { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background-color: 0.2s; }
         .card-move-icon:hover { background-color: #e0e0e0; }
         .card-move-icon svg { width: 20px; height: 20px; fill: #6c757d; }
@@ -223,7 +231,7 @@
         .middle-buttons { grid-area: middle; display: flex; justify-content: space-between; gap: 10px; }
         .middle-buttons .btn-action { flex-grow: 1; }
 
-        .btn-action { text-decoration: none; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s ease; font-size: 0.875rem; text-align: center;}
+        .btn-action { text-decoration: none; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color: 0.2s ease; font-size: 0.875rem; text-align: center;}
         .btn-history { background-color: #34495e; }
         .modal-footer .btn-edit { background-color: #f39c12; }
         .btn-pdf { background-color: #3498db; }
@@ -274,6 +282,9 @@
             .board { padding: 10px; gap: 10px; scroll-snap-type: x mandatory; }
             .list { scroll-snap-align: center; min-width: 280px; width: 85vw; }
             .modal-header-top { flex-direction: row; }
+            
+            /* As regras de posicionamento do cartão foram movidas para o CSS principal (default) */
+            /* --- FIM DA CORREÇÃO 1 --- */
         }
     </style>
 </head>
@@ -401,7 +412,13 @@
         function closeMostRecentModal() {
             if (openModalsStack.length > 0) {
                 const modalToClose = openModalsStack.pop();
-                if (modalToClose) modalToClose.style.display = 'none';
+                if (modalToClose) {
+                    if (modalToClose.id === 'global-move-menu') {
+                        modalToClose.classList.remove('show');
+                    } else {
+                        modalToClose.style.display = 'none';
+                    }
+                }
             }
         }
         
@@ -434,13 +451,12 @@
             orientationMessage: document.getElementById('orientation-message-details')
         });
 
-        // MODIFICAÇÃO: O `close` do signature pad agora volta no histórico
         const originalSignaturePadClose = signaturePadManagerDetails.close.bind(signaturePadManagerDetails);
         signaturePadManagerDetails.close = function() {
-            originalSignaturePadClose(); // Chama a lógica original para destravar a tela
+            originalSignaturePadClose();
             const isSignatureModalOpen = openModalsStack.some(m => m.id === this.elements.modal.id);
             if (isSignatureModalOpen) {
-                 history.back(); // Gerencia o histórico de modais
+                 history.back();
             }
         };
 
@@ -539,16 +555,47 @@
             if (order.tipo_manutencao === 'preventiva') maintenanceTypeHtml = '<span class="maintenance-type-card type-mp-card">MP</span>';
             else if (order.tipo_manutencao === 'corretiva') maintenanceTypeHtml = '<span class="maintenance-type-card type-mc-card">MC</span>';
             
+            // --- INÍCIO DA ALTERAÇÃO 1: Visualização Simplificada do Lote no Cartão ---
+            let displayEquip = order.equipamento || 'N/A';
+            // Verifica se é Esfigmo E se é Lote
+            if (displayEquip.toUpperCase().includes("ESFIGMO") && displayEquip.includes("(LOTE")) {
+                // Captura a quantidade dentro dos parênteses, ex: "4 un." de "(LOTE: 4 un.)"
+                const match = displayEquip.match(/\(LOTE:\s*(.*?)\)/);
+                if (match && match[1]) {
+                    // Formata com quebra de linha e remove os parenteses
+                    displayEquip = `ESFIGMOMANÔMETRO<br><span style="font-weight: 500; color: #666; font-size: 0.9em;">Lote: ${match[1]}</span>`;
+                } else {
+                    // Fallback
+                    displayEquip = `ESFIGMOMANÔMETRO<br><span style="font-weight: 500; color: #666; font-size: 0.9em;">Lote</span>`;
+                }
+            }
+            // --- FIM DA ALTERAÇÃO 1 ---
+
             card.innerHTML = `
                 <div class="card-status-icon">${isSigned ? signedIcon : unsignedIcon}</div>
                 <strong>${order.os_numero || 'N/A'}</strong>
-                <p>${order.equipamento || 'N/A'}</p>
+                <p>${displayEquip}</p>
                 <p>Data: ${formattedDate}</p>
                 ${maintenanceTypeHtml}
                 <div class="card-move-action"><div class="card-move-icon" title="Mover cartão"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 6V3L18.5 8.5L13 14V11H4V6H13M20 16V18H4V21H20V16Z"/></svg></div></div>`;
             
             card.addEventListener('click', (e) => { if (!e.target.closest('.card-move-action')) openDetailsModal(order.id); });
-            card.querySelector('.card-move-icon').addEventListener('click', (e) => { e.stopPropagation(); showMoveMenu(card, e.currentTarget); });
+            
+            const moveIcon = card.querySelector('.card-move-icon');
+            
+            moveIcon.addEventListener('click', (e) => { 
+                e.stopPropagation(); 
+                if (globalMoveMenu.classList.contains('show')) {
+                    history.back();
+                } else {
+                    showMoveMenu(card, e.currentTarget);
+                }
+            });
+
+            moveIcon.addEventListener('touchstart', (e) => {
+                e.stopPropagation();
+            }, { passive: true });
+            
             return card;
         }
         
@@ -559,14 +606,45 @@
                     const item = document.createElement('div');
                     item.className = 'move-menu-item';
                     item.textContent = statuses[statusKey];
-                    item.addEventListener('click', (e) => { e.stopPropagation(); moveCardToStatus(card.dataset.id, statusKey); globalMoveMenu.classList.remove('show'); });
+                    item.addEventListener('click', (e) => { 
+                        e.stopPropagation(); 
+                        moveCardToStatus(card.dataset.id, statusKey); 
+                        history.back();
+                    });
                     globalMoveMenu.appendChild(item);
                 }
             }
+
             const iconRect = icon.getBoundingClientRect();
-            globalMoveMenu.style.top = `${iconRect.bottom + 8}px`;
+            const viewportHeight = window.innerHeight;
+
+            globalMoveMenu.style.visibility = 'hidden';
+            globalMoveMenu.style.display = 'block'; 
+            const menuHeight = globalMoveMenu.offsetHeight;
+            
+            globalMoveMenu.style.display = ''; 
+            globalMoveMenu.style.visibility = '';
+
+            const padding = 8;
+            const spaceBelow = viewportHeight - iconRect.bottom;
+            const spaceAbove = iconRect.top;
+
+            let topPosition;
+
+            if (menuHeight + padding < spaceBelow) {
+                topPosition = iconRect.bottom + padding;
+            } else if (menuHeight + padding < spaceAbove) {
+                topPosition = iconRect.top - menuHeight - padding;
+            } else {
+                topPosition = iconRect.bottom + padding;
+            }
+            
+            globalMoveMenu.style.top = `${topPosition}px`;
             globalMoveMenu.style.left = `${iconRect.left}px`;
             globalMoveMenu.classList.add('show');
+
+            history.pushState({ modalId: 'global-move-menu' }, ''); 
+            openModalsStack.push(globalMoveMenu);
         }
 
         async function moveCardToStatus(orderId, newStatus) {
@@ -591,8 +669,6 @@
                 openModal(modalOverlay);
             } catch (error) { console.error("Erro ao abrir detalhes:", error); showToast(`Erro: ${error.message}`); }
         }
-
-        // ... (resto do código, incluindo generateDetailsView e addModalEventListeners, continua igual até switchToEditMode)
 
         function generateDetailsView(order) {
             const isSigned = order.signature_data && order.signature_data.length > 200;
@@ -623,10 +699,62 @@
                  attendanceHtml = `<p><strong>Data da Retirada / Serviço:</strong> ${formattedRetirada}</p><p><strong>Data da Devolução:</strong> ${formattedDevolucao}</p><p><strong>Local:</strong> ${order.local_atendimento || 'N/A'}</p>`;
             }
 
+            // --- INÍCIO DA ALTERAÇÃO 2: Dados do Equipamento com Suporte a Lote ---
+            let equipmentDataHtml = '';
+
+            // Se for um lote (array 'itens' existe e tem elementos)
+            if (order.itens && Array.isArray(order.itens) && order.itens.length > 0) {
+                // 1. Agrupamento por TIPO (Propriedade 'nome' do item)
+                const gruposPorTipo = {};
+                
+                order.itens.forEach(item => {
+                    // O campo 'nome' geralmente contém o tipo completo (ex: ESFIGMOMANÔMETRO ADULTO)
+                    const tipo = item.nome || 'Equipamento'; 
+                    
+                    if (!gruposPorTipo[tipo]) gruposPorTipo[tipo] = [];
+                    gruposPorTipo[tipo].push(item);
+                });
+
+                // 2. Construção do HTML
+                equipmentDataHtml = '<div class="space-y-4">'; // Container principal
+
+                for (const [tipo, listaItens] of Object.entries(gruposPorTipo)) {
+                    equipmentDataHtml += `<div class="bg-gray-50 p-3 rounded border border-gray-200">`;
+                    // Título do Grupo (Tipo)
+                    equipmentDataHtml += `<h3 class="font-bold text-blue-800 border-b border-gray-300 mb-2 pb-1">${tipo}</h3>`;
+                    
+                    // Lista de Itens (Marca - Modelo - SN)
+                    equipmentDataHtml += `<ul class="list-disc ml-5 space-y-1 text-sm text-gray-700">`;
+                    
+                    listaItens.forEach(item => {
+                        const marca = item.marca || '-';
+                        const modelo = item.modelo || '-';
+                        const sn = item.serial || item.numeroSerie || 'S/N';
+                        const pat = (item.codigoPatrimonio || item.patrimonio) ? ` (Pat: ${item.codigoPatrimonio || item.patrimonio})` : '';
+                        
+                        equipmentDataHtml += `<li><strong>${marca}</strong> - ${modelo} - <strong>SN:</strong> ${sn}${pat}</li>`;
+                    });
+                    
+                    equipmentDataHtml += `</ul>`;
+                    equipmentDataHtml += `</div>`;
+                }
+                equipmentDataHtml += '</div>';
+
+            } else {
+                // Lógica Original (Item Único)
+                equipmentDataHtml = `
+                    <p><strong>Equipamento:</strong> ${order.equipamento||'N/A'}</p>
+                    <p><strong>Marca:</strong> ${order.marca||'N/A'}</p>
+                    <p><strong>Modelo:</strong> ${order.modelo||'N/A'}</p>
+                    <p><strong>Serial:</strong> ${order.serial||'N/A'}</p>
+                `;
+            }
+            // --- FIM DA ALTERAÇÃO 2 ---
+
             return `
                 <div class="modal-header-container"><div class="modal-header-top"><h1>Detalhes da OS ${order.os_numero}</h1></div>${maintenanceTypeHtml}</div>
                 <div class="form-section"><h2>Dados do Cliente</h2><p><strong>Contrato:</strong> ${order.contrato||'N/A'}</p><p><strong>Cliente:</strong> ${order.cliente||'N/A'}</p><p><strong>Endereço:</strong> ${order.endereco||'N/A'}</p></div>
-                <div class="form-section"><h2>Dados do Equipamento</h2><p><strong>Equipamento:</strong> ${order.equipamento||'N/A'}</p><p><strong>Marca:</strong> ${order.marca||'N/A'}</p><p><strong>Modelo:</strong> ${order.modelo||'N/A'}</p><p><strong>Serial:</strong> ${order.serial||'N/A'}</p></div>
+                <div class="form-section"><h2>Dados do Equipamento</h2>${equipmentDataHtml}</div>
                 <div class="form-section"><h2>Atendimento</h2>${attendanceHtml}</div>
                 <div class="form-section"><h2>Serviços e Peças</h2>${servicosDisplayHtml}<p class="mt-4"><strong>Peças Utilizadas:</strong></p>${pecasHtml}</div>
                 <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><div id="signature-container-details">${signatureSectionHtml}</div><div class="signature-line">Responsável</div></div><div class="signature-box"><img src="./images/assinatura-tecnico.png" style="max-width:200px;"><div class="signature-line">Responsável Técnico</div></div></div></div>
@@ -662,7 +790,6 @@
             const order = { id: docSnap.id, ...docSnap.data() };
             modalBody.innerHTML = generateEditForm(order);
 
-            // Inicializa o seletor de equipamento (se aplicável)
             if (order.contrato !== 'Contrato N° 03/2024') {
                 activeEquipmentSelector = new EquipmentSelector({ contractId: order.contrato, elements: { equipmentSelect: document.getElementById('equipamento_select_edit'), brandSelect: document.getElementById('marca_select_edit'), modelSelect: document.getElementById('modelo_select_edit'), serialSelect: document.getElementById('serial_select_edit'), locationSelect: document.getElementById('edit_local_atendimento'), manualEquipmentDiv: document.getElementById('manual_equipment_name_edit'), manualBrandDiv: document.getElementById('manual_brand_name_edit'), manualModelDiv: document.getElementById('manual_model_name_edit'), manualSerialDiv: document.getElementById('manual_serial_name_edit'), equipmentManualInput: document.getElementById('equipamento_manual_edit'), brandManualInput: document.getElementById('marca_manual_edit'), modelManualInput: document.getElementById('modelo_manual_edit'), serialManualInput: document.getElementById('serial_manual_edit') } });
                 await activeEquipmentSelector.init();
@@ -676,7 +803,6 @@
                 autoGrowTextarea(textarea);
             });
             
-            // --- LÓGICA DE PEÇAS ---
             let currentParts = Array.isArray(order.pecas_utilizadas) ? [...order.pecas_utilizadas] : [];
             if (!activePartsManager) activePartsManager = new PartsManager({});
             activePartsManager.updateCallbacks({ onConfirm: (updatedParts) => { currentParts = updatedParts; updatePartsUI(); } });
@@ -697,7 +823,6 @@
             document.querySelectorAll('.btn-edit-parts').forEach(btn => btn.addEventListener('click', () => activePartsManager.open(currentParts)));
             updatePartsUI();
             
-            // --- LÓGICA DE ASSINATURA (CORRIGIDA) ---
             const signatureContainer = document.getElementById('signature-container-details');
             const desconsiderarCheck = editForm.querySelector('#edit-desconsiderar-assinatura-check');
 
@@ -736,8 +861,6 @@
             
             editForm.addEventListener('submit', (e) => { e.preventDefault(); saveOrderChanges(orderId, currentParts); });
         }
-
-        // ... (resto do código, incluindo generateEditForm, saveOrderChanges, etc., continua igual)
         
         function generateEditForm(order) {
             const isSigned = order.signature_data && order.signature_data.length > 200;
@@ -861,9 +984,24 @@
 
         historyModal.addEventListener('click', (e) => { if (e.target === historyModal || e.target.classList.contains('modal-close-history')) history.back(); });
         modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) history.back(); });
-        document.addEventListener('click', (e) => { if (!e.target.closest('.card-move-action')) globalMoveMenu.classList.remove('show'); });
-        board.addEventListener('touchstart', () => { globalMoveMenu.classList.remove('show'); }, { passive: true });
-        document.addEventListener('wheel', () => { globalMoveMenu.classList.remove('show'); }, { passive: true });
+        
+        document.addEventListener('click', (e) => {
+            if (globalMoveMenu.classList.contains('show') && !e.target.closest('.card-move-action') && !e.target.closest('#global-move-menu')) {
+                history.back(); 
+            }
+        });
+        
+        board.addEventListener('scroll', () => { 
+            if (globalMoveMenu.classList.contains('show')) {
+                history.back(); 
+            }
+        }, { passive: true, capture: true }); 
+        
+        document.addEventListener('wheel', () => { 
+            if (globalMoveMenu.classList.contains('show')) {
+                history.back(); 
+            }
+        }, { passive: true });
         
         initializeBoard();
         listenToOrders();

@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Ordens de Serviço</title>
+    <!-- Carregamento de Dependências Globais -->
+    <script src="favicon-loader.js" type="module"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Dependências do PDF Generator (jsPDF deve estar disponível globalmente para o módulo) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- Biblioteca Signature Pad -->
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    
+    <script src="auth-guard.js" type="module"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #1f2937; }
+        
+        /* Estilos das Abas */
+        .tab-btn { border-bottom: 2px solid transparent; transition: all 0.3s ease; }
+        .tab-btn.active { border-color: #00204E; color: #00204E; font-weight: 600; }
+        
+        /* Estilos do Formulário */
+        .form-section { border: 1px solid #e5e7eb; padding: 20px; border-radius: 8px; margin-bottom: 20px; background-color: white; }
+        .form-section h2 { font-size: 1.1rem; color: #2563eb; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600; }
+        .form-group label { display: block; font-weight: 500; margin-bottom: 6px; color: #4b5563; font-size: 0.9rem; }
+        .form-input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.95rem; transition: border-color 0.2s; }
+        .form-input:focus { border-color: #2563eb; outline: none; ring: 2px solid #bfdbfe; }
+        .form-input:disabled { background-color: #f3f4f6; cursor: not-allowed; }
+        .uppercase-input { text-transform: uppercase; }
+
+        /* Assinatura (Criação) */
+        .signature-placeholder { border: 2px dashed #d1d5db; border-radius: 6px; padding: 30px; text-align: center; color: #9ca3af; cursor: pointer; transition: all 0.2s; }
+        .signature-placeholder:hover { border-color: #6b7280; color: #4b5563; background-color: #f9fafb; }
+        
+        /* Modais Gerais (Compatibilidade) */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 50; }
+        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 95%; max-width: 600px; display: flex; flex-direction: column; }
+        
+        /* Tabela */
+        .os-row:hover { background-color: #f9fafb; }
+        .status-badge { padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+        .status-novas { background-color: #dbeafe; color: #1e40af; }
+        .status-finalizada { background-color: #dcfce7; color: #166534; }
+        
+        /* Botão Flutuante */
+        .floating-back-btn { position: fixed; bottom: 24px; right: 24px; background-color: #00204E; color: white; width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.25); transition: transform 0.2s; z-index: 40; }
+        .floating-back-btn:hover { transform: scale(1.05); background-color: #001533; }
+
+        /* Lote */
+        .batch-item { display: flex; justify-content: space-between; align-items: center; background: #f9fafb; padding: 8px 12px; border-radius: 6px; margin-bottom: 4px; border: 1px solid #e5e7eb; }
+        .batch-item:hover { border-color: #cbd5e1; }
+        .batch-search-result-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; transition: background-color 0.2s; }
+        .batch-search-result-item:hover { background-color: #eff6ff; }
+        
+        .btn-bm-blue { background-color: #2563eb; }
+        .btn-bm-blue:hover { background-color: #1e40af; }
+
+        /* --- ESTILOS DO MODAL DE DETALHES (Vindos do Quadro) --- */
+        #details-modal.modal-overlay { align-items: flex-start; overflow-y: auto; padding: 1rem; z-index: 1000; }
+        #details-modal .modal-content { max-width: 800px; max-height: none; margin: 0 auto; position: relative; }
+        
+        .modal-header-container { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+        .modal-header-top { display: flex; justify-content: center; align-items: center; width: 100%; position: relative; }
+        .modal-header-container h1 { font-size: 1.5rem; margin: 0; flex-grow: 1; text-align: center; word-break: break-word; color: #111827; font-weight: 700; }
+        
+        .maintenance-type-modal { font-size: 1rem; font-weight: 500; margin-top: 8px; padding: 4px 12px; border-radius: 5px; }
+        .type-mp { color: #2563eb; background-color: #dbeafe; }
+        .type-mc { color: #dc2626; background-color: #fee2e2; }
+
+        .modal-body .form-section { border: 1px solid #e0e0e0; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .modal-body h2 { font-size: 1.2rem; color: #2563eb; margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid #2563eb; padding-bottom: 10px; font-weight: 600; }
+        
+        /* Modal Footer Simplificado para Consulta */
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; }
+
+        .btn-action { text-decoration: none; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color: 0.2s ease; font-size: 0.875rem; text-align: center;}
+        .btn-history { background-color: #34495e; }
+        .btn-pdf { background-color: #3498db; }
+        .btn-close { background-color: #9ca3af; }
+
+        .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; text-align: center; }
+        .signature-box { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .signature-line { margin-top: 5px; border-top: 1px solid #ccc; padding-top: 5px; width: 100%; font-size: 0.9rem; color: #666; }
+        .signature-thumbnail { max-width: 100%; height: auto; max-height: 100px; }
+
+        /* Estilo específico para remover o fundo do botão PDF na tabela */
+        .table-btn-pdf {
+            background: none !important;
+            border: none;
+            padding: 0;
+            color: #2563eb; /* text-blue-600 */
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.75rem; /* text-xs */
+            cursor: pointer;
+        }
+        .table-btn-pdf:hover {
+            color: #1e40af; /* text-blue-800 */
+            text-decoration: underline;
+        }
+
+        /* Toast */
+        #toast-notification { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 2000; left: 50%; transform: translateX(-50%); bottom: 30px; opacity: 0; transition: opacity 0.5s, bottom 0.5s; }
+        #toast-notification.show { visibility: visible; opacity: 1; bottom: 50px; }
+
+        /* Histórico Modal */
+        .history-list { list-style: none; padding: 0; margin: 0; }
+        .history-list li { padding: 10px 0; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .history-list li:last-child { border-bottom: none; }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <header class="bg-white shadow-sm sticky top-0 z-30">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <a href="index.html"><img src="./images/logo.png" alt="Logo" class="h-10 w-auto"></a>
+                <div class="hidden md:block w-px h-8 bg-gray-300"></div>
+                <div>
+                    <h1 class="text-xl font-bold text-gray-800" id="page-title">Gerenciar OS</h1>
+                    <p class="text-xs text-gray-500" id="contract-subtitle">Carregando contrato...</p>
+                </div>
+            </div>
+            
+            <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+                <button onclick="switchTab('new')" id="tab-new" class="tab-btn active px-4 py-2 rounded-md text-sm font-medium">Nova OS</button>
+                <button onclick="switchTab('list')" id="tab-list" class="tab-btn px-4 py-2 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700">Histórico</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-6 flex-grow max-w-5xl">
+        
+        <!-- VISÃO 1: CRIAR NOVA OS -->
+        <div id="view-new-os" class="animate-fade-in">
+            <form id="os-form">
+                <div class="form-section">
+                    <h2>Detalhes do Atendimento</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label>Número da OS</label>
+                            <input type="text" id="os_numero" name="os_numero" readonly class="form-input bg-gray-50" placeholder="Gerando...">
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de Manutenção</label>
+                            <div class="flex gap-4 mt-2">
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="radio" name="tipo_manutencao" value="preventiva" checked class="text-blue-600 focus:ring-blue-500">
+                                    <span class="ml-2">Preventiva</span>
+                                </label>
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="radio" name="tipo_manutencao" value="corretiva" class="text-red-600 focus:ring-red-500">
+                                    <span class="ml-2">Corretiva</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section bg-blue-50 border-blue-100">
+                    <h2>Dados do Contrato</h2>
+                    <div id="client-info-display" class="grid grid-cols-1 md:grid-cols-2 gap-y-2 text-sm text-gray-700"></div>
+                </div>
+
+                <div class="form-section">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2>Equipamento</h2>
+                        <div id="batch-toggle-wrapper" class="hidden transition-opacity duration-300">
+                            <label class="inline-flex items-center cursor-pointer bg-blue-50 px-3 py-1 rounded-full border border-blue-200 hover:bg-blue-100">
+                                <input type="checkbox" id="toggle-batch-mode" class="sr-only peer">
+                                <div class="relative w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                                <span class="ms-2 text-xs font-bold text-blue-800">Ativar Múltiplos Itens (Lote)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="equipment-single-container">
+                        <div id="equipment-dynamic-container"></div>
+                    </div>
+
+                    <div id="equipment-batch-container" class="hidden bg-gray-50 p-4 rounded border border-blue-100">
+                        <!-- Conteúdo do Lote (Igual ao Original) -->
+                        <div class="flex justify-between items-start mb-3">
+                            <p class="text-sm text-blue-800 flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <strong>Modo Lote Ativo:</strong> Adicione itens usando a busca abaixo. (Restrito a Esfigmomanômetros)
+                            </p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 opacity-80 pointer-events-none bg-gray-100 p-2 rounded hidden">
+                            <div class="form-group"><label class="text-xs">Equipamento</label><input type="text" id="batch-name" class="form-input uppercase-input bg-white" readonly></div>
+                            <div class="form-group"><label class="text-xs">Marca</label><input type="text" id="batch-brand" class="form-input uppercase-input bg-white" readonly></div>
+                            <div class="form-group"><label class="text-xs">Modelo</label><input type="text" id="batch-model" class="form-input uppercase-input bg-white" readonly></div>
+                        </div>
+                        <div class="border-t border-gray-200 pt-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Buscar e Adicionar Item</label>
+                            <div class="bg-white p-3 rounded border border-gray-300 mb-3 shadow-sm">
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
+                                    <input type="text" id="batch-search-name" placeholder="Nome (Ex: Esfigmo)" class="form-input text-sm">
+                                    <input type="text" id="batch-search-brand" placeholder="Marca/Modelo" class="form-input text-sm">
+                                    <input type="text" id="batch-search-serial" placeholder="Nº Série" class="form-input text-sm">
+                                    <input type="text" id="batch-search-loc" placeholder="Setor/Local" class="form-input text-sm">
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <p class="text-xs text-gray-500" id="cache-status-text">Aguardando inventário...</p>
+                                    <div class="flex gap-2">
+                                        <button type="button" id="btn-batch-search" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-700 flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                            Pesquisar
+                                        </button>
+                                        <button type="button" id="btn-add-manual-batch" class="bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm font-medium hover:bg-gray-300">Manual</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="batch-search-results" class="hidden bg-white border border-gray-200 rounded max-h-48 overflow-y-auto mb-3 shadow-inner"></div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Itens Adicionados ao Lote:</label>
+                            <div id="batch-list" class="max-h-60 overflow-y-auto space-y-2 bg-gray-50 p-2 rounded border border-gray-200 min-h-[100px]">
+                                <div id="batch-empty-msg" class="text-center text-gray-400 py-8 text-sm italic">Nenhum item adicionado ainda.</div>
+                            </div>
+                            <div class="mt-2 text-right text-xs text-gray-500">Total de Itens: <span id="batch-count" class="font-bold">0</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção 4: Atendimento -->
+                <div class="form-section">
+                    <h2>Dados do Atendimento</h2>
+                    <div class="mb-4">
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" id="atendimento_local_check" class="rounded text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2 text-sm font-medium text-gray-700">Atendimento realizado no local (Sem retirada de equipamento)</span>
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label id="label-date-start">Data Início/Retirada</label>
+                            <input type="date" id="data_servico" name="data_servico" required class="form-input">
+                        </div>
+                        
+                        <div id="time-fields" class="hidden grid grid-cols-2 gap-4">
+                            <div class="form-group"><label>Chegada</label><input type="time" name="hora_chegada" class="form-input"></div>
+                            <div class="form-group"><label>Saída</label><input type="time" name="hora_saida" class="form-input"></div>
+                        </div>
+
+                        <div id="date-end-field" class="hidden form-group">
+                            <label>Data Devolução</label>
+                            <input type="date" name="data_devolucao" class="form-input">
+                        </div>
+
+                        <div class="form-group md:col-span-2">
+                            <label id="label-local-atendimento">Local do Atendimento</label>
+                            <select id="local_atendimento" name="local_atendimento" class="form-input" required></select>
+                            <input type="hidden" id="local_atendimento_fixed">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção 5: Execução -->
+                <div class="form-section">
+                    <h2>Execução</h2>
+                    <div class="mb-4">
+                        <label class="inline-flex items-center mb-2">
+                            <input type="checkbox" id="recebimento_check" class="rounded text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2 text-sm font-medium text-gray-700">Apenas recebimento/triagem (Preencher automático)</span>
+                        </label>
+                        <textarea id="servicos_realizados" name="servicos_realizados" rows="4" class="form-input" placeholder="Descreva os serviços realizados..." required></textarea>
+                    </div>
+
+                    <div class="border-t pt-4 mt-4">
+                        <div id="parts-initial-view">
+                            <button type="button" id="btn-manage-parts" class="text-blue-600 font-semibold hover:underline flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                Adicionar Peças Utilizadas
+                            </button>
+                        </div>
+                        <div id="parts-summary-view" class="hidden mt-2">
+                            <div id="parts-list-display" class="bg-gray-50 p-3 rounded text-sm mb-2"></div>
+                            <button type="button" id="btn-edit-parts" class="text-sm text-gray-500 hover:text-gray-700 underline">Editar Peças</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção 6: Assinatura -->
+                <div class="form-section">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2>Assinaturas</h2>
+                        <div id="army-signature-option" class="hidden">
+                            <label class="inline-flex items-center text-sm">
+                                <input type="checkbox" id="no-signature-check" class="rounded text-red-600 focus:ring-red-500">
+                                <span class="ml-2 text-gray-600">Dispensar Assinatura (Exército)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-center" id="signature-area">
+                        <div>
+                            <div id="signature-container" class="signature-placeholder bg-white">
+                                <p class="text-sm font-medium">Clique para Assinar</p>
+                                <p class="text-xs text-gray-400 mt-1">Responsável pelo Setor</p>
+                            </div>
+                            <input type="hidden" id="signature_data" name="signature_data">
+                            <p class="mt-2 text-sm font-medium text-gray-700">Responsável do Setor</p>
+                        </div>
+                        <div>
+                            <div class="h-32 flex items-end justify-center pb-2 border-b border-gray-300">
+                                <img src="./images/assinatura-tecnico.png" alt="Técnico" class="max-h-24 opacity-80">
+                            </div>
+                            <p class="mt-2 text-sm font-medium text-gray-700">Responsável Técnico BM Medical</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sticky bottom-4 z-20">
+                    <button type="submit" class="w-full btn-bm-blue text-white font-bold py-4 rounded-lg shadow-lg hover:bg-opacity-90 transition-all flex justify-center items-center gap-2">
+                        <span>Criar Ordem de Serviço</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- VISÃO 2: LISTA (HISTÓRICO) -->
+        <div id="view-list-os" class="hidden">
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center flex-wrap gap-2">
+                    <h3 class="font-semibold text-gray-700">Histórico de Atendimentos</h3>
+                    <div class="flex gap-2">
+                         <input type="text" id="search-os" placeholder="Buscar Nº, Equip. ou Data..." class="form-input w-64 text-sm">
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-600 text-sm uppercase">
+                                <th class="p-4 font-semibold">OS</th>
+                                <th class="p-4 font-semibold">Data</th>
+                                <th class="p-4 font-semibold">Equipamento</th>
+                                <th class="p-4 font-semibold text-center">Status</th>
+                                <th class="p-4 font-semibold text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="os-table-body" class="text-sm divide-y divide-gray-100">
+                            <tr><td colspan="5" class="p-8 text-center text-gray-500">Carregando dados...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="p-4 bg-gray-50 border-t border-gray-100 text-center">
+                    <button id="btn-load-more" class="text-sm text-blue-600 font-medium hover:text-blue-800 hidden">
+                        Carregar mais registros...
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Assinatura (CRIAÇÃO) -->
+    <div id="signature-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="text-lg font-bold mb-4 text-center">Assine no campo abaixo:</h3>
+            <div class="border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 mb-4 touch-none">
+                <canvas id="signature-pad" class="w-full h-48 cursor-crosshair"></canvas>
+            </div>
+            <p id="signature-error-message" class="text-red-500 text-center font-semibold mb-4" style="display: none;">Por favor, desenhe uma assinatura para salvar.</p>
+            <div class="flex justify-center gap-2 flex-wrap">
+                <button type="button" id="btn-undo-sig" class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-medium transition-colors">Desfazer</button>
+                <button type="button" id="btn-clear-sig" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 font-medium transition-colors">Limpar</button>
+                <button type="button" id="btn-save-sig" class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold transition-colors">Salvar</button>
+                <button type="button" id="btn-cancel-sig" class="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 font-medium transition-colors">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAIS DE CONSULTA ===== -->
+    
+    <!-- Modal de Detalhes Completo -->
+    <div id="details-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div id="modal-body" class="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Modal de Histórico -->
+    <div id="history-modal" class="modal-overlay" style="z-index: 1002;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header-container">
+                <div class="modal-header-top">
+                    <h1 class="text-xl font-bold">Histórico da OS</h1>
+                    <button class="modal-close-history text-gray-500 hover:text-gray-800 text-2xl absolute right-0 top-0">&times;</button>
+                </div>
+            </div>
+            <div id="history-modal-body" class="max-h-96 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <div id="toast-notification"></div>
+
+    <a href="index.html" class="floating-back-btn" title="Voltar ao Menu"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg></a>
+
+    <!-- Lógica Principal -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        // Importações necessárias para leitura e visualização apenas
+        import { getFirestore, collection, query, where, getDocs, doc, runTransaction, orderBy, limit, startAfter, getDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        
+        // Importações de Módulos Locais
+        import { SignaturePadManager } from './signature-pad-helper.js';
+        import { PartsManager } from './modulo-pecas.js';
+        import { EquipmentSelector } from './equipment-selector.js'; 
+        import { generateOsPdf } from './pdf-generator.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
+            authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
+            projectId: "ordem-de-servicos---bm-medical",
+            storageBucket: "ordem-de-servicos---bm-medical.firebasestorage.app",
+            messagingSenderId: "92355637827",
+            appId: "1:92355637827:web:850b89afa5054781475af6"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- Configurações dos Contratos ---
+        const CONTRACT_CONFIGS = {
+            'capao': {
+                name: 'Contrato Nº 138/2024',
+                subtitle: 'Capão do Leão - Manutenção Geral',
+                clientInfo: {
+                    cliente: "Secretaria Municipal de Saúde De Capão Do Leão",
+                    razao_social: "Município de Capão Do Leao",
+                    cnpj: "87.691.507/0001-17",
+                    endereco: "Av. Narciso Silva, 2360, Capão Do Leão - RS"
+                },
+                locations: ['PA', 'UBS CENTRAL', 'UBS CASABOM', 'UBS I - PARQUE FRAGATA', 'UBS II - JARDIM AMÉRICA', 'UBS III - JARDIM AMÉRICA', 'CAPS'],
+                counterId: 'capao_do_leao',
+                osPrefix: 'CT138.24',
+                fixedEquipment: false,
+                useTime: false 
+            },
+            'exercito': {
+                name: 'Contrato Nº 10/2025',
+                subtitle: 'Exército Brasileiro - 9º BIMtz',
+                clientInfo: {
+                    cliente: "Exército Brasileiro",
+                    razao_social: "Nono Batalhão de Infantaria Motorizado",
+                    cnpj: "09.590.648/0001-30",
+                    endereco: "Av. Duque de Caxias, 344, Pelotas - RS"
+                },
+                locations: ['GO1', 'GO2', 'GO3', 'GO4', 'PMGUPEL'],
+                counterId: 'exercito',
+                osPrefix: 'CT10.25',
+                fixedEquipment: false,
+                allowNoSignature: true,
+                useTime: false
+            },
+            'baumer': {
+                name: 'Contrato N° 03/2024',
+                subtitle: 'EBSERH / HE-UFPEL - Autoclaves',
+                clientInfo: {
+                    cliente: "Hospital Escola da Universidade Federal de Pelotas - HE-UFPEL",
+                    razao_social: "Empresa Brasileira de Serviços Hospitalares - EBSERH",
+                    cnpj: "15.126.437/0023-59",
+                    endereco: "Rua Prof. Dr. Araújo, 433 - Centro, Pelotas - RS"
+                },
+                fixedEquipment: { 
+                    equipamento: "ESTERILIZADOR A VAPOR DO TIPO AUTOCLAVE",
+                    marca: "BAUMER",
+                    modelo: "HI-VAC CAD B-525-P",
+                    serial: "031908103"
+                },
+                fixedLocation: "CME / HE-UFPEL",
+                counterId: 'ufpel',
+                osPrefix: 'CT03.24',
+                useTime: true 
+            }
+        };
+
+        let currentContractId = sessionStorage.getItem('activeContractId');
+        let currentConfig = null;
+        let equipmentSelector = null;
+        let partsManager = null;
+        let currentParts = [];
+        let batchItems = []; 
+        let contractInventoryCache = []; 
+        let lastVisibleDoc = null; 
+
+        let openModalsStack = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!currentContractId || !CONTRACT_CONFIGS[currentContractId]) {
+                console.log("Modo de teste: Forçando contrato 'capao'");
+                currentContractId = 'capao';
+            }
+
+            currentConfig = CONTRACT_CONFIGS[currentContractId];
+            setupUI();
+            setupFormLogic();
+            setupBatchLogic(); 
+            setupSearchLogic(); 
+            fetchNextOsNumber();
+            setupDetailsModalLogic(); 
+        });
+
+        // =========================================================================================
+        // LÓGICA DO MODAL DE DETALHES (SIMPLIFICADO PARA CONSULTA)
+        // =========================================================================================
+
+        function escapeHTML(unsafeText) {
+            if (typeof unsafeText !== 'string') return '';
+            return unsafeText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function formatTimestampForHistory(timestamp) {
+            if (!timestamp) return 'N/A';
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            if (isNaN(date.getTime())) return 'Data inválida';
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${day}/${month}/${year} às ${hours}:${minutes}`;
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast-notification');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => { toast.classList.remove('show'); }, 3000);
+        }
+
+        function openModal(modalElement) {
+            if (!modalElement || modalElement.style.display === 'flex') return;
+            history.pushState({ modalId: modalElement.id }, '');
+            modalElement.style.display = 'flex';
+            openModalsStack.push(modalElement);
+        }
+
+        function closeMostRecentModal() {
+            if (openModalsStack.length > 0) {
+                const modalToClose = openModalsStack.pop();
+                if (modalToClose) modalToClose.style.display = 'none';
+            }
+        }
+        
+        window.addEventListener('popstate', (event) => {
+            closeMostRecentModal();
+        });
+
+        window.openDetailsModal = async (orderId) => {
+            try {
+                const docRef = doc(db, "orders", orderId);
+                const docSnap = await getDoc(docRef);
+                if (!docSnap.exists()) throw new Error('OS não encontrada');
+                const orderData = { id: docSnap.id, ...docSnap.data() };
+                
+                document.getElementById('modal-body').innerHTML = generateDetailsView(orderData);
+                
+                // Event Listeners Simplificados (Apenas PDF, Histórico e Fechar)
+                document.getElementById('modal-btn-pdf').addEventListener('click', (e) => generateOsPdf(orderData, e.target));
+                document.getElementById('modal-btn-history').addEventListener('click', () => openHistoryModal(orderData));
+                document.getElementById('modal-btn-close').addEventListener('click', () => history.back());
+                
+                openModal(document.getElementById('details-modal'));
+            } catch (error) { console.error("Erro ao abrir detalhes:", error); showToast(`Erro: ${error.message}`); }
+        };
+
+        function generateDetailsView(order) {
+            const isSigned = order.signature_data && order.signature_data.length > 200;
+            let signatureSectionHtml = isSigned
+                ? `<img src="${order.signature_data}" class="signature-thumbnail" alt="Assinatura">`
+                : `<div class="signature-placeholder p-4 border dashed">Sem Assinatura</div>`;
+            
+            let servicosDisplayHtml = (order.servicos_realizados === "Recebimento de equipamento para análise.")
+                ? `<p><strong>Serviços Realizados:</strong></p><p style="font-style: italic; color: #7f8c8d;">Equipamento recebido para análise.</p>`
+                : `<p><strong>Serviços Realizados:</strong><br>${escapeHTML(order.servicos_realizados || 'Não informado.').replace(/\n/g, '<br>')}</p>`;
+
+            let pecasHtml = '<p>Nenhuma peça utilizada.</p>';
+            if (order.pecas_utilizadas && Array.isArray(order.pecas_utilizadas) && order.pecas_utilizadas.length > 0) {
+                pecasHtml = '<ul class="list-disc pl-5 space-y-1">' + order.pecas_utilizadas.map(part => `<li><strong>${part.qtd}x</strong> - ${escapeHTML(part.descricao)}</li>`).join('') + '</ul>';
+            }
+
+            const formattedRetirada = formatDate(order.data_servico || order.data_retirada);
+            const formattedDevolucao = formatDate(order.data_devolucao);
+            
+            let maintenanceTypeHtml = '';
+            if (order.tipo_manutencao === 'preventiva') maintenanceTypeHtml = `<p class="maintenance-type-modal type-mp">MP - Manutenção Preventiva</p>`;
+            else if (order.tipo_manutencao === 'corretiva') maintenanceTypeHtml = `<p class="maintenance-type-modal type-mc">MC - Manutenção Corretiva</p>`;
+            
+            let attendanceHtml = '';
+            if (order.contrato === 'Contrato N° 03/2024') {
+                attendanceHtml = `<p><strong>Data do Serviço:</strong> ${formattedRetirada}</p><p><strong>Hora de Chegada:</strong> ${order.hora_chegada || 'N/A'}</p><p><strong>Hora de Saída:</strong> ${order.hora_saida || 'N/A'}</p><p><strong>Local:</strong> CME / HE-UFPEL</p>`;
+            } else {
+                 attendanceHtml = `<p><strong>Data da Retirada / Serviço:</strong> ${formattedRetirada}</p><p><strong>Data da Devolução:</strong> ${formattedDevolucao}</p><p><strong>Local:</strong> ${order.local_atendimento || 'N/A'}</p>`;
+            }
+
+            // Suporte a Lote
+            let equipmentDataHtml = '';
+            if (order.itens && Array.isArray(order.itens) && order.itens.length > 0) {
+                const gruposPorTipo = {};
+                order.itens.forEach(item => {
+                    const tipo = item.nome || 'Equipamento'; 
+                    if (!gruposPorTipo[tipo]) gruposPorTipo[tipo] = [];
+                    gruposPorTipo[tipo].push(item);
+                });
+                equipmentDataHtml = '<div class="space-y-4">'; 
+                for (const [tipo, listaItens] of Object.entries(gruposPorTipo)) {
+                    equipmentDataHtml += `<div class="bg-gray-50 p-3 rounded border border-gray-200"><h3 class="font-bold text-blue-800 border-b border-gray-300 mb-2 pb-1">${tipo}</h3><ul class="list-disc ml-5 space-y-1 text-sm text-gray-700">`;
+                    listaItens.forEach(item => {
+                        const marca = item.marca || '-';
+                        const modelo = item.modelo || '-';
+                        const sn = item.serial || item.numeroSerie || 'S/N';
+                        const pat = (item.codigoPatrimonio || item.patrimonio) ? ` (Pat: ${item.codigoPatrimonio || item.patrimonio})` : '';
+                        equipmentDataHtml += `<li><strong>${marca}</strong> - ${modelo} - <strong>SN:</strong> ${sn}${pat}</li>`;
+                    });
+                    equipmentDataHtml += `</ul></div>`;
+                }
+                equipmentDataHtml += '</div>';
+            } else {
+                equipmentDataHtml = `
+                    <p><strong>Equipamento:</strong> ${order.equipamento||'N/A'}</p>
+                    <p><strong>Marca:</strong> ${order.marca||'N/A'}</p>
+                    <p><strong>Modelo:</strong> ${order.modelo||'N/A'}</p>
+                    <p><strong>Serial:</strong> ${order.serial||'N/A'}</p>
+                `;
+            }
+
+            // Footer simplificado sem botões de edição/finalização
+            return `
+                <div class="modal-header-container"><div class="modal-header-top"><h1>Detalhes da OS ${order.os_numero}</h1></div>${maintenanceTypeHtml}</div>
+                <div class="form-section"><h2>Dados do Cliente</h2><p><strong>Contrato:</strong> ${order.contrato||'N/A'}</p><p><strong>Cliente:</strong> ${order.cliente||'N/A'}</p><p><strong>Endereço:</strong> ${order.endereco||'N/A'}</p></div>
+                <div class="form-section"><h2>Dados do Equipamento</h2>${equipmentDataHtml}</div>
+                <div class="form-section"><h2>Atendimento</h2>${attendanceHtml}</div>
+                <div class="form-section"><h2>Serviços e Peças</h2>${servicosDisplayHtml}<p class="mt-4"><strong>Peças Utilizadas:</strong></p>${pecasHtml}</div>
+                <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><div id="signature-container-details">${signatureSectionHtml}</div><div class="signature-line">Responsável</div></div><div class="signature-box"><img src="./images/assinatura-tecnico.png" style="max-width:200px;"><div class="signature-line">Responsável Técnico</div></div></div></div>
+                <div class="modal-footer">
+                    <button id="modal-btn-history" class="btn-action btn-history">Histórico de Eventos</button>
+                    <button id="modal-btn-pdf" class="btn-action btn-pdf">Gerar PDF</button>
+                    <button id="modal-btn-close" class="btn-action btn-close">Fechar</button>
+                </div>`;
+        }
+
+        function setupDetailsModalLogic() {
+            const historyModal = document.getElementById('history-modal');
+            historyModal.addEventListener('click', (e) => { if (e.target === historyModal || e.target.classList.contains('modal-close-history')) history.back(); });
+            document.getElementById('details-modal').addEventListener('click', (e) => { if (e.target.id === 'details-modal') history.back(); });
+        }
+
+        function openHistoryModal(order) {
+            let historyHtml = '<p class="text-gray-500 italic p-4">Nenhum histórico de eventos para esta OS.</p>';
+            if (order.history && order.history.length > 0) {
+                historyHtml = '<ul class="history-list p-4">' + [...order.history].sort((a,b) => b.timestamp.toMillis() - a.timestamp.toMillis()).map(e => `<li><div><strong>${e.action}</strong>${e.details ? `<p class="text-xs text-gray-600">${escapeHTML(e.details)}</p>`:''}</div><span class="text-sm text-gray-500">${formatTimestampForHistory(e.timestamp)}</span></li>`).join('') + '</ul>';
+            }
+            document.getElementById('history-modal-body').innerHTML = historyHtml;
+            openModal(document.getElementById('history-modal'));
+        }
+
+        // =========================================================================================
+        // LÓGICA EXISTENTE DO SITE
+        // =========================================================================================
+        
+        // --- Nova Lógica de Lote (Batch) com Autocomplete e UI Personalizada ---
+        function setupBatchLogic() {
+            const toggleWrapper = document.getElementById('batch-toggle-wrapper');
+            const toggle = document.getElementById('toggle-batch-mode');
+            const singleContainer = document.getElementById('equipment-single-container');
+            const batchContainer = document.getElementById('equipment-batch-container');
+            const btnAddManual = document.getElementById('btn-add-manual-batch');
+            
+            const inputName = document.getElementById('batch-search-name');
+            const inputBrand = document.getElementById('batch-search-brand');
+            const inputSerial = document.getElementById('batch-search-serial');
+            const inputLoc = document.getElementById('batch-search-loc');
+            const btnSearch = document.getElementById('btn-batch-search');
+            
+            const listContainer = document.getElementById('batch-list');
+            const countDisplay = document.getElementById('batch-count');
+            const searchResultsContainer = document.getElementById('batch-search-results');
+            const cacheStatusText = document.getElementById('cache-status-text');
+            
+            const batchName = document.getElementById('batch-name');
+            const batchBrand = document.getElementById('batch-brand');
+            const batchModel = document.getElementById('batch-model');
+
+            const normalizeStr = (str) => {
+                return String(str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+            };
+
+            async function ensureInventoryLoaded() {
+                if (contractInventoryCache.length > 0) return; 
+                
+                cacheStatusText.textContent = "Carregando inventário...";
+                try {
+                    let snap;
+                    if (currentConfig.clientInfo && currentConfig.clientInfo.cliente) {
+                         const q = query(collection(db, "equipments"), where("cliente", "==", currentConfig.clientInfo.cliente));
+                         snap = await getDocs(q);
+                    }
+
+                    if (!snap || snap.empty) {
+                        const q = query(collection(db, "inventory_equipment"), where("contract", "==", currentConfig.name));
+                        snap = await getDocs(q);
+                    }
+
+                    contractInventoryCache = [];
+                    snap.forEach(doc => {
+                        const data = doc.data();
+                        const realSerial = data.serial || data.serie || data.num_serie || data.s_n || '';
+                        const realPat = data.patrimonio || data.tombamento || '';
+                        const realName = data.equipamento || data.name || data.nome || data.descricao || '';
+                        const realMarca = data.marca || data.fabricante || data.brand || data.manufacturer || '';
+                        const realModelo = data.modelo || data.model || data.versao || data.type || '';
+                        const realLocal = data.localizacao || data.setor || data.local || data.location || data.departamento || data.sala || data.unidade || data.centro_custo || '';
+                        
+                        const searchString = [realSerial, realPat, realName, realMarca, realModelo, realLocal].join(' ');
+
+                        contractInventoryCache.push({ 
+                            id: doc.id, 
+                            ...data,
+                            serial: realSerial,
+                            patrimonio: realPat,
+                            equipamento: realName,
+                            marca: realMarca,
+                            modelo: realModelo, 
+                            localizacao: realLocal, 
+                            _fullSearch: normalizeStr(searchString)
+                        });
+                    });
+                    
+                    const count = contractInventoryCache.length;
+                    cacheStatusText.textContent = count > 0 ? `Inventário carregado (${count} itens).` : "Inventário vazio ou erro.";
+                    cacheStatusText.className = count > 0 ? "text-xs text-green-600" : "text-xs text-red-500";
+                    
+                } catch (e) {
+                    console.error("Erro ao carregar inventário para lote:", e);
+                    cacheStatusText.textContent = "Erro ao carregar.";
+                }
+            }
+
+            function syncBatchFields() {
+                const selCard = document.getElementById('selected-card');
+                if (selCard && !selCard.classList.contains('hidden')) {
+                     batchName.value = document.getElementById('sel-eq-name').textContent;
+                     const details = document.getElementById('sel-eq-details').textContent.split('-');
+                     if(details[0]) batchBrand.value = details[0].trim();
+                     if(details[1]) batchModel.value = details[1].trim();
+                } else {
+                     batchName.value = document.getElementById('final-equipamento').value;
+                     batchBrand.value = document.getElementById('final-marca').value;
+                     batchModel.value = document.getElementById('final-modelo').value;
+                }
+            }
+
+            function checkBatchEligibility(equipName) {
+                if (!equipName) {
+                    toggleWrapper.classList.add('hidden');
+                    return;
+                }
+                const name = normalizeStr(equipName);
+                if (name.includes('ESFIGMO') || name.includes('PRESSAO')) {
+                    toggleWrapper.classList.remove('hidden');
+                } else {
+                    toggleWrapper.classList.add('hidden');
+                    if (toggle.checked) {
+                        toggle.checked = false;
+                        toggle.dispatchEvent(new Event('change'));
+                    }
+                }
+            }
+
+            const targetNode = document.getElementById('sel-eq-name');
+            const observer = new MutationObserver(() => checkBatchEligibility(targetNode.textContent));
+            if (targetNode) observer.observe(targetNode, { childList: true, characterData: true, subtree: true });
+
+            const manualInput = document.getElementById('final-equipamento');
+            if (manualInput) {
+                manualInput.addEventListener('input', (e) => checkBatchEligibility(e.target.value));
+                checkBatchEligibility(manualInput.value);
+            }
+
+            toggle.addEventListener('change', () => {
+                const checkLocal = document.getElementById('atendimento_local_check');
+                const checkContainer = checkLocal.closest('div'); // Parent div
+                const labelLocal = document.getElementById('label-local-atendimento');
+                const locSelect = document.getElementById('local_atendimento');
+
+                if (toggle.checked) {
+                    syncBatchFields();
+                    singleContainer.classList.add('hidden');
+                    batchContainer.classList.remove('hidden');
+                    ensureInventoryLoaded();
+                    inputName.value = "ESFIGMO"; 
+                    performBatchSearch(); 
+
+                    if(checkLocal.checked) {
+                        checkLocal.checked = false;
+                        checkLocal.dispatchEvent(new Event('change'));
+                    }
+                    checkContainer.classList.add('hidden');
+                    labelLocal.textContent = "Local de Entrega";
+                    let opt = Array.from(locSelect.options).find(o => o.value === 'SECRETARIA DE SAÚDE');
+                    if (!opt) {
+                        opt = new Option('SECRETARIA DE SAÚDE', 'SECRETARIA DE SAÚDE');
+                        locSelect.add(opt);
+                    }
+                    locSelect.value = 'SECRETARIA DE SAÚDE';
+
+                } else {
+                    singleContainer.classList.remove('hidden');
+                    batchContainer.classList.add('hidden');
+                    checkContainer.classList.remove('hidden');
+                    checkLocal.dispatchEvent(new Event('change'));
+                    locSelect.value = "";
+                }
+            });
+
+            function performBatchSearch() {
+                searchResultsContainer.innerHTML = '';
+                searchResultsContainer.classList.remove('hidden');
+
+                const tName = normalizeStr(inputName.value);
+                const tBrand = normalizeStr(inputBrand.value);
+                const tSerial = normalizeStr(inputSerial.value);
+                const tLoc = normalizeStr(inputLoc.value);
+
+                const matches = contractInventoryCache.filter(item => {
+                    const full = item._fullSearch;
+                    const isValidType = full.includes('ESFIGMO') || full.includes('PRESSAO');
+                    if (!isValidType) return false;
+                    if (tName && !normalizeStr(item.equipamento).includes(tName)) return false;
+                    if (tBrand && !normalizeStr(item.marca).includes(tBrand) && !normalizeStr(item.modelo).includes(tBrand)) return false;
+                    if (tSerial && !normalizeStr(item.serial).includes(tSerial) && !normalizeStr(item.patrimonio).includes(tSerial)) return false;
+                    if (tLoc && !normalizeStr(item.localizacao).includes(tLoc)) return false;
+                    return true;
+                }).slice(0, 50); 
+
+                if (matches.length === 0) {
+                    searchResultsContainer.innerHTML = '<div class="p-3 text-sm text-gray-500 text-center">Nenhum item encontrado.</div>';
+                    return;
+                }
+
+                matches.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'batch-search-result-item flex justify-between items-center';
+                    const displaySerial = item.serial || 'S/N';
+                    const displayPat = item.patrimonio ? `(Pat: ${item.patrimonio})` : '';
+                    const displayLocal = item.localizacao || 'Sem Local'; 
+                    const displayBrand = item.marca || 'S/Marca';
+                    let brandModelDisplay = displayBrand;
+                    if (item.modelo) brandModelDisplay += ` - ${item.modelo}`;
+
+                    div.innerHTML = `<div><div class="font-bold text-gray-800 text-sm">${item.equipamento}</div><div class="text-xs text-gray-600">${brandModelDisplay}</div></div><div class="text-right"><div class="font-mono text-sm font-bold text-blue-700">${displaySerial} ${displayPat}</div><div class="text-xs text-gray-500">${displayLocal}</div></div>`;
+                    div.addEventListener('click', () => addItemToBatch(item));
+                    searchResultsContainer.appendChild(div);
+                });
+            }
+
+            btnSearch.addEventListener('click', performBatchSearch);
+            [inputName, inputBrand, inputSerial, inputLoc].forEach(inp => {
+                inp.addEventListener('keypress', (e) => { if(e.key === 'Enter') { e.preventDefault(); performBatchSearch(); }});
+            });
+
+            function addItemToBatch(item) {
+                const serialCheck = (item.serial || '').toUpperCase();
+                if (batchItems.some(i => i.serial === serialCheck && serialCheck !== '')) {
+                    alert('Este item já está na lista.');
+                    return;
+                }
+                batchItems.push({
+                    nome: item.equipamento || batchName.value,
+                    marca: item.marca || batchBrand.value,
+                    modelo: item.modelo || batchModel.value,
+                    serial: serialCheck,
+                    patrimonio: item.patrimonio || '',
+                    local: item.localizacao || ''
+                });
+                renderBatchList();
+            }
+
+            btnAddManual.addEventListener('click', () => {
+                const serial = prompt("Digite o Número de Série:");
+                if (!serial) return;
+                batchItems.push({
+                    nome: batchName.value || "ESFIGMOMANÔMETRO",
+                    marca: batchBrand.value || "GENÉRICO",
+                    modelo: batchModel.value || "",
+                    serial: serial.toUpperCase(),
+                    patrimonio: "",
+                    local: "Manual"
+                });
+                renderBatchList();
+            });
+
+            window.removeBatchItem = (index) => {
+                batchItems.splice(index, 1);
+                renderBatchList();
+            };
+
+            function renderBatchList() {
+                if (batchItems.length === 0) {
+                    listContainer.innerHTML = '<div id="batch-empty-msg" class="text-center text-gray-400 py-8 text-sm italic">Nenhum item adicionado ainda.</div>';
+                } else {
+                    listContainer.innerHTML = batchItems.map((item, idx) => `
+                        <div class="batch-item animate-fade-in">
+                            <div class="flex flex-col">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-mono text-sm font-bold text-gray-800">${item.serial}</span>
+                                    ${item.patrimonio ? `<span class="text-xs bg-gray-200 px-1 rounded text-gray-600">Pat: ${item.patrimonio}</span>` : ''}
+                                </div>
+                                <span class="text-xs text-gray-500">${item.nome} - ${item.marca}</span>
+                                ${item.local ? `<span class="text-xs text-blue-600 font-medium">Local: ${item.local}</span>` : ''}
+                            </div>
+                            <button type="button" onclick="removeBatchItem(${idx})" class="text-red-500 hover:text-red-700 p-2 rounded hover:bg-red-50 transition-colors" title="Remover item">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    `).join('');
+                }
+                countDisplay.textContent = batchItems.length;
+            }
+        }
+
+        function setupUI() {
+            document.getElementById('page-title').textContent = currentConfig.name;
+            document.getElementById('contract-subtitle').textContent = currentConfig.subtitle;
+
+            const infoContainer = document.getElementById('client-info-display');
+            const info = currentConfig.clientInfo;
+            infoContainer.innerHTML = `<p><strong>Cliente:</strong> ${info.cliente}</p><p><strong>CNPJ:</strong> ${info.cnpj}</p><p class="md:col-span-2"><strong>Endereço:</strong> ${info.endereco}</p>`;
+
+            const equipContainer = document.getElementById('equipment-dynamic-container');
+            if (currentConfig.fixedEquipment) {
+                const fe = currentConfig.fixedEquipment;
+                equipContainer.innerHTML = `<div class="bg-gray-50 p-3 rounded border text-sm grid grid-cols-2 gap-2"><p><strong>Equipamento:</strong> ${fe.equipamento}</p><p><strong>Marca:</strong> ${fe.marca}</p><p><strong>Modelo:</strong> ${fe.modelo}</p><p><strong>Serial:</strong> ${fe.serial}</p><input type="hidden" name="equipamento" value="${fe.equipamento}"><input type="hidden" name="marca" value="${fe.marca}"><input type="hidden" name="modelo" value="${fe.modelo}"><input type="hidden" name="serial" value="${fe.serial}"></div>`;
+                const toggle = document.getElementById('toggle-batch-mode');
+                if(toggle) {
+                    toggle.disabled = true;
+                    document.getElementById('batch-toggle-wrapper').classList.add('hidden');
+                }
+            } else {
+                equipContainer.innerHTML = `<div id="search-panel" class="mb-4"><p class="text-xs text-gray-500 mb-2">Preencha um ou mais campos para buscar no inventário:</p><div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3"><input type="text" id="search-eq" placeholder="Nome (Ex: Monitor)" class="form-input text-sm"><input type="text" id="search-brand" placeholder="Marca/Modelo" class="form-input text-sm"><input type="text" id="search-serial" placeholder="Nº Série" class="form-input text-sm"><input type="text" id="search-loc" placeholder="Setor/Local" class="form-input text-sm"></div><div class="flex gap-2"><button type="button" id="btn-search-eq" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-700 w-full md:w-auto"><span class="flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>Pesquisar Equipamento</span></button></div></div><div id="search-results" class="hidden bg-white border border-gray-200 rounded-lg shadow-sm max-h-60 overflow-y-auto mb-4"></div><div id="selected-card" class="hidden bg-green-50 border border-green-200 rounded-lg p-4 flex justify-between items-center"><div><p class="text-sm font-bold text-green-800" id="sel-eq-name">Nome do Equipamento</p><p class="text-xs text-green-700" id="sel-eq-details">Marca - Modelo - Serial</p></div><button type="button" id="btn-change-eq" class="text-xs bg-white border border-green-300 text-green-700 px-3 py-1 rounded hover:bg-green-100">Alterar</button></div><div id="final-inputs-container" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 p-4 bg-gray-50 border border-dashed border-gray-300 rounded"><div class="col-span-full mb-2 flex justify-between items-center"><h4 class="text-sm font-semibold text-gray-600">Dados do Equipamento (Manual)</h4><button type="button" id="btn-cancel-manual" class="text-xs text-red-500 hover:underline hidden">Cancelar Manual</button></div><div class="form-group"><label class="text-xs">Nome do Equipamento</label><input type="text" name="equipamento" id="final-equipamento" class="form-input uppercase-input bg-gray-100" readonly required></div><div class="form-group"><label class="text-xs">Marca</label><input type="text" name="marca" id="final-marca" class="form-input uppercase-input bg-gray-100" readonly></div><div class="form-group"><label class="text-xs">Modelo</label><input type="text" name="modelo" id="final-modelo" class="form-input uppercase-input bg-gray-100" readonly></div><div class="form-group"><label class="text-xs">Nº Série</label><input type="text" name="serial" id="final-serial" class="form-input uppercase-input bg-gray-100" readonly></div></div><div class="mt-2 text-right"><button type="button" id="btn-manual-entry" class="text-xs text-gray-500 hover:text-green-600 underline">Equipamento não encontrado? Inserir manualmente.</button></div>`;
+
+                try {
+                    equipmentSelector = new EquipmentSelector({
+                        contractId: currentConfig.name, 
+                        database: db, 
+                        elements: {
+                            searchInputs: { name: document.getElementById('search-eq'), brand: document.getElementById('search-brand'), serial: document.getElementById('search-serial'), loc: document.getElementById('search-loc') },
+                            btnSearch: document.getElementById('btn-search-eq'),
+                            resultsContainer: document.getElementById('search-results'),
+                            selectedCard: { container: document.getElementById('selected-card'), nameEl: document.getElementById('sel-eq-name'), detailsEl: document.getElementById('sel-eq-details'), btnChange: document.getElementById('btn-change-eq') },
+                            finalInputs: { container: document.getElementById('final-inputs-container'), equipamento: document.getElementById('final-equipamento'), marca: document.getElementById('final-marca'), modelo: document.getElementById('final-modelo'), serial: document.getElementById('final-serial') },
+                            manualMode: { btnTrigger: document.getElementById('btn-manual-entry'), btnCancel: document.getElementById('btn-cancel-manual'), searchPanel: document.getElementById('search-panel'), locationSelect: document.getElementById('local_atendimento') }
+                        }
+                    });
+                    equipmentSelector.init();
+                } catch(e) { console.warn("Módulo EquipmentSelector não carregado", e); }
+            }
+
+            const locSelect = document.getElementById('local_atendimento');
+            if (currentConfig.fixedLocation) {
+                locSelect.innerHTML = `<option selected value="${currentConfig.fixedLocation}">${currentConfig.fixedLocation}</option>`;
+                locSelect.disabled = true;
+                document.getElementById('local_atendimento_fixed').value = currentConfig.fixedLocation;
+            } else {
+                locSelect.innerHTML = '<option value="" disabled selected>Selecione...</option>' + 
+                    currentConfig.locations.map(l => `<option value="${l}">${l}</option>`).join('');
+            }
+
+            if (currentConfig.useTime) {
+                document.getElementById('time-fields').classList.remove('hidden');
+                document.getElementById('label-date-start').textContent = "Data do Serviço";
+            } else {
+                document.getElementById('date-end-field').classList.remove('hidden');
+                document.getElementById('label-date-start').textContent = "Data Retirada";
+            }
+
+            if (currentConfig.allowNoSignature) {
+                document.getElementById('army-signature-option').classList.remove('hidden');
+            }
+        }
+
+        function setupFormLogic() {
+            document.getElementById('data_servico').valueAsDate = new Date();
+            const checkLocal = document.getElementById('atendimento_local_check');
+            const labelDateStart = document.getElementById('label-date-start');
+            const divDateEnd = document.getElementById('date-end-field');
+            const inputDateEnd = document.querySelector('input[name="data_devolucao"]');
+            const labelLocal = document.getElementById('label-local-atendimento');
+
+            const updateLocalLabel = () => {
+                if (!labelLocal || !checkLocal) return; 
+                if (checkLocal.checked) labelLocal.textContent = "Local do Atendimento";
+                else labelLocal.textContent = "Local do Equipamento";
+            };
+            updateLocalLabel();
+
+            checkLocal.addEventListener('change', () => {
+                updateLocalLabel();
+                if (checkLocal.checked) {
+                    labelDateStart.textContent = "Data do Serviço";
+                    divDateEnd.classList.add('hidden');
+                    inputDateEnd.value = ""; 
+                } else {
+                    labelDateStart.textContent = currentConfig.useTime ? "Data do Serviço" : "Data Retirada";
+                    if (!currentConfig.useTime) divDateEnd.classList.remove('hidden');
+                }
+            });
+
+            const checkReceb = document.getElementById('recebimento_check');
+            const txtServicos = document.getElementById('servicos_realizados');
+            checkReceb.addEventListener('change', () => {
+                if(checkReceb.checked) { txtServicos.value = "Recebimento de equipamento para análise."; txtServicos.readOnly = true; } 
+                else { txtServicos.value = ""; txtServicos.readOnly = false; }
+            });
+
+            const btnManageParts = document.getElementById('btn-manage-parts');
+            const btnEditParts = document.getElementById('btn-edit-parts');
+            
+            const handleParts = () => {
+                try {
+                    if (!partsManager) {
+                        partsManager = new PartsManager({ initialParts: currentParts, onConfirm: (parts) => { currentParts = parts; renderPartsSummary(); }, onCancel: () => {} });
+                    }
+                    partsManager.open(currentParts);
+                } catch(e) { alert("Gerenciador de Peças indisponível na pré-visualização."); }
+            };
+            
+            btnManageParts.addEventListener('click', handleParts);
+            btnEditParts.addEventListener('click', handleParts);
+
+            const sigContainer = document.getElementById('signature-container');
+            const sigInput = document.getElementById('signature_data');
+            const noSigCheck = document.getElementById('no-signature-check');
+            
+            let sigPadManager = null;
+            try {
+                sigPadManager = new SignaturePadManager({
+                    modal: document.getElementById('signature-modal'),
+                    canvas: document.getElementById('signature-pad'),
+                    saveButton: document.getElementById('btn-save-sig'),
+                    clearButton: document.getElementById('btn-clear-sig'),
+                    undoButton: document.getElementById('btn-undo-sig'),
+                    cancelButton: document.getElementById('btn-cancel-sig'),
+                    errorMessage: document.getElementById('signature-error-message')
+                });
+            } catch(e) { console.warn("SignaturePadManager não carregado"); }
+
+            sigContainer.addEventListener('click', () => {
+                if (noSigCheck && noSigCheck.checked) return;
+                if(sigPadManager) {
+                    sigPadManager.open((dataUrl) => {
+                        sigInput.value = dataUrl;
+                        sigContainer.innerHTML = `<img src="${dataUrl}" class="max-h-24 mx-auto">`;
+                        sigContainer.classList.remove('border-dashed');
+                    });
+                } else { alert("Assinatura não disponível na pré-visualização."); }
+            });
+
+            if(noSigCheck){
+                noSigCheck.addEventListener('change', () => {
+                    if (noSigCheck.checked) {
+                        sigContainer.innerHTML = '<p class="text-gray-400 italic">Assinatura Dispensada</p>';
+                        sigContainer.style.pointerEvents = 'none';
+                        sigContainer.classList.add('bg-gray-100');
+                        sigInput.value = ""; 
+                    } else {
+                        sigContainer.innerHTML = '<p class="text-sm font-medium">Clique para Assinar</p>';
+                        sigContainer.style.pointerEvents = 'auto';
+                        sigContainer.classList.remove('bg-gray-100');
+                    }
+                });
+            }
+
+            document.getElementById('os-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = e.target.querySelector('button[type="submit"]');
+                btn.disabled = true;
+                btn.textContent = "Salvando...";
+
+                try {
+                    const formData = new FormData(e.target);
+                    const isNoSig = noSigCheck ? noSigCheck.checked : false;
+                    const signatureData = formData.get('signature_data');
+                    const isLocal = checkLocal.checked;
+                    const isBatch = document.getElementById('toggle-batch-mode').checked;
+                    if (typeof batchItems === 'undefined') window.batchItems = [];
+
+                    if (isBatch && batchItems.length === 0) throw new Error("Adicione pelo menos um número de série à lista de lote.");
+
+                    let eqData = {};
+                    if (isBatch) {
+                        const firstItem = batchItems[0];
+                        const batchCount = batchItems.length;
+                        eqData = { equipamento: `${firstItem.nome} (LOTE: ${batchCount} un.)`, marca: "VÁRIAS", modelo: "VÁRIOS", serial: "VER LISTA", itens: batchItems };
+                    } else {
+                        eqData = { equipamento: formData.get('equipamento'), marca: formData.get('marca'), modelo: formData.get('modelo'), serial: formData.get('serial') };
+                    }
+                    
+                    const osData = {
+                        contrato: currentConfig.name,
+                        ...currentConfig.clientInfo,
+                        tipo_manutencao: formData.get('tipo_manutencao'),
+                        os_numero: formData.get('os_numero'),
+                        ...eqData, 
+                        data_servico: formData.get('data_servico'),
+                        data_retirada: isLocal ? formData.get('data_servico') : formData.get('data_servico'),
+                        data_devolucao: isLocal ? formData.get('data_servico') : formData.get('data_devolucao'),
+                        atendimento_no_local: isLocal,
+                        hora_chegada: formData.get('hora_chegada'),
+                        hora_saida: formData.get('hora_saida'),
+                        local_atendimento: formData.get('local_atendimento') || document.getElementById('local_atendimento_fixed').value,
+                        servicos_realizados: formData.get('servicos_realizados'),
+                        pecas_utilizadas: currentParts,
+                        status: 'novas',
+                        createdAt: new Date(),
+                        signature_data: signatureData || null,
+                        assinaturaDesconsiderada: isNoSig,
+                        signedAt: (signatureData && signatureData.length > 100) ? new Date() : null, 
+                        history: [{ action: 'Criada', timestamp: new Date(), details: 'OS gerada no novo painel.' }]
+                    };
+
+                    const counterRef = doc(db, "counters", currentConfig.counterId);
+                    await runTransaction(db, async (transaction) => {
+                        const cDoc = await transaction.get(counterRef);
+                        let next = 1;
+                        if (cDoc.exists()) next = (cDoc.data().sequence || 0) + 1;
+                        const year = new Date().getFullYear();
+                        osData.os_numero = `${currentConfig.osPrefix}-${year}${String(next).padStart(3, '0')}`;
+                        const newRef = doc(collection(db, "orders"));
+                        transaction.set(newRef, osData);
+                        transaction.set(counterRef, { sequence: next }, { merge: true });
+                    });
+                    window.location.href = `confirmacao-os.html?os=${osData.os_numero}`;
+
+                } catch (error) { console.error(error); alert("Erro: " + error.message); btn.disabled = false; btn.textContent = "Criar Ordem de Serviço"; }
+            });
+        }
+
+        function applyLocalFilter() {
+            const term = document.getElementById('search-os').value.toLowerCase();
+            const rows = document.querySelectorAll('.os-row');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(term) ? '' : 'none';
+            });
+        }
+
+        function setupSearchLogic() {
+            const searchInput = document.getElementById('search-os');
+            const btnLoadMore = document.getElementById('btn-load-more');
+            searchInput.addEventListener('input', (e) => {
+                const term = e.target.value.trim();
+                if (term === '') { lastVisibleDoc = null; loadList(false); } 
+                else { applyLocalFilter(); }
+            });
+            btnLoadMore.addEventListener('click', () => { loadList(true); });
+        }
+
+        function renderPartsSummary() {
+            const container = document.getElementById('parts-summary-view');
+            const list = document.getElementById('parts-list-display');
+            if (currentParts.length > 0) {
+                document.getElementById('parts-initial-view').classList.add('hidden');
+                container.classList.remove('hidden');
+                list.innerHTML = currentParts.map(p => `<div>• <strong>${p.qtd}x</strong> ${p.descricao}</div>`).join('');
+            } else {
+                document.getElementById('parts-initial-view').classList.remove('hidden');
+                container.classList.add('hidden');
+            }
+        }
+
+        async function fetchNextOsNumber() {
+            const input = document.getElementById('os_numero');
+            try {
+                const docSnap = await getDocs(query(collection(db, "counters"), where("__name__", "==", currentConfig.counterId)));
+                let next = 1;
+                docSnap.forEach(d => next = (d.data().sequence || 0) + 1);
+                const year = new Date().getFullYear();
+                input.value = `${currentConfig.osPrefix}-${year}${String(next).padStart(3, '0')}`;
+            } catch (e) { console.error(e); input.value = "Erro ao carregar"; }
+        }
+
+        window.switchTab = (tab) => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            if (tab === 'new') {
+                document.getElementById('view-new-os').classList.remove('hidden');
+                document.getElementById('view-list-os').classList.add('hidden');
+            } else {
+                document.getElementById('view-new-os').classList.add('hidden');
+                document.getElementById('view-list-os').classList.remove('hidden');
+                lastVisibleDoc = null;
+                loadList(false);
+            }
+        };
+
+        async function loadList(isAppend = false) {
+            const tbody = document.getElementById('os-table-body');
+            const btnLoadMore = document.getElementById('btn-load-more');
+            
+            if (!isAppend) {
+                tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center">Carregando...</td></tr>';
+                btnLoadMore.classList.add('hidden');
+            } else {
+                btnLoadMore.textContent = "Carregando...";
+                btnLoadMore.disabled = true;
+            }
+            
+            try {
+                let q = query(collection(db, "orders"), where("contrato", "==", currentConfig.name), orderBy("createdAt", "desc"), limit(20));
+                if (isAppend && lastVisibleDoc) {
+                    q = query(collection(db, "orders"), where("contrato", "==", currentConfig.name), orderBy("createdAt", "desc"), startAfter(lastVisibleDoc), limit(20));
+                }
+                const snap = await getDocs(q);
+
+                if (!isAppend && snap.empty) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">Nenhuma OS encontrada.</td></tr>';
+                    return;
+                }
+
+                if (!isAppend) tbody.innerHTML = '';
+                lastVisibleDoc = snap.docs[snap.docs.length - 1];
+
+                snap.forEach(d => {
+                    const os = d.data();
+                    const date = formatDate(os.data_servico || os.data_retirada);
+                    const statusClass = (os.status === 'finalizada' || os.status === 'Finalizada') ? 'status-finalizada' : 'status-novas';
+                    
+                    // --- LÓGICA DE VISUALIZAÇÃO DE LOTE NA TABELA ---
+                    let displayEquip = os.equipamento || 'N/A';
+                    if (displayEquip.toUpperCase().includes("ESFIGMO") && displayEquip.includes("(LOTE")) {
+                        // Extrai a quantidade do lote se possível
+                        const match = displayEquip.match(/\(LOTE:\s*(.*?)\)/);
+                        if (match && match[1]) {
+                            displayEquip = `ESFIGMOMANÔMETRO<br><span style="font-weight: 500; color: #666; font-size: 0.85em;">(LOTE: ${match[1]})</span>`;
+                        } else {
+                            displayEquip = `ESFIGMOMANÔMETRO<br><span style="font-weight: 500; color: #666; font-size: 0.85em;">(LOTE)</span>`;
+                        }
+                    }
+
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-gray-50 os-row';
+                    row.innerHTML = `
+                        <td class="p-4 font-bold text-gray-700">${os.os_numero}</td>
+                        <td class="p-4 text-gray-600">${date}</td>
+                        <td class="p-4 text-gray-600 truncate max-w-xs" title="${os.equipamento}">${displayEquip}</td>
+                        <td class="p-4 text-center"><span class="status-badge ${statusClass}">${(os.status || 'NOVA').toUpperCase()}</span></td>
+                        <td class="p-4 text-right flex justify-end gap-2 items-center">
+                            <button class="text-gray-500 hover:text-blue-600 btn-details" title="Ver Detalhes">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                            </button>
+                            <button class="table-btn-pdf">PDF</button>
+                        </td>
+                    `;
+                    row.querySelector('.table-btn-pdf').addEventListener('click', (e) => generateOsPdf(os, e.target));
+                    // NOVO EVENTO PARA ABRIR O MODAL
+                    row.querySelector('.btn-details').addEventListener('click', () => openDetailsModal(d.id));
+                    tbody.appendChild(row);
+                });
+
+                applyLocalFilter();
+
+                if (snap.docs.length < 20) btnLoadMore.classList.add('hidden');
+                else { btnLoadMore.classList.remove('hidden'); btnLoadMore.textContent = "Carregar mais registros..."; btnLoadMore.disabled = false; }
+
+            } catch (e) { console.error(e); tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">Erro: ${e.message}</td></tr>`; }
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const [year, month, day] = dateString.split('-');
+            return `${day}/${month}/${year}`;
+        }
+
+    </script>
+</body>
+</html>

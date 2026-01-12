@@ -73,7 +73,7 @@
             color: #e74c3c;
             margin-top: 15px;
             font-weight: 500;
-            display: none; /* Escondido por padrão */
+            display: none;
         }
     </style>
 </head>
@@ -96,8 +96,8 @@
     </div>
 
     <script type="module">
-        // Importa as funções necessárias do Firebase
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        // Importamos getApps e getApp para evitar inicialização duplicada
+        import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 
         // Configuração do seu projeto Firebase
@@ -110,42 +110,53 @@
             appId: "1:92355637827:web:850b89afa5054781475af6"
         };
 
-        // Inicializa o Firebase
-        const app = initializeApp(firebaseConfig);
+        // Inicialização Segura (Corrige o erro "App named [DEFAULT] already exists")
+        const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
         const auth = getAuth(app);
 
-        // Pega os elementos do formulário e da mensagem de erro
         const loginForm = document.getElementById('login-form');
         const errorMessage = document.getElementById('error-message');
 
-        // Adiciona um "escutador" para o evento de submissão do formulário
         loginForm.addEventListener('submit', (e) => {
-            // Previne o comportamento padrão do formulário (que é recarregar a página)
-            // CORREÇÃO: Removido o 's' extra que causava o erro de sintaxe.
             e.preventDefault(); 
             
-            // Pega os valores de email e senha digitados pelo usuário
             const email = loginForm.email.value;
             const password = loginForm.password.value;
+            
+            // Feedback visual no botão
+            const btn = loginForm.querySelector('button');
+            const originalText = btn.textContent;
+            btn.textContent = "Verificando...";
+            btn.disabled = true;
 
-            // Tenta fazer o login com o Firebase
             signInWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
-                    // Se o login for bem-sucedido, redireciona para a página principal
                     window.location.href = 'index.html';
                 })
                 .catch((error) => {
-                    // Se ocorrer um erro, exibe uma mensagem amigável para o usuário
+                    // Restaura botão
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+
                     errorMessage.style.display = 'block';
+                    
+                    // Tratamento de erros comuns
                     if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
                         errorMessage.textContent = 'Email ou senha inválidos.';
+                    } else if (error.code === 'auth/network-request-failed') {
+                        errorMessage.textContent = 'Erro de conexão. Verifique a internet.';
                     } else {
-                        errorMessage.textContent = 'Ocorreu um erro. Tente novamente.';
+                        errorMessage.textContent = 'Erro ao entrar. Veja o alerta.';
                     }
-                    // Também registra o erro detalhado no console para depuração
+                    
                     console.error("Erro de login:", error);
+                    // ALERTA VISUAL PARA MOBILE: Mostra o código exato do erro na tela do celular
+                    alert("Debug Mobile: " + error.code + " - " + error.message);
                 });
         });
     </script>
+    
+    <!-- Opcional: Carregar o Guard para redirecionar se já estiver logado -->
+    <script type="module" src="./auth-guard.js"></script>
 </body>
 </html>

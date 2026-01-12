@@ -2,169 +2,291 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <!-- Viewport padrão para máxima compatibilidade -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ordem de Serviços - BM Medical</title>
+    <title>Painel de Gestão - BM Medical</title>
     <script src="favicon-loader.js" type="module"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="auth-guard.js" type="module"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f7f6;\
-            color: #333;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
+            background-color: #f3f4f6; 
+            color: #1f2937; 
         }
-        .container {
-            width: 100%;
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 20px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-            align-items: center;
-            text-align: center;
-        }
-        .header {
-            padding: 20px 0;
-            width: 100%;
-            text-align: center;
-        }
-        .header img {
-            max-width: 450px;
-            height: auto;
-            margin: 0 auto;
-        }
-        .main-content {
-            margin-top: 60px;
-            width: 100%;
-        }
-        .main-content h1 {
-            font-size: 1.8rem;
-            color: #333;
-            margin-bottom: 40px;
-        }
-        .action-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            justify-content: center;
-        }
-        .btn {
-            display: inline-block;
-            background-color: #3498db;
-            color: #fff;
-            padding: 20px 40px;
-            font-size: 1.2rem;
-            font-weight: 500;
-            text-decoration: none;
-            border-radius: 8px;
-            transition: background-color 0.3s ease, transform 0.2s ease;
-            min-width: 220px;
-            box-sizing: border-box;
-        }
-        .btn:hover {
-            background-color: #2980b9;
-            transform: translateY(-3px);
-        }
-        .btn.secondary { background-color: #2ecc71; }
-        .btn.secondary:hover { background-color: #27ae60; }
-        .btn.tertiary { background-color: #95a5a6; }
-        .btn.tertiary:hover { background-color: #7f8c8d; }
-        .btn.quaternary { background-color: #e67e22; }
-        .btn.quaternary:hover { background-color: #d35400; }
-        .btn.inventory { background-color: #8e44ad; }
-        .btn.inventory:hover { background-color: #732d91; }
 
-        .footer {
-            background-color: #34495e;
-            color: #ecf0f1;
-            padding: 20px 0;
-            width: 100%;
-            text-align: center;
-            margin-top: 40px;
-        }
-        .footer p {
-            margin: 5px 10px;
-        }
+        /* Cor Personalizada para Submenus (CMYK 93,58,20,3 -> #1168C6) */
+        .bg-submenu-blue { background-color: #1168C6; }
+        .bg-submenu-blue:hover { background-color: #0d56a3; }
+        .text-submenu-blue { color: #1168C6; }
+        .border-submenu-blue { border-color: #1168C6; }
+
+        /* Cores de Contrato */
+        .border-capao { border-color: #1e40af; } /* Azul Escuro */
+        .text-capao { color: #1e3a8a; }
+        
+        .border-exercito { border-color: #15803d; } /* Verde */
+        .text-exercito { color: #14532d; }
+
+        .border-baumer { border-color: #7e22ce; } /* Roxo */
+        .text-baumer { color: #581c87; }
+
+        .border-heufpel { border-color: #b91c1c; } /* Vermelho */
+        .text-heufpel { color: #7f1d1d; }
+
         .logout-icon {
-            width: 1.25rem;
-            height: 1.25rem;
-            stroke: white;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            fill: none;
+            width: 1.25rem; height: 1.25rem; stroke: white;
+            stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none;
+        }
+        
+        .menu-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0, 1, 0, 1);
+        }
+        .menu-trigger.active + .menu-content {
+            max-height: 1000px;
+            transition: max-height 0.4s ease-in-out;
         }
 
-        /* AJUSTE: Layout responsivo correto para telas de celular */
-        @media (max-width: 768px) {
-            .container {
-                padding: 10px;
-            }
-             .header img {
-                max-width: 90%;
-            }
-            .main-content { margin-top: 30px; }
-            .main-content h1 { font-size: 1.5rem; margin-bottom: 30px; }
-            .action-buttons {
-                flex-direction: column;
-                align-items: center;
-                width: 100%;
-                gap: 15px;
-            }
-            .btn {
-                padding: 15px;
-                font-size: 1.1rem;
-                width: 100%;
-                max-width: 400px;
-            }
+        .menu-trigger svg { transition: transform 0.3s ease; }
+        .menu-trigger.active svg { transform: rotate(180deg); }
+
+        .contract-card {
+            background: white;
+            border-left-width: 6px;
+            transition: all 0.2s ease-in-out;
+        }
+        .contract-card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transform: translateY(-2px);
+        }
+
+        /* Estilo dos Submenus (Alinhados à esquerda com tabulação) */
+        .submenu-link {
+            text-align: left;
+            padding: 12px 20px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s;
+            width: 100%; 
+            display: flex;
+            align-items: center;
+            /* Tabulação visual */
+            margin-left: 20px; 
+            width: calc(100% - 20px);
+            /* Cor Azul Padrão */
+            background-color: #1168C6;
+            color: white;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .submenu-link:hover {
+            background-color: #0d56a3;
+            transform: translateX(5px); /* Pequeno movimento para indicar interatividade */
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <header class="header">
-            <img src="./images/logo.png" alt="Logo da Empresa">
+<body class="flex flex-col min-h-screen">
+
+    <div class="container mx-auto px-4 py-8 flex-grow">
+        <header class="text-center mb-10">
+            <a href="dashboard-branded.html" class="inline-block hover:opacity-90 transition-opacity">
+                <img src="./images/logo.png" alt="Logo BM Medical" class="mx-auto h-20 md:h-24 w-auto">
+            </a>
         </header>
-        <main class="main-content">
-            <h1>Sistema de Ordens de Serviço</h1>
-            <div class="action-buttons">
-                <a href="nova-os.html" class="btn">Nova OS</a>
-                <a href="quadro-os.html" class="btn secondary">Quadro de OS</a>
-                <a href="consultar-os.html" class="btn tertiary">Consultar OS</a>
-                <a href="inventario.html" class="btn inventory">Gestão de Inventário</a>
-                <a href="relatorios.html" class="btn quaternary">Relatórios</a>
+
+        <main class="max-w-4xl mx-auto">
+            <div class="mb-8 text-center">
+                <h1 class="text-2xl font-bold text-gray-800">Painel de Contratos</h1>
+            </div>
+
+            <div class="space-y-4" id="main-menu">
+
+                <!-- CONTRATO 1: CAPÃO DO LEÃO (Azul) -->
+                <div class="menu-item contract-card border-capao rounded-lg shadow-sm" data-contract="capao" data-roles="admin,tecnico_geral,tecnico_capao">
+                    <button class="menu-trigger w-full flex justify-between items-center p-6 text-left focus:outline-none group">
+                        <div>
+                            <span class="block font-bold text-lg text-capao group-hover:opacity-80 transition-opacity">Contrato 138/2024</span>
+                            <span class="text-sm text-gray-500">Município de Capão do Leão - Secretaria de Saúde</span>
+                        </div>
+                        <svg class="w-6 h-6 text-gray-400 group-hover:text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <!-- Conteúdo alinhado à esquerda com recuo -->
+                    <div class="menu-content bg-gray-50 border-t border-gray-100">
+                        <div class="p-5 flex flex-col items-start gap-2 border-l-4 border-gray-200 ml-6 my-2">
+                            <!-- Link ORGANIZADO: os-capao.html -->
+                            <a href="os-capao.html" class="contract-link submenu-link">
+                                Ordens de Serviço
+                            </a>
+                            <a href="inventario.html" class="contract-link submenu-link">
+                                Inventário
+                            </a>
+                            <a href="relatorio-capao.html" class="contract-link submenu-link">
+                                Relatório Mensal
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTRATO 2: EXÉRCITO BRASILEIRO (Verde) -->
+                <div class="menu-item contract-card border-exercito rounded-lg shadow-sm" data-contract="exercito" data-roles="admin,tecnico_geral,tecnico_exercito">
+                    <button class="menu-trigger w-full flex justify-between items-center p-6 text-left focus:outline-none group">
+                        <div>
+                            <span class="block font-bold text-lg text-exercito group-hover:opacity-80 transition-opacity">Contrato 10/2025</span>
+                            <span class="text-sm text-gray-500">Exército Brasileiro - Nono Batalhão de Infantaria</span>
+                        </div>
+                        <svg class="w-6 h-6 text-gray-400 group-hover:text-green-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="menu-content bg-gray-50 border-t border-gray-100">
+                        <div class="p-5 flex flex-col items-start gap-2 border-l-4 border-gray-200 ml-6 my-2">
+                            <!-- Link ORGANIZADO: os-exercito.html -->
+                            <a href="os-exercito.html" class="contract-link submenu-link">
+                                Ordens de Serviço
+                            </a>
+                            <a href="inventario.html" class="contract-link submenu-link">
+                                Inventário
+                            </a>
+                            <a href="relatorio-exercito.html" class="contract-link submenu-link">
+                                Relatório + Custos
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTRATO 3: EBSERH BAUMER (Roxo) -->
+                <div class="menu-item contract-card border-baumer rounded-lg shadow-sm" data-contract="baumer" data-roles="admin,tecnico_geral,tecnico_baumer">
+                    <button class="menu-trigger w-full flex justify-between items-center p-6 text-left focus:outline-none group">
+                        <div>
+                            <span class="block font-bold text-lg text-baumer group-hover:opacity-80 transition-opacity">Contrato 03/2024</span>
+                            <span class="text-sm text-gray-500">EBSERH / HEUFPEL - Autoclave BAUMER</span>
+                        </div>
+                        <svg class="w-6 h-6 text-gray-400 group-hover:text-purple-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="menu-content bg-gray-50 border-t border-gray-100">
+                        <div class="p-5 flex flex-col items-start gap-2 border-l-4 border-gray-200 ml-6 my-2">
+                            <!-- Link ORGANIZADO: os-autoclave.html -->
+                            <a href="os-autoclave.html" class="contract-link submenu-link">
+                                Ordens de Serviço
+                            </a>
+                            <a href="novo-pedido-compra.html" class="contract-link submenu-link">
+                                Pedidos de Compra
+                            </a>
+                            <a href="relatorio-baumer.html" class="contract-link submenu-link">
+                                Relatório Mensal
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTRATO 4: EBSERH ENG. CLÍNICA (Vermelho) -->
+                <div class="menu-item contract-card border-heufpel rounded-lg shadow-sm" data-contract="heufpel" data-roles="admin,tecnico_geral,tecnico_heufpel">
+                    <button class="menu-trigger w-full flex justify-between items-center p-6 text-left focus:outline-none group">
+                        <div>
+                            <span class="block font-bold text-lg text-heufpel group-hover:opacity-80 transition-opacity">Contrato 14/2024</span>
+                            <span class="text-sm text-gray-500">EBSERH / HEUFPEL - Engenharia Clínica</span>
+                        </div>
+                        <svg class="w-6 h-6 text-gray-400 group-hover:text-red-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="menu-content bg-gray-50 border-t border-gray-100">
+                        <div class="p-5 flex flex-col items-start gap-2 border-l-4 border-gray-200 ml-6 my-2">
+                            <a href="solicitacao-servico.html" class="contract-link submenu-link">
+                                Solic. Subcontratação/Peça
+                            </a>
+                            <a href="calibracoes.html" class="contract-link submenu-link">
+                                Calibrações
+                            </a>
+                            <!-- LINK CORRIGIDO: de escala-mensal.html para escala-sobreaviso.html -->
+                            <a href="escala-sobreaviso.html" class="contract-link submenu-link">
+                                Escala de Sobreaviso
+                            </a>
+                            <a href="relatorio-heufpel.html" class="contract-link submenu-link">
+                                Relatório Gerencial Mensal
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Botão Global: Quadro de OS -->
+            <div class="mt-8 mb-12">
+                <a href="quadro-os.html" class="block w-full bg-white border border-gray-300 rounded-lg shadow-sm hover:border-blue-800 hover:text-blue-900 transition-all p-5 flex items-center justify-center gap-4 group">
+                    <div class="bg-gray-100 p-2 rounded-full group-hover:bg-blue-50 transition-colors">
+                        <svg class="w-6 h-6 text-gray-600 group-hover:text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                    <div class="text-left">
+                        <span class="block text-lg font-bold text-gray-800 group-hover:text-blue-900">Quadro Geral de OS</span>
+                        <span class="block text-sm text-gray-500">Visualização Kanban de todas as atividades</span>
+                    </div>
+                </a>
+            </div>
+
+             <!-- Botão de Sair -->
+            <div class="w-full mt-8 text-center">
+                <button id="logout-button" class="inline-flex items-center justify-center gap-2 text-gray-500 hover:text-red-600 font-medium transition-colors focus:outline-none">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    <span>Sair do Sistema</span>
+                </button>
             </div>
         </main>
-        
-        <div class="w-full mt-12 text-center">
-            <button id="logout-button" class="inline-flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-2 font-semibold rounded-lg shadow-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75">
-                <svg class="logout-icon" viewBox="0 0 24 24">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-                <span>Sair</span>
-            </button>
-        </div>
-
     </div>
-    <footer class="footer">
-        <p><strong>BM MEDICAL Engenharia Clínica</strong></p>
-        <p>CNPJ: 48.673.158/0001-59</p>
-        <p>Endereço: Av. Duque de Caxias, 915-B403, Pelotas-RS</p>
-        <p>Contato: (51) 99377-5933 | Email: central.bmmedical@outlook.com</p>
+
+    <footer class="bg-gray-900 text-gray-400 mt-auto border-t border-gray-800">
+        <div class="container mx-auto px-4 py-8 text-center text-sm">
+            <p class="font-semibold text-white mb-2">BM MEDICAL Engenharia Clínica</p>
+            <p>Av. Duque de Caxias, 915-B403, Pelotas-RS</p>
+            <p class="mt-1">Contato: (51) 99377-5933 | central.bmmedical@outlook.com</p>
+        </div>
     </footer>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const menuTriggers = document.querySelectorAll('.menu-trigger');
+            
+            menuTriggers.forEach(trigger => {
+                trigger.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const isActive = this.classList.contains('active');
+                    
+                    // Fecha todos
+                    menuTriggers.forEach(t => t.classList.remove('active'));
+                    
+                    // Se não estava ativo, abre
+                    if (!isActive) {
+                        this.classList.add('active');
+                    }
+                });
+            });
+
+            // Lógica de Contexto de Contrato
+            const contractLinks = document.querySelectorAll('.contract-link');
+            contractLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const menuItem = e.target.closest('.menu-item');
+                    if (menuItem) {
+                        const contractId = menuItem.getAttribute('data-contract');
+                        const contractName = menuItem.querySelector('span.font-bold') ? menuItem.querySelector('span.font-bold').textContent : 'Contrato';
+                        
+                        sessionStorage.setItem('activeContractId', contractId);
+                        sessionStorage.setItem('activeContractName', contractName);
+                    }
+                });
+            });
+        });
+    </script>
+
+    <script type="module">
+        import { logout } from './auth-guard.js'; 
+        const logoutBtn = document.getElementById('logout-button');
+        if(logoutBtn) {
+            logoutBtn.addEventListener('click', logout);
+        }
+    </script>
+
 </body>
 </html>
-

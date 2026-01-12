@@ -117,13 +117,6 @@
         .btn.secondary:hover {
             background-color: #27ae60;
         }
-        .footer {
-            background-color: #34495e;
-            color: #ecf0f1;
-            padding: 20px 0;
-            width: 100%;
-            text-align: center;
-        }
     </style>
 </head>
 <body>
@@ -141,18 +134,34 @@
             <h2>Ordem de Serviço Criada com Sucesso!</h2>
             <p>A nova OS já está disponível no quadro para gerenciamento.</p>
             <div class="action-buttons">
-                <a href="nova-os.html" class="btn secondary">Criar Nova OS</a>
+                <!-- O href é preenchido via Javascript abaixo -->
+                <a href="#" class="btn secondary" id="btn-nova-os">Criar Nova OS</a>
                 <a href="quadro-os.html" class="btn">Ir para o Quadro</a>
             </div>
         </div>
     </div>
     
-    <footer class="footer">
-        <p><strong>BM Medical</strong></p>
-        <p>CNPJ: 48.673.158/0001-59</p>
-        <p>Endereço: Av. Duque de Caxias, 915-B403, Pelotas-RS</p>
-        <p>Telefone: (51) 99377-5933 | Email: contato@nomedaempresa.com.br</p>
-    </footer>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Recupera o ID do contrato que estava sendo usado
+            const contractId = sessionStorage.getItem('activeContractId');
+            const btnNova = document.getElementById('btn-nova-os');
+            
+            // Redireciona para a página correta baseada no contrato
+            if(contractId === 'capao') {
+                btnNova.href = 'os-capao.html';
+            } else if (contractId === 'exercito') {
+                btnNova.href = 'os-exercito.html';
+            } else if (contractId === 'baumer') {
+                btnNova.href = 'os-autoclave.html';
+            } else if (contractId === 'heufpel') {
+                btnNova.href = 'solicitacao-servico.html'; // Assumindo que esta é a principal
+            } else {
+                // Fallback caso não haja contrato no storage
+                btnNova.href = 'index.html';
+            }
+        });
+    </script>
 
 </body>
 </html>

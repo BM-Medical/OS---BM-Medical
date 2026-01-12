@@ -54,8 +54,12 @@ const server = http.createServer((req, res) => {
 
 /**
  * Inicia o servidor e o faz "escutar" por requisições na porta definida.
+ * A alteração para '0.0.0.0' permite que o servidor seja acessado por outros
+ * dispositivos na mesma rede local (como seu celular).
  */
-server.listen(port, () => {
+server.listen(port, '0.0.0.0', () => {
     console.log(`🚀 Servidor local iniciado com sucesso!`);
-    console.log(`Acesse o site em: http://localhost:${port}`);
+    console.log(`Acesse no seu computador em: http://localhost:${port}`);
+    console.log(`Para testar em outros dispositivos (como seu celular) na mesma rede Wi-Fi, use o endereço IP local do seu computador.`);
 });
+

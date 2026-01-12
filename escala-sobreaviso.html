@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Escala de Sobreaviso</title>
+    <!-- Carregador do Favicon (opcional, mas mantém consistência) -->
+    <script src="favicon-loader.js" type="module"></script>
+    
+    <!-- Fontes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Bibliotecas PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- Biblioteca de Assinatura -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/4.0.0/signature_pad.umd.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Script de Autenticação (opcional, mas mantém consistência) -->
+    <script src="auth-guard.js" type="module"></script>
+    
+    <!-- Estilos CSS Internos -->
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; }
+        .table-container { overflow-x: auto; }
+        /* Ajuste para a tabela de escala */
+        .schedule-table { min-width: 800px; }
+        .schedule-table th, .schedule-table td { padding: 0.75rem; text-align: center; border: 1px solid #e5e7eb; }
+        .schedule-table th { background-color: #f3f4f6; font-weight: 600; }
+        .day-cell { min-width: 60px; height: 60px; font-size: 0.9rem; }
+        
+        /* Botão Flutuante */
+        .floating-back-btn { 
+            position: fixed; bottom: 24px; right: 24px; background-color: #3498db;
+            color: white; width: 56px; height: 56px; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25); text-decoration: none; 
+            transition: all 0.3s ease; z-index: 100; 
+        }
+        .floating-back-btn:hover { background-color: #2980b9; transform: scale(1.05); }
+        /* Garante espaço para o botão flutuante */
+        body { padding-bottom: 90px; }
+
+        /* Estilos do Modal de Atendimento */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none; /* Controlado por JS (flex) */
+            align-items: center; justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 1.5rem;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 800px; /* Largura máxima do modal */
+            max-height: 90vh; /* Altura máxima */
+            position: relative;
+            margin: auto;
+            overflow-y: auto; 
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-body {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-right: 10px; /* Espaço para a barra de rolagem */
+        }
+        .modal-header h3 {
+            font-size: 1.75rem; font-weight: 700; text-align: center;
+            color: #333; margin-bottom: 1.5rem;
+        }
+        /* Estilos das seções do formulário */
+        .form-section { border: 1px solid #e0e0e0; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .form-section h2 { 
+            font-size: 1.2rem; color: #3498db; margin-top: 0; 
+            margin-bottom: 15px; border-bottom: 2px solid #3498db; padding-bottom: 10px; 
+        }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-weight: 500; margin-bottom: 5px; font-size: 0.9rem; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; 
+            font-size: 1rem; box-sizing: border-box; font-family: 'Inter', sans-serif; 
+        }
+        .form-group input.p-2, .form-group select.p-2 {
+            padding: 0.5rem; /* Ajuste para inputs menores */
+        }
+        .form-group textarea { resize: none; min-height: 80px; }
+        
+        /* Rodapé do Modal */
+        .modal-footer {
+            margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb;
+            display: flex; justify-content: flex-end; gap: 0.75rem;
+            flex-shrink: 0; /* Impede que o rodapé encolha */
+        }
+        .btn {
+            padding: 0.6rem 1.2rem; border: none; border-radius: 8px; cursor: pointer;
+            font-weight: 600; transition: background-color 0.2s ease; font-size: 0.9rem;
+        }
+        .btn-primary { background-color: #2ecc71; color: white; }
+        .btn-primary:hover { background-color: #27ae60; }
+        .btn-secondary { background-color: #ecf0f1; color: #34495e; }
+        .btn-secondary:hover { background-color: #bdc3c7; }
+
+        /* Estilos do Modal de Assinatura */
+        .signature-modal-overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background-color: rgba(0, 0, 0, 0.8); display: none; 
+            justify-content: center; align-items: center; z-index: 2000; 
+        }
+        .signature-modal-content { 
+            background-color: #fff; padding: 20px; border-radius: 10px; 
+            width: 95%; max-width: 600px; text-align: center; 
+            display: flex; flex-direction: column; 
+        }
+        #orientation-message { 
+            display: none; padding: 15px; margin-bottom: 15px; 
+            background-color: #fff3cd; color: #856404; 
+            border: 1px solid #ffeeba; border-radius: 6px; font-weight: 500; 
+        }
+        .signature-modal-content canvas { 
+            border: 2px dashed #ccc; border-radius: 6px; 
+            cursor: crosshair; width: 100%; height: 250px; 
+        }
+        .signature-modal-buttons { 
+            margin-top: 15px; display: flex; justify-content: center; 
+            gap: 10px; flex-wrap: wrap; flex-shrink: 0; 
+        }
+        .signature-modal-buttons button { 
+            padding: 10px 20px; border-radius: 5px; border: none; 
+            cursor: pointer; font-size: 1rem; color: white; 
+        }
+        #signature-save-button { background-color: #2ecc71; }
+        #signature-undo-button { background-color: #f39c12; }
+        #signature-clear-button { background-color: #e74c3c; }
+        #signature-cancel-button { background-color: #95a5a6; }
+        #signature-error-message { 
+            color: #e74c3c; font-weight: 500; margin-top: 10px; display: none; 
+        }
+        /* Estilos para tela cheia (melhora experiência mobile) */
+        .signature-modal-overlay:fullscreen { background-color: #fff; }
+        .signature-modal-overlay:fullscreen .signature-modal-content { 
+            height: 100%; width: 100%; max-width: none; border-radius: 0; 
+            padding: 15px; box-sizing: border-box; 
+        }
+        .signature-modal-overlay:fullscreen .signature-modal-content canvas { 
+            flex-grow: 1; height: auto; 
+        }
+        /* Placeholder da Assinatura no formulário */
+        .signature-placeholder { 
+            border: 2px dashed #ccc; border-radius: 6px; padding: 20px; 
+            text-align: center; cursor: pointer; color: #7f8c8d; 
+        }
+        .signature-thumbnail { 
+            max-width: 250px; max-height: 120px; border: 1px solid #ccc; 
+            border-radius: 6px; cursor: pointer; 
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <div class="container mx-auto px-4 py-6 flex-grow">
+        <!-- Cabeçalho -->
+        <header class="w-full text-center py-3 md:py-5">
+            <a href="index.html"><img src="./images/logo.png" alt="Logo da Empresa" class="mx-auto w-3/4 md:w-full max-w-md"></a>
+        </header>
+
+        <!-- Conteúdo Principal -->
+        <main class="w-full max-w-7xl mx-auto bg-white p-3 md:p-6 rounded-lg shadow-lg mt-2 md:mt-4">
+            <h1 class="text-xl md:text-3xl font-bold text-gray-800 mb-4 md:mb-6 text-center">Gestão de Escala de Sobreaviso</h1>
+            
+            <!-- Controles (Mês e Botões) -->
+            <div class="flex flex-col md:flex-row items-center justify-between mb-4 md:mb-6 gap-3 md:gap-4">
+                <div class="flex items-center gap-2 w-full md:w-auto">
+                    <label for="month-selector" class="font-semibold text-sm md:text-base">Mês:</label>
+                    <input type="month" id="month-selector" class="p-2 border border-gray-300 rounded-md w-full">
+                </div>
+                <div class="grid grid-cols-2 md:flex gap-2 md:gap-3 w-full md:w-auto">
+                    <button id="btn-launch-atendimento" class="px-3 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 text-sm md:text-base">Gerar Atendimento</button>
+                    <button id="btn-generate-pdf" class="px-3 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 text-sm md:text-base">Gerar Relatório PDF</button>
+                </div>
+            </div>
+
+            <!-- Tabela da Escala -->
+            <div class="table-container mb-4 md:mb-8">
+                <table class="w-full schedule-table">
+                    <thead class="text-xs md:text-base">
+                        <tr>
+                            <th>Semana</th>
+                            <th>Seg</th>
+                            <th>Ter</th>
+                            <th>Qua</th>
+                            <th>Qui</th>
+                            <th>Sex</th>
+                            <th>Sáb</th>
+                            <th>Dom</th>
+                            <th>Técnico Responsável</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedule-body">
+                        <!-- Linhas da tabela serão geradas por JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Seção de Feriados -->
+            <div id="holidays-section" class="mb-4 md:mb-8 p-3 md:p-4 border rounded-lg bg-gray-50">
+                <h3 class="text-base md:text-lg font-semibold text-gray-700 mb-2 md:mb-3">Feriados do Mês</h3>
+                <div id="holidays-list">
+                    <!-- Lista de feriados gerada por JavaScript -->
+                </div>
+                
+                <!-- Gerenciador de Feriados Móveis (oculto por padrão) -->
+                <div id="movable-holidays-manager" class="mt-4 pt-4 border-t" style="display: none;">
+                    <h4 class="font-semibold text-gray-600 mb-3 text-sm md:text-base">Definir Feriados Móveis para o ano: <span id="movable-holiday-year"></span></h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Carnaval -->
+                        <div class="form-group" id="carnival-group">
+                            <label for="carnival-date" class="text-sm font-semibold">Carnaval (Terça-feira)</label>
+                            <input type="date" id="carnival-date" class="w-full p-2 border rounded mt-1 text-sm">
+                            <div class="mt-2 space-y-1">
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="include-carnival-monday" class="h-4 w-4 rounded border-gray-300">
+                                    <label for="include-carnival-monday" class="ml-2 text-sm text-gray-600">Incluir Segunda-feira ("Feriadão")</label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="include-ash-wednesday" class="h-4 w-4 rounded border-gray-300">
+                                    <label for="include-ash-wednesday" class="ml-2 text-sm text-gray-600">Incluir Quarta-feira de Cinzas</label>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Sexta-feira Santa -->
+                        <div class="form-group" id="good-friday-group">
+                            <label for="good-friday-date" class="text-sm">Paixão de Cristo (Sexta-feira Santa)</label>
+                            <input type="date" id="good-friday-date" class="w-full p-2 border rounded mt-1 text-sm">
+                        </div>
+                        <!-- Corpus Christi -->
+                        <div class="form-group" id="corpus-christi-group">
+                            <label for="corpus-christi-date" class="text-sm">Corpus Christi (Quinta-feira)</label>
+                            <input type="date" id="corpus-christi-date" class="w-full p-2 border rounded mt-1 text-sm">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seção de Atendimentos -->
+            <div id="atendimentos-section" class="mb-4 md:mb-8">
+                <h2 class="text-lg md:text-xl font-bold text-gray-700 mb-3 md:mb-4">Atendimentos de Sobreaviso do Mês</h2>
+                <div id="atendimentos-list" class="space-y-3">
+                    <!-- Lista de atendimentos gerada por JavaScript -->
+                </div>
+            </div>
+
+            <!-- Seção de Resumo -->
+            <div>
+                <h2 class="text-lg md:text-xl font-bold text-gray-700 mb-3 md:mb-4">Resumo de Horas do Mês</h2>
+                <div class="table-container">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 text-xs md:text-base">
+                            <tr>
+                                <th class="text-left p-2 font-semibold">Técnico</th>
+                                <th class="p-2 font-semibold">Total Sobreaviso</th>
+                                <th class="p-2 font-semibold">Horas Extras</th>
+                                <th class="p-2 font-semibold">Total Líquido</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summary-body" class="text-sm md:text-base">
+                           <!-- Resumo gerado por JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Botão Voltar Flutuante -->
+    <a href="index.html" class="floating-back-btn" title="Voltar ao Início">
+       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+    </a>
+    
+    <!-- Modal de Atendimento -->
+    <div id="atendimento-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Gerar Atendimento de Sobreaviso</h3>
+            </div>
+            
+            <form id="atendimento-form" class="modal-body">
+                <!-- ID oculto para edição -->
+                <input type="hidden" id="atendimento-id">
+                
+                <!-- Seção 1: Informações do Chamado -->
+                <div class="form-section">
+                    <h2>Informações do Chamado</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                        <div class="form-group">
+                            <label for="os_numero">Número da OS</label>
+                            <input type="text" id="os_numero" name="os_numero" placeholder="Ex: 25.203" required maxlength="7" class="mt-1 block w-full p-2 border rounded-md">
+                        </div>
+                        <div class="form-group">
+                            <label for="executado_por">Executado Por</label>
+                            <select id="executado_por" name="executado_por" required class="mt-1 block w-full p-2 border rounded-md">
+                                <!-- Opções populadas por JS -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Checkbox "SEM OS" -->
+                    <div class="mt-1 mb-4">
+                        <label for="sem_os_checkbox" class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="sem_os_checkbox" class="h-4 w-4 rounded border-gray-300">
+                            <span class="whitespace-nowrap font-medium text-base text-gray-700">SEM OS</span>
+                        </label>
+                    </div>
+
+                    <!-- Data e Horas -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-4">
+                        <div class="form-group sm:col-span-1">
+                            <label for="data">Data do Atendimento</label>
+                            <input type="date" id="data" name="data" required class="mt-1 block w-full p-2 border rounded-md">
+                        </div>
+                        <div class="form-group sm:col-span-1">
+                            <label for="hora_inicio">Hora de Início</label>
+                            <input type="time" id="hora_inicio" name="hora_inicio" required class="mt-1 block w-full p-2 border rounded-md">
+                        </div>
+                        <div class="form-group sm:col-span-1">
+                            <label for="hora_termino">Hora de Término</label>
+                            <input type="time" id="hora_termino" name="hora_termino" required class="mt-1 block w-full p-2 border rounded-md">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ATUALIZADO: Seção 2: Dados do Equipamento -->
+                <div class="form-section">
+                    <h2>Dados do Equipamento</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label for="equipamento">Equipamento</label>
+                            <input type="text" id="equipamento" name="equipamento" class="mt-1 block w-full p-2 border rounded-md">
+                        </div>
+                        <div class="form-group">
+                            <label for="marca">Marca</label>
+                            <input type="text" id="marca" name="marca" class="mt-1 block w-full p-2 border rounded-md">
+                        </div>
+                        <div class="form-group">
+                            <label for="modelo">Modelo</label>
+                            <input type="text" id="modelo" name="modelo" class="mt-1 block w-full p-2 border rounded-md">
+                        </div>
+                        <div class="form-group">
+                            <label for="serial">Nº de Série</label>
+                            <input type="text" id="serial" name="serial" class="mt-1 block w-full p-2 border rounded-md">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção 3: Detalhes do Serviço -->
+                <div class="form-section">
+                    <h2>Detalhes do Serviço</h2>
+                    <div class="form-group">
+                        <label for="motivo_chamado">Motivo do Chamado</label>
+                        <textarea id="motivo_chamado" name="motivo_chamado" required class="mt-1 block w-full p-2 border rounded-md"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="servico_executado">Serviço Executado</label>
+                        <textarea id="servico_executado" name="servico_executado" required class="mt-1 block w-full p-2 border rounded-md"></textarea>
+                    </div>
+                </div>
+
+                <!-- Seção 4: Informações do Solicitante -->
+                <div class="form-section">
+                    <h2>Informações do Solicitante</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label for="nome_solicitante">Nome do Solicitante</label>
+                            <input type="text" id="nome_solicitante" name="nome_solicitante" required class="mt-1 block w-full p-2 border rounded-md">
+                        </div>
+                        <div class="form-group">
+                            <label for="siape">SIAPE</label>
+                            <input type="text" id="siape" name="siape" class="mt-1 block w-full p-2 border rounded-md">
+                        </div>
+                    </div>
+                     <!-- Assinatura -->
+                     <div class="form-group mt-4">
+                         <label>Assinatura do Solicitante</label>
+                         <div id="signature-container" class="mt-2 flex justify-center">
+                            <!-- Placeholder ou thumbnail da assinatura -->
+                            <div id="signature-placeholder" class="signature-placeholder">Clique para assinar</div>
+                         </div>
+                         <input type="hidden" id="signature-data" name="signature_data">
+                    </div>
+                </div>
+            </form>
+            
+            <!-- Rodapé do Modal (Botões) -->
+            <div class="modal-footer">
+                <button type="button" id="btn-cancel-atendimento" class="btn btn-secondary">Cancelar</button>
+                <button type="submit" id="btn-save-atendimento" form="atendimento-form" class="btn btn-primary">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Assinatura -->
+    <div id="signature-modal" class="signature-modal-overlay">
+        <div class="signature-modal-content">
+            <!-- Mensagem para virar o celular -->
+            <div id="orientation-message">
+                Por favor, vire o seu dispositivo para a posição paisagem.
+            </div>
+            <h3>Assine no campo abaixo:</h3>
+            <canvas id="signature-pad"></canvas>
+            <p id="signature-error-message">Por favor, desenhe uma assinatura para salvar.</p>
+            <div class="signature-modal-buttons">
+                <button type="button" id="signature-undo-button">Desfazer</button>
+                <button type="button" id="signature-clear-button">Limpar</button>
+                <button type="button" id="signature-save-button">Salvar</button>
+                <button type="button" id="signature-cancel-button">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Confirmação de Exclusão -->
+    <div id="delete-modal" class="modal-overlay" style="z-index: 1001;">
+        <div class="modal-content" style="max-width: 400px; max-height: auto; overflow-y: hidden;">
+            <div class="modal-header" style="text-align: left; margin-bottom: 1rem;">
+                <h3 style="text-align: left; font-size: 1.25rem;">Confirmar Exclusão</h3>
+            </div>
+            <div class="modal-body" style="padding: 0;">
+                <p>Tem certeza que deseja excluir este atendimento? Esta ação não pode ser desfeita.</p>
+            </div>
+            <div class="modal-footer" style="padding-top: 1rem; margin-top: 1rem;">
+                <button type="button" id="btn-cancel-delete" class="btn btn-secondary">Cancelar</button>
+                <button type="button" id="btn-confirm-delete" class="btn btn-primary" style="background-color: #e74c3c;">Excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Principal da Página -->
+    <script src="escala-sobreaviso.js" type="module"></script>
+</body>
+</html>

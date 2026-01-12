@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novo Orçamento - BM Medical</title>
+    <script src="favicon-loader.js" type="module"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="auth-guard.js" type="module"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #1f2937; }
+        
+        .form-section {
+            background-color: #ffffff;
+            border: 1px solid #e5e7eb;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .form-section h2 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #111827;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+            color: #4b5563;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #265581;
+            box-shadow: 0 0 0 2px rgba(38, 85, 129, 0.2);
+        }
+        
+        .form-group input[readonly],
+        .form-group input:disabled {
+            background-color: #f3f4f6;
+            cursor: not-allowed;
+        }
+
+        .uppercase-input { text-transform: uppercase; }
+
+        .floating-back-btn { 
+            position: fixed; bottom: 24px; right: 24px; background-color: #265581;
+            color: white; width: 56px; height: 56px; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25); text-decoration: none; 
+            transition: all 0.3s ease; z-index: 100; 
+        }
+        .floating-back-btn:hover { background-color: #1b3c5a; transform: scale(1.05); }
+        .floating-back-btn svg { width: 24px; height: 24px; }
+
+        .summary-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background-color: #f9fafb;
+        }
+        .summary-card .item-description {
+            font-weight: 600;
+            color: #1f2937;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+        .summary-card .item-details {
+            display: flex;
+            justify-content: flex-start;
+            gap: 1rem;
+            align-items: center;
+            font-size: 0.875rem;
+            color: #4b5563;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <div class="w-full max-w-5xl mx-auto p-4 sm:p-5 flex-1">
+        <header class="text-center py-5">
+            <a href="index.html"><img src="./images/logo.png" alt="Logo da Empresa" class="mx-auto w-4/5 max-w-xs sm:max-w-sm"></a>
+        </header>
+
+        <main class="mt-4">
+            <h1 class="text-2xl sm:text-3xl font-bold text-center mb-6 text-gray-800">Novo Orçamento</h1>
+            <form id="orcamento-form">
+
+                <!-- Seção 1: Informações Gerais -->
+                <div class="form-section">
+                    <h2 class="!border-b-2 !border-blue-200">Informações Gerais</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+                        <div class="form-group">
+                            <label for="orcamento_numero">Nº do Orçamento</label>
+                            <input type="text" id="orcamento_numero" class="uppercase-input" readonly placeholder="Gerando...">
+                        </div>
+                        <div class="form-group">
+                            <label for="data_orcamento">Data</label>
+                            <input type="date" id="data_orcamento">
+                        </div>
+                        <div class="form-group">
+                            <label for="validade_orcamento">Validade (dias)</label>
+                            <input type="number" id="validade_orcamento" value="15" min="1">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção 2: Dados do Cliente -->
+                <div class="form-section">
+                    <h2 class="!border-b-2 !border-blue-200">Dados do Cliente</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+                        <div class="form-group md:col-span-3">
+                            <label for="cliente_nome">Cliente</label>
+                            <input type="text" id="cliente_nome" required class="uppercase-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="cliente_cnpj_cpf">CNPJ / CPF</label>
+                            <input type="text" id="cliente_cnpj_cpf" maxlength="18">
+                        </div>
+                        <div class="form-group">
+                            <label for="cliente_fones">Telefone de Contato</label>
+                            <input type="text" id="cliente_fones" maxlength="15">
+                        </div>
+                         <div class="form-group">
+                            <label for="cliente_email">Email</label>
+                            <input type="email" id="cliente_email">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Seção 3: Equipamento -->
+                <div class="form-section">
+                     <div class="mb-2">
+                        <h2 class="m-0 p-0 border-none !border-b-2 !border-blue-200 inline-block">Descrição do Equipamento</h2>
+                    </div>
+                    <div class="flex items-center gap-2 mb-4">
+                        <input type="checkbox" id="ocultar_equipamento" class="h-4 w-4 rounded">
+                        <label for="ocultar_equipamento" class="font-normal text-sm text-gray-600">Ocultar (Venda Direta)</label>
+                    </div>
+                    <div id="equipamento_container">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                             <div class="form-group">
+                                <label for="equip_nome">Equipamento</label>
+                                <input type="text" id="equip_nome" class="uppercase-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="equip_marca">Marca</label>
+                                <input type="text" id="equip_marca" class="uppercase-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="equip_modelo">Modelo</label>
+                                <input type="text" id="equip_modelo" class="uppercase-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="equip_serial">Nº de Série</label>
+                                <input type="text" id="equip_serial" class="uppercase-input">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção 4: Itens do Orçamento -->
+                <div class="form-section">
+                    <h2 class="!border-b-2 !border-blue-200">Itens do Orçamento</h2>
+                    <!-- Sub-seção Peças -->
+                    <div class="mb-6">
+                        <h3 class="text-md font-semibold text-gray-700 mb-2">Peças / Produtos</h3>
+                        <div id="parts-summary-view" class="hidden">
+                            <div id="parts-summary-list" class="mb-3 space-y-2"></div>
+                        </div>
+                        <button type="button" id="manage-parts-btn" class="w-full sm:w-auto px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 text-sm">
+                            Gerir Peças
+                        </button>
+                    </div>
+                    <!-- Sub-seção Serviços -->
+                    <div>
+                        <h3 class="text-md font-semibold text-gray-700 mb-2">Mão de Obra / Serviços</h3>
+                        <div id="services-summary-view" class="hidden">
+                            <div id="services-summary-list" class="mb-3 space-y-2"></div>
+                        </div>
+                        <button type="button" id="manage-services-btn" class="w-full sm:w-auto px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 text-sm">
+                            Gerir Serviços
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Seção 5: Frete e Totais -->
+                <div class="form-section">
+                    <h2 class="!border-b-2 !border-blue-200">Frete e Valor Total</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 items-end">
+                        <div class="form-group">
+                            <label for="frete_tipo">Tipo de Frete</label>
+                            <select id="frete_tipo">
+                                <option value="sem_frete">Sem Frete</option>
+                                <option value="fob">FOB (Pago pelo Cliente)</option>
+                                <option value="cif">CIF (Pago pela Empresa)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="frete_valor">Valor do Frete</label>
+                            <input type="text" id="frete_valor" class="valor" value="0,00" disabled>
+                        </div>
+                    </div>
+                     <div class="mt-6 p-4 bg-gray-100 rounded-lg">
+                        <div class="flex justify-between items-center text-gray-600 mb-2">
+                            <span>Subtotal:</span>
+                            <span id="subtotal_valor">R$ 0,00</span>
+                        </div>
+                         <div class="flex justify-between items-center text-gray-600">
+                            <span>Frete:</span>
+                            <span id="frete_display_valor">R$ 0,00</span>
+                        </div>
+                        <div class="flex justify-between items-center text-black font-bold text-xl mt-3 pt-3 border-t">
+                            <span>Valor Total:</span>
+                            <span id="valor_total">R$ 0,00</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Botões de Ação -->
+                <div class="mt-8 flex flex-col sm:flex-row justify-end gap-3">
+                    <a href="index.html" class="w-full sm:w-auto text-center px-6 py-3 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300">Cancelar</a>
+                    <button type="submit" id="btn-save" class="w-full sm:w-auto px-6 py-3 bg-blue-700 text-white font-semibold rounded-lg shadow-md hover:bg-blue-800 transition">Salvar Orçamento</button>
+                </div>
+
+            </form>
+        </main>
+    </div>
+
+    <a href="index.html" class="floating-back-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+    </a>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, runTransaction, collection } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { QuotePartsManager } from './modulo-pecas-orcamento.js';
+        import { QuoteServicesManager } from './modulo-servicos-orcamento.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
+            authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
+            projectId: "ordem-de-servicos---bm-medical",
+            storageBucket: "ordem-de-servicos---bm-medical.firebasestorage.app",
+            messagingSenderId: "92355637827",
+            appId: "1:92355637827:web:850b89afa5054781475af6"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const form = document.getElementById('orcamento-form');
+        const freteTipoSelect = document.getElementById('frete_tipo');
+        const freteValorInput = document.getElementById('frete_valor');
+        const cnpjCpfInput = document.getElementById('cliente_cnpj_cpf');
+        const fonesInput = document.getElementById('cliente_fones');
+
+        let currentParts = [];
+        let currentServices = [];
+        
+        const partsSummaryView = document.getElementById('parts-summary-view');
+        const partsSummaryList = document.getElementById('parts-summary-list');
+        const managePartsBtn = document.getElementById('manage-parts-btn');
+        
+        const servicesSummaryView = document.getElementById('services-summary-view');
+        const servicesSummaryList = document.getElementById('services-summary-list');
+        const manageServicesBtn = document.getElementById('manage-services-btn');
+        
+        const quotePartsManager = new QuotePartsManager({
+            onConfirm: (updatedItems) => {
+                currentParts = updatedItems;
+                updatePartsUI();
+            }
+        });
+
+        const quoteServicesManager = new QuoteServicesManager({
+            onConfirm: (updatedItems) => {
+                currentServices = updatedItems;
+                updateServicesUI();
+            }
+        });
+
+        managePartsBtn.addEventListener('click', () => quotePartsManager.open(currentParts));
+        manageServicesBtn.addEventListener('click', () => quoteServicesManager.open(currentServices));
+        
+        function formatCurrency(value) {
+            if (isNaN(value)) value = 0;
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+        }
+        
+        function parseCurrency(value) {
+            if (typeof value !== 'string') return 0;
+            const number = parseFloat(value.replace(/\./g, '').replace(',', '.').replace('R$', '').trim());
+            return isNaN(number) ? 0 : number;
+        }
+
+        function applyCurrencyMask(input) {
+            let value = input.value.replace(/\D/g, '');
+            value = (value / 100).toFixed(2) + '';
+            value = value.replace(".", ",");
+            value = value.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+            input.value = value;
+        }
+
+        function applyCnpjCpfMask(input) {
+            let value = input.value.replace(/\D/g, '');
+            if (value.length <= 11) { // CPF
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            } else { // CNPJ
+                value = value.substring(0, 14);
+                value = value.replace(/(\d{2})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1/$2');
+                value = value.replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+            }
+            input.value = value;
+        }
+
+        function applyPhoneMask(input) {
+            let value = input.value.replace(/\D/g, '');
+            value = value.substring(0, 11);
+            if (value.length > 2) {
+                value = `(${value.substring(0, 2)}) ${value.substring(2)}`;
+            }
+            if (value.length > 9) {
+                value = value.replace(/(\d{5})(\d)/, '$1-$2');
+            }
+            input.value = value;
+        }
+
+        cnpjCpfInput.addEventListener('input', () => applyCnpjCpfMask(cnpjCpfInput));
+        fonesInput.addEventListener('input', () => applyPhoneMask(fonesInput));
+
+        function updatePartsUI() {
+            if (currentParts.length > 0) {
+                partsSummaryView.classList.remove('hidden');
+                partsSummaryList.innerHTML = '';
+                currentParts.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'summary-card';
+                    const valorUnitario = parseCurrency(item.valorUnit);
+                    card.innerHTML = `
+                        <span class="item-description">${item.descricao}</span>
+                        <div class="item-details">
+                            <span><strong>Qtd:</strong> ${item.qtd}</span>
+                            <span><strong>Valor:</strong> ${formatCurrency(valorUnitario)}</span>
+                        </div>
+                    `;
+                    partsSummaryList.appendChild(card);
+                });
+            } else {
+                partsSummaryView.classList.add('hidden');
+            }
+            updateTotal();
+        }
+
+        function updateServicesUI() {
+            if (currentServices.length > 0) {
+                servicesSummaryView.classList.remove('hidden');
+                servicesSummaryList.innerHTML = '';
+                 currentServices.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'summary-card';
+                    const valorServico = parseCurrency(item.valor);
+                    card.innerHTML = `
+                        <span class="item-description">${item.descricao}</span>
+                        <div class="item-details">
+                            <span><strong>Valor:</strong> ${formatCurrency(valorServico)}</span>
+                        </div>
+                    `;
+                    servicesSummaryList.appendChild(card);
+                });
+            } else {
+                servicesSummaryView.classList.add('hidden');
+            }
+            updateTotal();
+        }
+        
+        function updateTotal() {
+            let subtotal = 0;
+            currentParts.forEach(item => {
+                const qty = parseFloat(item.qtd) || 0;
+                const price = parseCurrency(item.valorUnit) || 0;
+                subtotal += qty * price;
+            });
+            currentServices.forEach(item => {
+                const price = parseCurrency(item.valor) || 0;
+                subtotal += price;
+            });
+
+            const frete = parseCurrency(freteValorInput.value) || 0;
+            const total = subtotal + frete;
+
+            document.getElementById('subtotal_valor').textContent = formatCurrency(subtotal);
+            document.getElementById('frete_display_valor').textContent = formatCurrency(frete);
+            document.getElementById('valor_total').textContent = formatCurrency(total);
+        }
+        
+        document.getElementById('ocultar_equipamento').addEventListener('change', (e) => {
+            document.getElementById('equipamento_container').style.display = e.target.checked ? 'none' : 'block';
+        });
+
+        freteTipoSelect.addEventListener('change', () => {
+            if (freteTipoSelect.value === 'sem_frete') {
+                freteValorInput.value = '0,00';
+                freteValorInput.disabled = true;
+            } else {
+                freteValorInput.disabled = false;
+            }
+            updateTotal();
+        });
+
+        freteValorInput.addEventListener('input', () => {
+            applyCurrencyMask(freteValorInput);
+            updateTotal();
+        });
+
+        async function fetchAndSetQuoteNumber() {
+            const orcamentoInput = document.getElementById('orcamento_numero');
+            const counterId = 'orcamentos';
+            const counterRef = doc(db, "counters", counterId);
+            try {
+                const docSnap = await getDoc(counterRef);
+                let nextNumber = 1;
+                if (docSnap.exists() && docSnap.data().sequence) {
+                    nextNumber = docSnap.data().sequence + 1;
+                } else {
+                    // Se o contador não existir (foi deletado), começamos do 1.
+                    nextNumber = 1;
+                }
+                const year = new Date().getFullYear();
+                orcamentoInput.value = `${String(nextNumber).padStart(4, '0')}/${year}`;
+            } catch (error) {
+                console.error("Erro ao buscar número do orçamento:", error);
+                orcamentoInput.value = 'ERRO';
+            }
+        }
+
+        function getFormData() {
+            const quoteData = {
+                numero: document.getElementById('orcamento_numero').value,
+                data: document.getElementById('data_orcamento').value,
+                validade: document.getElementById('validade_orcamento').value,
+                cliente: {
+                    nome: document.getElementById('cliente_nome').value.toUpperCase(),
+                    cnpj_cpf: document.getElementById('cliente_cnpj_cpf').value,
+                    fones: document.getElementById('cliente_fones').value,
+                    email: document.getElementById('cliente_email').value,
+                },
+                equipamentoOculto: document.getElementById('ocultar_equipamento').checked,
+                equipamento: {
+                    nome: document.getElementById('equip_nome').value.toUpperCase(),
+                    marca: document.getElementById('equip_marca').value.toUpperCase(),
+                    modelo: document.getElementById('equip_modelo').value.toUpperCase(),
+                    serial: document.getElementById('equip_serial').value.toUpperCase(),
+                },
+                pecas: currentParts,
+                servicos: currentServices,
+                frete: {
+                    tipo: document.getElementById('frete_tipo').value,
+                    valor: document.getElementById('frete_valor').value,
+                },
+                valorTotal: document.getElementById('valor_total').textContent,
+                status: 'Pendente',
+                createdAt: new Date(),
+            };
+            return quoteData;
+        }
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const saveBtn = document.getElementById('btn-save');
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'A guardar...';
+
+            const quoteData = getFormData();
+            const counterId = 'orcamentos';
+            const counterRef = doc(db, "counters", counterId);
+
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const counterDoc = await transaction.get(counterRef);
+                    let nextNumber = 1;
+                    if (counterDoc.exists() && counterDoc.data().sequence) {
+                       nextNumber = counterDoc.data().sequence + 1;
+                    }
+                    const year = new Date().getFullYear();
+                    quoteData.numero = `${String(nextNumber).padStart(4, '0')}/${year}`;
+                    
+                    const newQuoteRef = doc(collection(db, "orcamentos"));
+                    transaction.set(newQuoteRef, quoteData);
+                    
+                    // Se o documento do contador não existir, cria um novo, senão atualiza.
+                    if (counterDoc.exists()) {
+                        transaction.update(counterRef, { sequence: nextNumber });
+                    } else {
+                        transaction.set(counterRef, { sequence: nextNumber });
+                    }
+                });
+                alert(`Orçamento ${quoteData.numero} salvo com sucesso!`);
+                
+                const currentDate = document.getElementById('data_orcamento').value;
+                form.reset();
+                document.getElementById('data_orcamento').value = currentDate;
+                
+                currentParts = [];
+                currentServices = [];
+                updatePartsUI();
+                updateServicesUI();
+                await fetchAndSetQuoteNumber();
+                
+            } catch (error) {
+                console.error("Erro ao salvar orçamento: ", error);
+                alert("Ocorreu um erro ao salvar o orçamento.");
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Salvar Orçamento';
+            }
+        });
+        
+        window.onload = () => {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('data_orcamento').value = today;
+            fetchAndSetQuoteNumber();
+        };
+
+    </script>
+</body>
+</html>
+
+

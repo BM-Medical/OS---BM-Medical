@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consultar Orçamentos - BM Medical</title>
+    <script src="favicon-loader.js" type="module"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Carrega a biblioteca principal de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Adiciona o plugin AutoTable para desenhar tabelas no PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="auth-guard.js" type="module"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+        .btn-action {
+            background-color: #1e40af;
+        }
+        .floating-back-btn { 
+            position: fixed; 
+            bottom: 24px;
+            right: 24px; 
+            background-color: #1e40af;
+            color: white; 
+            width: 56px; 
+            height: 56px; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            text-decoration: none; 
+            transition: all 0.3s ease; 
+            z-index: 100; 
+        }
+         .floating-back-btn:hover { 
+            background-color: #1d4ed8; 
+            transform: scale(1.05);
+        }
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <div class="container mx-auto px-4 py-6 flex-grow">
+        <header class="text-center mb-8">
+            <a href="index.html"><img src="./images/logo.png" alt="Logo da Empresa" class="mx-auto w-full max-w-md"></a>
+        </header>
+
+        <main class="max-w-4xl mx-auto">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Consultar Orçamentos</h1>
+
+            <!-- Filtros -->
+            <section class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="md:col-span-3">
+                        <label for="text-search" class="block text-sm font-medium text-gray-700">Buscar por Nº ou Cliente</label>
+                        <input type="text" id="text-search" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                </div>
+                <div class="flex justify-end mt-4 pt-4 border-t">
+                    <button id="apply-filters-btn" class="px-6 py-2 text-white font-semibold rounded-lg btn-action hover:bg-blue-600">Buscar</button>
+                </div>
+            </section>
+
+            <!-- Lista de Orçamentos -->
+            <section id="orcamento-list" class="space-y-4">
+                <p class="text-center text-gray-500 py-8">Utilize o filtro para buscar os orçamentos.</p>
+            </section>
+        </main>
+    </div>
+
+    <a href="index.html" class="floating-back-btn">
+       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+    </a>
+    
+    <!-- Modal de Detalhes -->
+    <div id="details-modal" class="modal-overlay fixed inset-0 hidden justify-center items-start pt-10 overflow-y-auto">
+        <div id="modal-content" class="bg-white rounded-lg shadow-xl w-full max-w-3xl m-4 relative">
+            <!-- Conteúdo injetado via JS -->
+        </div>
+    </div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getFirestore, collection, getDocs, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { generateQuotePdf } from './pdf-generator-orcamento.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
+            authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
+            projectId: "ordem-de-servicos---bm-medical",
+            storageBucket: "ordem-de-servicos---bm-medical.firebasestorage.app",
+            messagingSenderId: "92355637827",
+            appId: "1:92355637827:web:850b89afa5054781475af6"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        const applyFiltersBtn = document.getElementById('apply-filters-btn');
+        const orcamentoListContainer = document.getElementById('orcamento-list');
+        const detailsModal = document.getElementById('details-modal');
+        const modalContent = document.getElementById('modal-content');
+        
+        let allQuotesData = [];
+        let openModalsStack = [];
+
+        // --- INÍCIO: GERENCIAMENTO DE MODAIS E BOTÃO VOLTAR ---
+        function openModal(modalElement) {
+            if (!modalElement || modalElement.style.display === 'flex') return;
+            history.pushState({ modalId: modalElement.id }, '');
+            modalElement.style.display = 'flex';
+            openModalsStack.push(modalElement);
+        }
+
+        function closeMostRecentModal() {
+            if (openModalsStack.length > 0) {
+                const modalToClose = openModalsStack.pop();
+                if (modalToClose) modalToClose.style.display = 'none';
+            }
+        }
+        
+        window.addEventListener('popstate', (event) => {
+            closeMostRecentModal();
+        });
+        // --- FIM: GERENCIAMENTO DE MODAIS ---
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const [year, month, day] = dateString.split('-');
+            return `${day}/${month}/${year}`;
+        }
+
+        function normalizeText(text) {
+            if (!text) return '';
+            return text.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        }
+        
+        async function loadAndRenderQuotes() {
+            orcamentoListContainer.innerHTML = '<p class="text-center text-gray-500 py-8">Buscando orçamentos...</p>';
+            
+            const text = document.getElementById('text-search').value.trim();
+
+            try {
+                const quotesRef = collection(db, "orcamentos");
+                const q = query(quotesRef, orderBy("createdAt", "desc"));
+                const querySnapshot = await getDocs(q);
+                
+                allQuotesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                if (text) {
+                    const normalizedText = normalizeText(text);
+                    allQuotesData = allQuotesData.filter(quote => 
+                        (normalizeText(quote.numero).includes(normalizedText)) ||
+                        (normalizeText(quote.cliente.nome).includes(normalizedText))
+                    );
+                }
+                
+                renderQuotes(allQuotesData);
+            } catch (error) {
+                console.error("Erro ao carregar orçamentos:", error);
+                orcamentoListContainer.innerHTML = '<p class="text-center text-red-500 py-8">Erro ao buscar dados.</p>';
+            }
+        }
+
+        function renderQuotes(quotes) {
+            orcamentoListContainer.innerHTML = '';
+            if (quotes.length === 0) {
+                orcamentoListContainer.innerHTML = '<p class="text-center text-gray-500 py-8">Nenhum orçamento encontrado.</p>';
+                return;
+            }
+
+            quotes.forEach(quote => {
+                const item = document.createElement('div');
+                item.className = 'bg-white p-4 rounded-lg shadow-sm border flex flex-col md:flex-row justify-between md:items-center cursor-pointer hover:shadow-md transition-shadow';
+                item.dataset.id = quote.id;
+                
+                item.innerHTML = `
+                    <div class="flex-grow">
+                        <p class="font-bold text-blue-800">Orçamento Nº ${quote.numero}</p>
+                        <p class="text-sm text-gray-600">${quote.cliente.nome}</p>
+                        <p class="text-xs text-gray-500">Data: ${formatDate(quote.data)}</p>
+                    </div>
+                    <div class="mt-4 md:mt-0 md:text-right">
+                        <p class="font-semibold text-lg">${quote.valorTotal}</p>
+                    </div>
+                `;
+                item.addEventListener('click', () => openDetailsModal(quote.id));
+                orcamentoListContainer.appendChild(item);
+            });
+        }
+        
+        function openDetailsModal(quoteId) {
+            const currentQuote = allQuotesData.find(q => q.id === quoteId);
+            if (!currentQuote) return;
+
+            modalContent.innerHTML = generateDetailsView(currentQuote);
+            openModal(detailsModal);
+            
+            modalContent.querySelector('#btn-pdf-quote').addEventListener('click', (e) => generateQuotePdf(currentQuote, e.target));
+        }
+
+        function generateDetailsView(quote) {
+            const pecasHtml = quote.pecas && quote.pecas.length > 0
+                ? quote.pecas.map(p => `<tr><td class="px-2 py-1 text-center">${p.qtd}</td><td class="px-2 py-1">${p.descricao}</td><td class="px-2 py-1 text-right">${p.valorUnit}</td></tr>`).join('')
+                : '<tr><td colspan="3" class="px-2 py-1 text-gray-500">Nenhuma peça.</td></tr>';
+            
+            const servicosHtml = quote.servicos && quote.servicos.length > 0
+                ? quote.servicos.map(s => `<tr><td class="px-2 py-1" colspan="2">${s.descricao}</td><td class="px-2 py-1 text-right">${s.valor}</td></tr>`).join('')
+                : '<tr><td colspan="3" class="px-2 py-1 text-gray-500">Nenhum serviço.</td></tr>';
+
+            const equipamentoHtml = quote.equipamentoOculto ? `<p class="text-sm text-gray-500 italic">Venda direta de peças/serviços.</p>` : `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                    <p><strong>Equipamento:</strong> ${quote.equipamento.nome || 'N/A'}</p>
+                    <p><strong>Marca:</strong> ${quote.equipamento.marca || 'N/A'}</p>
+                    <p><strong>Modelo:</strong> ${quote.equipamento.modelo || 'N/A'}</p>
+                    <p><strong>Serial:</strong> ${quote.equipamento.serial || 'N/A'}</p>
+                </div>`;
+            
+            const freteDisplay = (quote.frete && quote.frete.valor) ? quote.frete.valor : 'R$ 0,00';
+
+            return `
+                <div class="p-6">
+                    <div class="flex justify-between items-start">
+                        <h2 class="text-xl font-bold text-blue-900 mb-4">Detalhes do Orçamento Nº ${quote.numero}</h2>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                        <div class="space-y-1">
+                            <h3 class="text-lg font-semibold text-gray-700 border-b mb-2 pb-1">Cliente</h3>
+                            <p><strong>Nome:</strong> ${quote.cliente.nome}</p>
+                            <p><strong>Contato:</strong> ${quote.cliente.contato || 'N/A'}</p>
+                            <p><strong>Email:</strong> ${quote.cliente.email || 'N/A'}</p>
+                        </div>
+                        <div class="space-y-1">
+                            <h3 class="text-lg font-semibold text-gray-700 border-b mb-2 pb-1">Informações</h3>
+                             <p><strong>Data:</strong> ${formatDate(quote.data)}</p>
+                            <p><strong>Validade:</strong> ${quote.validade} dias</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-700 border-b mb-2 pb-1">Equipamento</h3>
+                        ${equipamentoHtml}
+                    </div>
+
+                    <div class="mt-4">
+                        <h3 class="text-lg font-semibold text-gray-700 border-b mb-2 pb-1">Itens</h3>
+                        <table class="w-full text-sm table-fixed">
+                            <colgroup>
+                                <col style="width: 15%;">
+                                <col style="width: 55%;">
+                                <col style="width: 30%;">
+                            </colgroup>
+                            <thead class="text-left bg-gray-50">
+                                <tr>
+                                    <th class="px-2 py-1 text-center">Qtd.</th>
+                                    <th class="px-2 py-1">Descrição (Peças)</th>
+                                    <th class="px-2 py-1 text-right">Valor Unit.</th>
+                                </tr>
+                            </thead>
+                            <tbody>${pecasHtml}</tbody>
+                            <thead class="text-left bg-gray-50">
+                                <tr>
+                                    <th class="px-2 py-1" colspan="2">Descrição (Serviços)</th>
+                                    <th class="px-2 py-1 text-right">Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody>${servicosHtml}</tbody>
+                        </table>
+                    </div>
+                     <div class="flex justify-end mt-4">
+                        <div class="w-full max-w-xs text-sm">
+                             <div class="flex justify-between items-center py-1"><span class="text-gray-600">Frete:</span><span class="font-semibold text-gray-800">${freteDisplay}</span></div>
+                            <div class="flex justify-between items-center py-2 border-t-2 mt-1"><span class="font-bold text-base">Valor Total:</span><span class="font-bold text-base">${quote.valorTotal}</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 p-4 flex flex-wrap justify-end gap-3 rounded-b-lg">
+                    <button id="btn-pdf-quote" class="px-4 py-2 text-sm bg-blue-700 text-white rounded-md hover:bg-blue-600">Gerar PDF</button>
+                </div>
+            `;
+        }
+        
+        // Event Listeners dos Modais e Filtros
+        applyFiltersBtn.addEventListener('click', loadAndRenderQuotes);
+        detailsModal.addEventListener('click', (e) => {
+            if (e.target === detailsModal) history.back();
+        });
+
+    </script>
+</body>
+</html>
+

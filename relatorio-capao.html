@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório Mensal - Contrato 138/2024</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Estilos de Impressão e Fonte -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap');
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #525659;
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* Folha A4 */
+        .a4-page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 10mm 20mm 20mm 20mm; /* Margens ajustadas: Topo menor (10mm) */
+            margin: 0 auto 30px auto;
+            background: white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            position: relative;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Impressão */
+        @media print {
+            body { background-color: white; margin: 0; padding: 0; }
+            .no-print { display: none !important; }
+            .a4-page {
+                box-shadow: none;
+                margin: 0;
+                width: 100%;
+                page-break-after: always;
+                padding: 10mm 20mm 20mm 20mm; /* Mantém o mesmo padding na impressão */
+                display: block;
+            }
+            tr { page-break-inside: avoid; }
+            /* Esconde ícones de edição na impressão */
+            .fa-pen { display: none; }
+        }
+
+        /* Campos Editáveis */
+        .editable-field {
+            border: 1px dashed transparent;
+            width: 100%;
+            background: transparent;
+            resize: none;
+            overflow: hidden;
+            font-family: inherit;
+            font-size: inherit;
+            color: inherit;
+            display: block;
+            line-height: 1.5;
+            text-align: justify;
+        }
+        
+        .editable-field:not([readonly]) {
+            outline: none;
+            border: 1px dashed #f59e0b;
+            background-color: #fffbeb;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        
+        /* Inputs da tabela */
+        .table-input {
+            width: 100%;
+            text-align: center;
+            background: transparent;
+            border: none;
+        }
+        .table-input:not([readonly]) {
+            background-color: #fffbeb;
+            outline: 1px dashed #f59e0b;
+        }
+
+        /* Checkbox Edição */
+        .edit-label {
+            cursor: pointer;
+            font-size: 0.7rem;
+            color: #9ca3af;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 2px;
+            justify-content: flex-end;
+            transition: color 0.2s;
+        }
+        .edit-label:hover { color: #2563eb; }
+
+        /* Classe de Recuo de Parágrafo (Indent) */
+        .text-indent-custom {
+            text-indent: 4rem; /* Aproximadamente 1.5cm */
+        }
+    </style>
+</head>
+<body class="text-gray-900">
+
+    <!-- MENU DE CONTROLE -->
+    <div class="fixed top-0 left-0 w-full bg-gray-900 text-white p-3 shadow-lg z-50 no-print flex justify-between items-center border-b border-gray-700">
+        <div class="flex items-center space-x-4">
+            <a href="index.html" class="text-gray-400 hover:text-white transition flex items-center gap-2 text-sm font-medium">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+            <div class="h-6 w-px bg-gray-700 mx-2"></div>
+            <h1 class="text-sm font-bold uppercase tracking-wider">Relatório 138/2024</h1>
+            
+            <div class="flex items-center bg-gray-800 rounded px-3 py-1 border border-gray-600 ml-4">
+                <label class="text-xs text-gray-400 mr-2 uppercase">Mês:</label>
+                <input type="month" id="month-selector" class="bg-transparent border-none text-white focus:ring-0 cursor-pointer text-sm font-bold h-6">
+            </div>
+
+            <button onclick="carregarDadosRelatorio()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-xs uppercase font-bold tracking-wide transition flex items-center gap-2">
+                <i class="fas fa-sync-alt"></i> Atualizar
+            </button>
+        </div>
+
+        <button onclick="window.print()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded font-bold shadow transition text-sm uppercase tracking-wide flex items-center gap-2">
+            <i class="fas fa-print"></i> Imprimir PDF
+        </button>
+    </div>
+
+    <div class="h-20 no-print"></div>
+
+    <!-- ========================================== -->
+    <!-- PÁGINA 1: CAPA -->
+    <!-- ========================================== -->
+    <div class="a4-page" id="page-cover">
+        
+        <!-- CABEÇALHO (LOGO) -->
+        <!-- Logo mais próximo do topo e com margem inferior reduzida -->
+        <div class="flex flex-col items-center justify-center mb-6 pt-0">
+            <img src="./images/logo.png" alt="BM Medical" class="h-32 object-contain" 
+                 onerror="this.style.display='none'; this.insertAdjacentHTML('afterend', '<span class=\'text-red-500 text-xs border border-red-300 bg-red-50 p-1\'>Logo não carregado (./images/logo.png)</span>')">
+        </div>
+
+        <!-- TÍTULO REDUZIDO -->
+        <div class="text-center mb-10">
+            <h1 class="text-2xl font-black text-gray-900 uppercase tracking-wide">RELATÓRIO MENSAL</h1>
+        </div>
+
+        <!-- LISTA DE DADOS (LINHA ÚNICA - Espaçamento Reduzido ao Mínimo) -->
+        <div class="mb-8 text-base pl-2">
+            <div class="mb-0 flex items-baseline">
+                <span class="font-bold text-gray-900 uppercase text-sm mr-2 w-24">Contrato:</span>
+                <span class="text-gray-800 text-base font-medium">Termo de Contrato Nº. 138/2024</span>
+            </div>
+            
+            <div class="mb-0 flex items-baseline">
+                <span class="font-bold text-gray-900 uppercase text-sm mr-2 w-24">Cliente:</span>
+                <span class="text-gray-800 text-base font-medium">Município de Capão do Leão</span>
+            </div>
+            
+            <div class="mb-0 flex items-baseline">
+                <span class="font-bold text-gray-900 uppercase text-sm mr-2 w-24">Período:</span>
+                <span id="periodo-texto" class="text-blue-900 text-base font-bold">Selecione um mês acima...</span>
+            </div>
+        </div>
+
+        <!-- 1. OBJETO -->
+        <div class="mb-8">
+            <h2 class="text-lg font-bold uppercase mb-2 border-l-4 border-gray-900 pl-3">1. Objeto</h2>
+            
+            <div class="relative group">
+                <label class="edit-label no-print">
+                    <input type="checkbox" onchange="toggleField(this, 'texto-objeto')" class="mr-1"> Editar Texto
+                </label>
+                <!-- Com indentação -->
+                <textarea id="texto-objeto" readonly class="editable-field text-indent-custom text-justify text-sm leading-relaxed w-full h-24">Contratação de uma empresa especializada para fornecimento de serviços de manutenção corretiva e preventiva de materiais e equipamentos odontológicos e hospitalares, listados no Item 1.2. Planilha dos equipamentos do Edital de Pregão Eletrônico Nº 035/2024 1ª Reedição, instalados nas localidades descritas abaixo:</textarea>
+            </div>
+            
+            <div class="mt-4 relative group">
+                <label class="edit-label no-print">
+                    <input type="checkbox" onchange="toggleField(this, 'lista-locais')" class="mr-1"> Editar Locais
+                </label>
+                <!-- Sem indentação na lista -->
+                <textarea id="lista-locais" readonly class="editable-field w-full text-sm leading-relaxed h-48 font-medium text-gray-700 pl-4" style="white-space: pre-line;">Pronto Atendimento Municipal;
+Unidade de Saúde Neli Domingues Silveira (UBS Central);
+Unidade de ESF Claudio Vitória (UBS Casabom);
+UBS Parque Fragata;
+UBS Alvacir Pitta Santiago (UBS Jardim América II);
+UBS Dr. Haroldo Dias (UBS Jardim América III);
+UBS Campus UFPEL;
+CAPS (Casa Vida).</textarea>
+            </div>
+        </div>
+
+        <!-- 2. ATIVIDADES -->
+        <div class="mb-4">
+            <h2 class="text-lg font-bold uppercase mb-4 border-l-4 border-gray-900 pl-3">2. Atividades Realizadas</h2>
+            
+            <!-- Com indentação -->
+            <p class="text-sm text-justify mb-4 text-indent-custom leading-relaxed">
+                Durante o período de referência, houve a continuidade da execução do contrato, com a realização de serviços de manutenção preventiva e corretiva, conforme descrito a seguir.
+            </p>
+
+            <div class="edit-label no-print">
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" onchange="toggleTableEdit(this)" class="mr-1"> Editar Tabela
+                </label>
+            </div>
+
+            <!-- Tabela -->
+            <table class="w-full border-collapse border border-gray-900 text-sm">
+                <thead>
+                    <tr class="bg-gray-100 text-gray-900">
+                        <th class="border border-gray-900 px-3 py-2 text-left uppercase w-1/2 font-bold text-xs">Unidade</th>
+                        <th class="border border-gray-900 px-3 py-2 text-center w-1/4 font-bold text-xs">Serviços Realizados</th>
+                        <th class="border border-gray-900 px-3 py-2 text-center w-1/4 font-bold text-xs">Serviços Pendentes<br><span class="text-[10px] font-normal">(Aguardando Peças)</span></th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-resumo-body">
+                    <tr>
+                        <td class="border border-gray-900 px-3 py-2 text-center text-gray-500 italic" colspan="3">
+                            Selecione um mês para carregar os dados...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Rodapé -->
+        <div class="mt-auto border-t border-gray-300 pt-2">
+            <p class="text-xs text-gray-500 text-center italic">
+                As descrições detalhadas dos serviços executados se encontram nos documentos OS - Manutenção Corretiva e OS - Manutenção Preventiva (Anexo I).
+            </p>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- PÁGINA 2: ANEXO I -->
+    <!-- ========================================== -->
+    <div class="a4-page" style="page-break-before: always;">
+        
+        <!-- CABEÇALHO REPETIDO (Logo apenas, maior também aqui) -->
+        <div class="flex flex-col items-center justify-center mb-10 pt-0">
+            <img src="./images/logo.png" alt="BM Medical" class="h-32 object-contain" 
+                 onerror="this.style.display='none';">
+        </div>
+
+        <!-- CONTEÚDO CENTRALIZADO -->
+        <div class="flex-grow flex flex-col items-center justify-center text-center">
+            <div class="border-4 border-double border-gray-900 p-16 w-full max-w-2xl">
+                <h1 class="text-5xl font-black mb-6 tracking-widest uppercase">ANEXO I</h1>
+                <div class="w-24 h-1 bg-black mx-auto mb-8"></div>
+                <p class="text-2xl font-light uppercase text-gray-700">Relatórios de Manutenção</p>
+                <p class="text-lg font-bold mt-2 text-black">(Ordens de Serviço)</p>
+            </div>
+        </div>
+        
+        <div class="h-24"></div> <!-- Espaço para balancear verticalmente -->
+    </div>
+
+    <!-- CONTAINER DE OSs -->
+    <div id="os-list-container"></div>
+
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    
+    <!-- Inline JS para UI simples -->
+    <script>
+        function toggleField(checkbox, fieldId) {
+            const field = document.getElementById(fieldId);
+            if (checkbox.checked) {
+                field.removeAttribute('readonly');
+                field.focus();
+            } else {
+                field.setAttribute('readonly', true);
+            }
+        }
+        function toggleTableEdit(checkbox) {
+            const inputs = document.querySelectorAll('.table-input');
+            inputs.forEach(input => {
+                if (checkbox.checked) {
+                    input.removeAttribute('readonly');
+                } else {
+                    input.setAttribute('readonly', true);
+                }
+            });
+        }
+    </script>
+
+    <script src="relatorio-capao.js"></script>
+    <script src="pdf-generator.js"></script> 
+</body>
+</html>
