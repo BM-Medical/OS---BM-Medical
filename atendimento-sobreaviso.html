@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atendimento de Sobreaviso</title>
+    <script src="favicon-loader.js" type="module"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- ATUALIZAÇÃO: Adicionado o script do jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="auth-guard.js" type="module"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; }
+        .form-section { background-color: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .form-section h2 { font-size: 1.25rem; font-weight: 600; color: #34495e; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 20px; }
+        textarea { resize: vertical; min-height: 100px; }
+        .signature-placeholder { border: 2px dashed #ccc; border-radius: 6px; padding: 20px; text-align: center; cursor: pointer; color: #7f8c8d; }
+        .signature-thumbnail { max-width: 250px; max-height: 120px; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; }
+        
+        /* Estilos do Modal de Assinatura (Padrão OS) */
+        .signature-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: center; z-index: 2000; }
+        .signature-modal-content { background-color: #fff; padding: 20px; border-radius: 10px; width: 95%; max-width: 600px; text-align: center; display: flex; flex-direction: column; }
+        #orientation-message { display: none; padding: 15px; margin-bottom: 15px; background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 6px; font-weight: 500; }
+        .signature-modal-content canvas { border: 2px dashed #ccc; border-radius: 6px; cursor: crosshair; width: 100%; height: 250px; }
+        .signature-modal-buttons { margin-top: 15px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0; }
+        .signature-modal-buttons button { padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer; font-size: 1rem; color: white; }
+        #signature-save-button { background-color: #2ecc71; }
+        #signature-undo-button { background-color: #f39c12; }
+        #signature-clear-button { background-color: #e74c3c; }
+        #signature-cancel-button { background-color: #95a5a6; }
+        #signature-error-message { color: #e74c3c; font-weight: 500; margin-top: 10px; display: none; }
+        .signature-modal-overlay:fullscreen { background-color: #fff; }
+        .signature-modal-overlay:fullscreen .signature-modal-content { height: 100%; width: 100%; max-width: none; border-radius: 0; padding: 15px; box-sizing: border-box; }
+        .signature-modal-overlay:fullscreen .signature-modal-content canvas { flex-grow: 1; height: auto; }
+
+        .floating-back-btn { position: fixed; bottom: 24px; right: 24px; background-color: #3498db; color: white; width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.25); text-decoration: none; transition: all 0.3s ease; z-index: 100; }
+        .floating-back-btn:hover { background-color: #2980b9; transform: scale(1.05); }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <div class="container mx-auto px-4 py-6 flex-grow">
+        <header class="w-full text-center py-5">
+            <a href="index.html"><img src="./images/logo.png" alt="Logo da Empresa" class="mx-auto w-full max-w-md"></a>
+        </header>
+
+        <main class="w-full max-w-4xl mx-auto mt-4">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6 text-center">Formulário de Atendimento de Sobreaviso</h1>
+            
+            <form id="atendimento-form">
+                <div class="form-section">
+                    <h2>Detalhes do Serviço</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+                        <div class="form-group">
+                            <label for="os_numero" class="block font-medium">Número da OS</label>
+                            <!-- ATUALIZAÇÃO: Alterado placeholder, adicionado required e maxlength -->
+                            <input type="text" id="os_numero" name="os_numero" placeholder="Ex: 25.203" required maxlength="7" class="mt-1 block w-full p-2 border rounded-md">
+                        </div>
+                        <div class="form-group md:col-span-2">
+                            <label for="data" class="block font-medium">Data do Atendimento</label>
+                            <input type="date" id="data" name="data" required class="mt-1 block w-full p-2 border rounded-md">
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <!-- ATUALIZAÇÃO: Removido campo "Equipamento" -->
+                        <div class="form-group">
+                            <label for="motivo_chamado" class="block font-medium">Motivo do Chamado</label>
+                            <textarea id="motivo_chamado" name="motivo_chamado" required class="mt-1 block w-full p-2 border rounded-md"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="servico_executado" class="block font-medium">Serviço Executado</label>
+                            <textarea id="servico_executado" name="servico_executado" required class="mt-1 block w-full p-2 border rounded-md"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h2>Informações do Chamado</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="form-group">
+                            <label for="executado_por" class="block font-medium">Executado Por</label>
+                            <select id="executado_por" name="executado_por" required class="mt-1 block w-full p-2 border rounded-md">
+                                <!-- Options will be populated by JS -->
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="hora_inicio" class="block font-medium">Hora de Início</label>
+                                <input type="time" id="hora_inicio" name="hora_inicio" required class="mt-1 block w-full p-2 border rounded-md">
+                            </div>
+                             <div>
+                                <label for="hora_termino" class="block font-medium">Hora de Término</label>
+                                <input type="time" id="hora_termino" name="hora_termino" required class="mt-1 block w-full p-2 border rounded-md">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="nome_solicitante" class="block font-medium">Nome do Solicitante</label>
+                            <input type="text" id="nome_solicitante" name="nome_solicitante" required class="mt-1 block w-full p-2 border rounded-md">
+                        </div>
+                        <div class="form-group">
+                            <label for="siape" class="block font-medium">SIAPE</label>
+                            <input type="text" id="siape" name="siape" class="mt-1 block w-full p-2 border rounded-md">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                     <h2>Assinatura do Solicitante</h2>
+                     <div id="signature-container" class="mt-2 flex justify-center">
+                        <div id="signature-placeholder" class="signature-placeholder">Clique para assinar</div>
+                     </div>
+                     <input type="hidden" id="signature-data" name="signature_data">
+                </div>
+
+                <div class="mt-8 flex justify-end">
+                    <button type="submit" id="btn-generate-pdf" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700">Gerar Documento</button>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <a href="index.html" class="floating-back-btn">
+       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+    </a>
+    
+    <!-- Signature Modal -->
+    <div id="signature-modal" class="signature-modal-overlay">
+        <div class="signature-modal-content">
+            <div id="orientation-message">
+                Por favor, vire o seu dispositivo para a posição paisagem.
+            </div>
+            <h3>Assine no campo abaixo:</h3>
+            <canvas id="signature-pad"></canvas>
+            <p id="signature-error-message">Por favor, desenhe uma assinatura para salvar.</p>
+            <div class="signature-modal-buttons">
+                <button type="button" id="signature-undo-button">Desfazer</button>
+                <button type="button" id="signature-clear-button">Limpar</button>
+                <button type="button" id="signature-save-button">Salvar</button>
+                <button type="button" id="signature-cancel-button">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="atendimento-sobreaviso.js" type="module"></script>
+</body>
+</html>
+

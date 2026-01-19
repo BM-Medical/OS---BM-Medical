@@ -4,11 +4,12 @@
  * ATUALIZADO:
  * 1. Busca ignora acentos (Normalization NFD).
  * 2. Compatibilidade v9.15.0 mantida.
+ * 3. Adicionado método prefill() para modo de edição.
  */
 import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
 // Log para confirmar carregamento
-console.log("Módulo equipment-selector.js carregado (v9.15.0 - Accent Insensitive)!");
+console.log("Módulo equipment-selector.js carregado (v9.15.0 - Accent Insensitive + Prefill)!");
 
 export class EquipmentSelector {
     constructor({ contractId, database, elements }) {
@@ -61,6 +62,7 @@ export class EquipmentSelector {
                 console.log(`📦 Inventário (Cache): ${this.inventory.length} itens.`);
             } else {
                 console.log(`☁️ Buscando inventário no Firebase...`);
+                // Correção: Garantir que inventory_equipment é o nome correto da coleção
                 const q = query(collection(this.db, "inventory_equipment"), where("contract", "==", this.contractId));
                 const querySnapshot = await getDocs(q);
                 this.inventory = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -80,6 +82,7 @@ export class EquipmentSelector {
         const { btnSearch, searchInputs, manualMode, selectedCard } = this.elements;
 
         if (btnSearch) {
+            // Clone para remover listeners antigos se houver re-inicialização
             const newBtn = btnSearch.cloneNode(true);
             btnSearch.parentNode.replaceChild(newBtn, btnSearch);
             this.elements.btnSearch = newBtn;
@@ -105,12 +108,11 @@ export class EquipmentSelector {
     }
 
     // --- FUNÇÃO AUXILIAR DE NORMALIZAÇÃO ---
-    // Remove acentos e caracteres especiais para comparação
     normalizeStr(str) {
         if (!str) return "";
         return str.toString()
-            .normalize("NFD") // Separa acentos das letras
-            .replace(/[\u0300-\u036f]/g, "") // Remove os acentos
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
             .toLowerCase()
             .trim();
     }
@@ -126,7 +128,6 @@ export class EquipmentSelector {
         const { searchInputs, resultsContainer } = this.elements;
         if (!searchInputs || !resultsContainer) return;
 
-        // Normaliza os termos de busca digitados
         const criteria = {
             name: this.normalizeStr(searchInputs.name?.value),
             brand: this.normalizeStr(searchInputs.brand?.value),
@@ -143,9 +144,7 @@ export class EquipmentSelector {
         resultsContainer.innerHTML = '<p class="p-4 text-gray-500 text-center">Pesquisando...</p>';
         resultsContainer.classList.remove('hidden');
 
-        // Filtra usando a normalização
         const results = this.inventory.filter(item => {
-            // Normaliza os dados do item para comparação
             const iName = this.normalizeStr(item.name || item.equipamento);
             const iBrand = this.normalizeStr(item.brand || item.marca);
             const iModel = this.normalizeStr(item.model || item.modelo);
@@ -153,7 +152,6 @@ export class EquipmentSelector {
             const iLoc = this.normalizeStr(item.location || item.localizacao || item.setor);
 
             const matchName = !criteria.name || iName.includes(criteria.name);
-            // Marca busca em Marca E Modelo
             const matchBrand = !criteria.brand || iBrand.includes(criteria.brand) || iModel.includes(criteria.brand);
             const matchSerial = !criteria.serial || iSerial.includes(criteria.serial);
             const matchLoc = !criteria.loc || iLoc.includes(criteria.loc);
@@ -184,7 +182,6 @@ export class EquipmentSelector {
             const row = document.createElement('div');
             row.className = 'flex justify-between items-center p-3 border-b hover:bg-gray-50 transition-colors last:border-b-0 cursor-pointer';
             
-            // Tratamento de campos híbridos (inglês/português)
             const name = item.name || item.equipamento || 'Sem Nome';
             const brand = item.brand || item.marca || '';
             const model = item.model || item.modelo || '';
@@ -213,25 +210,28 @@ export class EquipmentSelector {
         const { finalInputs, selectedCard, resultsContainer, manualMode } = this.elements;
         if (!finalInputs) return;
 
-        // Mapeamento inteligente de campos
         const name = item.name || item.equipamento || '';
         const brand = item.brand || item.marca || '';
         const model = item.model || item.modelo || '';
         const serial = item.serial || item.serie || item.num_serie || '';
         const location = item.location || item.localizacao || item.setor || '';
 
+        // Preenche Inputs Finais (Hidden ou Readonly)
         if (finalInputs.equipamento) {
             finalInputs.equipamento.value = name;
+            // Disparar evento para notificar mudanças caso haja listeners
             finalInputs.equipamento.dispatchEvent(new Event('input', { bubbles: true }));
         }
         if (finalInputs.marca) finalInputs.marca.value = brand;
         if (finalInputs.modelo) finalInputs.modelo.value = model;
         if (finalInputs.serial) finalInputs.serial.value = serial;
 
+        // Tenta preencher local se possível
         if (location && manualMode?.locationSelect) {
             manualMode.locationSelect.value = location;
         }
 
+        // Atualiza Card de Visualização
         if (selectedCard) {
             if (selectedCard.nameEl) {
                 selectedCard.nameEl.textContent = name || 'Equipamento Selecionado';
@@ -242,19 +242,27 @@ export class EquipmentSelector {
             if (selectedCard.container) selectedCard.container.classList.remove('hidden');
         }
         
+        // Esconde painéis de busca
         manualMode?.searchPanel?.classList.add('hidden');
         resultsContainer?.classList.add('hidden');
-        finalInputs.container?.classList.add('hidden');
+        
+        // Esconde inputs manuais se estiverem visíveis
+        if (finalInputs.container && !this.isManualMode) {
+             finalInputs.container.classList.add('hidden');
+        }
+        // Se estava em modo manual, volta a esconder e travar
+        if (this.isManualMode) {
+             this.disableManualMode();
+             // Mas mantém o container hidden pois agora é visualização via card
+             finalInputs.container?.classList.add('hidden');
+        }
     }
 
     resetSelection() {
         const { selectedCard, manualMode, finalInputs } = this.elements;
 
         if (finalInputs) {
-            if (finalInputs.equipamento) {
-                finalInputs.equipamento.value = '';
-                finalInputs.equipamento.dispatchEvent(new Event('input'));
-            }
+            if (finalInputs.equipamento) finalInputs.equipamento.value = '';
             if (finalInputs.marca) finalInputs.marca.value = '';
             if (finalInputs.modelo) finalInputs.modelo.value = '';
             if (finalInputs.serial) finalInputs.serial.value = '';
@@ -262,7 +270,6 @@ export class EquipmentSelector {
         }
 
         selectedCard?.container?.classList.add('hidden');
-        // Importante: Limpar o texto para disparar o MutationObserver corretamente na página pai
         if (selectedCard?.nameEl) selectedCard.nameEl.textContent = ''; 
         
         manualMode?.searchPanel?.classList.remove('hidden');
@@ -317,5 +324,37 @@ export class EquipmentSelector {
             manualMode.btnTrigger.parentElement.classList.remove('hidden');
         }
         this.isManualMode = false;
+    }
+
+    // --- NOVO MÉTODO PARA EDIÇÃO ---
+    // Preenche os dados existentes e configura a UI para estado "Selecionado"
+    prefill(data) {
+        if (!data) return;
+
+        const itemSimulado = {
+            name: data.equipamento,
+            brand: data.marca,
+            model: data.modelo,
+            serial: data.serial,
+            location: data.local_atendimento // Opcional
+        };
+
+        // Usa o selectItem para preencher inputs e mostrar o card
+        this.selectItem(itemSimulado);
+
+        // Se por acaso os dados vieram vazios, resetamos para forçar busca
+        if (!data.equipamento) {
+            this.resetSelection();
+        }
+    }
+    
+    getSelection() {
+        const { finalInputs } = this.elements;
+        return {
+            equipamento: finalInputs.equipamento?.value || '',
+            marca: finalInputs.marca?.value || '',
+            modelo: finalInputs.modelo?.value || '',
+            serial: finalInputs.serial?.value || ''
+        };
     }
 }

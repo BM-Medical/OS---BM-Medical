@@ -166,10 +166,9 @@
         .maintenance-type-card {
             position: absolute;
             bottom: 8px;
-            /* Alterado de 'left: 15px;' para 'right: 15px;' para padronizar */
             left: auto;
             right: 15px; 
-            font-size: 0.9rem; /* Fonte ajustada */
+            font-size: 0.9rem; 
             font-weight: 700;
         }
         .type-mp-card { color: #2563eb; }
@@ -191,7 +190,6 @@
         .card-move-action { 
             position: absolute; 
             bottom: 8px; 
-            /* Alterado de 'right: 8px;' para 'left: 8px;' para padronizar */
             right: auto;
             left: 8px; 
         }
@@ -225,6 +223,11 @@
         .modal-body .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; box-sizing: border-box; font-family: 'Inter', sans-serif; resize: none; overflow-y: hidden; min-height: 80px; }
         .uppercase-input { text-transform: uppercase; }
 
+        /* Estilos adicionais para o modo lote na edição */
+        .batch-search-result-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; transition: background-color 0.2s; }
+        .batch-search-result-item:hover { background-color: #eff6ff; }
+        .batch-item { display: flex; justify-content: space-between; align-items: center; background: #f9fafb; padding: 8px 12px; border-radius: 6px; margin-bottom: 4px; border: 1px solid #e5e7eb; }
+        
         .modal-footer { display: grid; grid-template-columns: 1fr 1fr; grid-template-areas: "edit finalize" "middle middle"; gap: 10px; margin-top: 20px; }
         #modal-btn-edit { grid-area: edit; }
         #modal-btn-finalize { grid-area: finalize; }
@@ -242,7 +245,6 @@
         
         .signature-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: center; z-index: 2000; }
         .signature-modal-content { background-color: #fff; padding: 20px; border-radius: 10px; width: 95%; max-width: 600px; text-align: center; display: flex; flex-direction: column; }
-        /* ADICIONADO PARA MENSAGEM DE ORIENTAÇÃO */
         #orientation-message-details { display: none; padding: 15px; margin-bottom: 15px; background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 6px; font-weight: 500; }
         .signature-modal-content canvas { border: 2px dashed #ccc; border-radius: 6px; cursor: crosshair; width: 100%; height: 250px; }
         .signature-modal-buttons { margin-top: 15px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0; }
@@ -282,9 +284,6 @@
             .board { padding: 10px; gap: 10px; scroll-snap-type: x mandatory; }
             .list { scroll-snap-align: center; min-width: 280px; width: 85vw; }
             .modal-header-top { flex-direction: row; }
-            
-            /* As regras de posicionamento do cartão foram movidas para o CSS principal (default) */
-            /* --- FIM DA CORREÇÃO 1 --- */
         }
     </style>
 </head>
@@ -367,8 +366,10 @@
         import { getFirestore, collection, doc, getDoc, updateDoc, onSnapshot, query, where, orderBy, deleteField, arrayUnion } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
         import { SignaturePadManager } from './signature-pad-helper.js';
         import { generateOsPdf } from './pdf-generator.js';
-        import { PartsManager } from './modulo-pecas.js';
-        import { EquipmentSelector } from './equipment-selector.js';
+        
+        // Novos Módulos Importados
+        import { InfoModalManager } from './quadros-modal-info.js';
+        import { EditModalManager } from './quadros-modal-edit.js';
         
         function escapeHTML(unsafeText) {
           if (typeof unsafeText !== 'string') return '';
@@ -396,10 +397,8 @@
         const historyModal = document.getElementById('history-modal');
         const historyModalBody = document.getElementById('history-modal-body');
         const signatureModal = document.getElementById('signature-modal-details');
+        
         let currentOrderForAction = null;
-        let activePartsManager = null;
-        let activeEquipmentSelector = null;
-
         let openModalsStack = [];
 
         function openModal(modalElement) {
@@ -460,6 +459,15 @@
             }
         };
 
+        // --- INSTANCIAR GERENCIADORES DE MODAL ---
+        const infoModalManager = new InfoModalManager();
+        const editModalManager = new EditModalManager(db, signaturePadManagerDetails);
+        
+        // Callback para sucesso ao salvar
+        editModalManager.onSaveSuccess = () => {
+            showToast('OS atualizada com sucesso!');
+            history.back(); // Fecha o modal
+        };
 
         function formatDate(dateString) {
             if (!dateString) return 'N/A';
@@ -555,21 +563,15 @@
             if (order.tipo_manutencao === 'preventiva') maintenanceTypeHtml = '<span class="maintenance-type-card type-mp-card">MP</span>';
             else if (order.tipo_manutencao === 'corretiva') maintenanceTypeHtml = '<span class="maintenance-type-card type-mc-card">MC</span>';
             
-            // --- INÍCIO DA ALTERAÇÃO 1: Visualização Simplificada do Lote no Cartão ---
             let displayEquip = order.equipamento || 'N/A';
-            // Verifica se é Esfigmo E se é Lote
             if (displayEquip.toUpperCase().includes("ESFIGMO") && displayEquip.includes("(LOTE")) {
-                // Captura a quantidade dentro dos parênteses, ex: "4 un." de "(LOTE: 4 un.)"
                 const match = displayEquip.match(/\(LOTE:\s*(.*?)\)/);
                 if (match && match[1]) {
-                    // Formata com quebra de linha e remove os parenteses
                     displayEquip = `ESFIGMOMANÔMETRO<br><span style="font-weight: 500; color: #666; font-size: 0.9em;">Lote: ${match[1]}</span>`;
                 } else {
-                    // Fallback
                     displayEquip = `ESFIGMOMANÔMETRO<br><span style="font-weight: 500; color: #666; font-size: 0.9em;">Lote</span>`;
                 }
             }
-            // --- FIM DA ALTERAÇÃO 1 ---
 
             card.innerHTML = `
                 <div class="card-status-icon">${isSigned ? signedIcon : unsignedIcon}</div>
@@ -664,122 +666,24 @@
                 const docSnap = await getDoc(docRef);
                 if (!docSnap.exists()) throw new Error('OS não encontrada');
                 currentOrderForAction = { id: docSnap.id, ...docSnap.data() };
-                modalBody.innerHTML = generateDetailsView(currentOrderForAction);
+                
+                // DELEGADO PARA O MÓDULO DE INFO
+                modalBody.innerHTML = infoModalManager.generateView(currentOrderForAction);
+                
                 addModalEventListeners(currentOrderForAction);
                 openModal(modalOverlay);
             } catch (error) { console.error("Erro ao abrir detalhes:", error); showToast(`Erro: ${error.message}`); }
-        }
-
-        function generateDetailsView(order) {
-            const isSigned = order.signature_data && order.signature_data.length > 200;
-            let signatureSectionHtml = isSigned
-                ? `<img src="${order.signature_data}" class="signature-thumbnail" alt="Assinatura">`
-                : `<div class="signature-placeholder">Sem Assinatura</div>`;
-            
-            let servicosDisplayHtml = (order.servicos_realizados === "Recebimento de equipamento para análise.")
-                ? `<p><strong>Serviços Realizados:</strong></p><p style="font-style: italic; color: #7f8c8d;">Equipamento recebido para análise.</p>`
-                : `<p><strong>Serviços Realizados:</strong><br>${escapeHTML(order.servicos_realizados || 'Não informado.').replace(/\n/g, '<br>')}</p>`;
-
-            let pecasHtml = '<p>Nenhuma peça utilizada.</p>';
-            if (order.pecas_utilizadas && Array.isArray(order.pecas_utilizadas) && order.pecas_utilizadas.length > 0) {
-                pecasHtml = '<ul class="list-disc pl-5 space-y-1">' + order.pecas_utilizadas.map(part => `<li><strong>${part.qtd}x</strong> - ${escapeHTML(part.descricao)}</li>`).join('') + '</ul>';
-            }
-
-            const formattedRetirada = formatDate(order.data_servico || order.data_retirada);
-            const formattedDevolucao = formatDate(order.data_devolucao);
-            
-            let maintenanceTypeHtml = '';
-            if (order.tipo_manutencao === 'preventiva') maintenanceTypeHtml = `<p class="maintenance-type-modal type-mp">MP - Manutenção Preventiva</p>`;
-            else if (order.tipo_manutencao === 'corretiva') maintenanceTypeHtml = `<p class="maintenance-type-modal type-mc">MC - Manutenção Corretiva</p>`;
-            
-            let attendanceHtml = '';
-            if (order.contrato === 'Contrato N° 03/2024') {
-                attendanceHtml = `<p><strong>Data do Serviço:</strong> ${formattedRetirada}</p><p><strong>Hora de Chegada:</strong> ${order.hora_chegada || 'N/A'}</p><p><strong>Hora de Saída:</strong> ${order.hora_saida || 'N/A'}</p><p><strong>Local:</strong> CME / HE-UFPEL</p>`;
-            } else {
-                 attendanceHtml = `<p><strong>Data da Retirada / Serviço:</strong> ${formattedRetirada}</p><p><strong>Data da Devolução:</strong> ${formattedDevolucao}</p><p><strong>Local:</strong> ${order.local_atendimento || 'N/A'}</p>`;
-            }
-
-            // --- INÍCIO DA ALTERAÇÃO 2: Dados do Equipamento com Suporte a Lote ---
-            let equipmentDataHtml = '';
-
-            // Se for um lote (array 'itens' existe e tem elementos)
-            if (order.itens && Array.isArray(order.itens) && order.itens.length > 0) {
-                // 1. Agrupamento por TIPO (Propriedade 'nome' do item)
-                const gruposPorTipo = {};
-                
-                order.itens.forEach(item => {
-                    // O campo 'nome' geralmente contém o tipo completo (ex: ESFIGMOMANÔMETRO ADULTO)
-                    const tipo = item.nome || 'Equipamento'; 
-                    
-                    if (!gruposPorTipo[tipo]) gruposPorTipo[tipo] = [];
-                    gruposPorTipo[tipo].push(item);
-                });
-
-                // 2. Construção do HTML
-                equipmentDataHtml = '<div class="space-y-4">'; // Container principal
-
-                for (const [tipo, listaItens] of Object.entries(gruposPorTipo)) {
-                    equipmentDataHtml += `<div class="bg-gray-50 p-3 rounded border border-gray-200">`;
-                    // Título do Grupo (Tipo)
-                    equipmentDataHtml += `<h3 class="font-bold text-blue-800 border-b border-gray-300 mb-2 pb-1">${tipo}</h3>`;
-                    
-                    // Lista de Itens (Marca - Modelo - SN)
-                    equipmentDataHtml += `<ul class="list-disc ml-5 space-y-1 text-sm text-gray-700">`;
-                    
-                    listaItens.forEach(item => {
-                        const marca = item.marca || '-';
-                        const modelo = item.modelo || '-';
-                        const sn = item.serial || item.numeroSerie || 'S/N';
-                        const pat = (item.codigoPatrimonio || item.patrimonio) ? ` (Pat: ${item.codigoPatrimonio || item.patrimonio})` : '';
-                        
-                        equipmentDataHtml += `<li><strong>${marca}</strong> - ${modelo} - <strong>SN:</strong> ${sn}${pat}</li>`;
-                    });
-                    
-                    equipmentDataHtml += `</ul>`;
-                    equipmentDataHtml += `</div>`;
-                }
-                equipmentDataHtml += '</div>';
-
-            } else {
-                // Lógica Original (Item Único)
-                equipmentDataHtml = `
-                    <p><strong>Equipamento:</strong> ${order.equipamento||'N/A'}</p>
-                    <p><strong>Marca:</strong> ${order.marca||'N/A'}</p>
-                    <p><strong>Modelo:</strong> ${order.modelo||'N/A'}</p>
-                    <p><strong>Serial:</strong> ${order.serial||'N/A'}</p>
-                `;
-            }
-            // --- FIM DA ALTERAÇÃO 2 ---
-
-            return `
-                <div class="modal-header-container"><div class="modal-header-top"><h1>Detalhes da OS ${order.os_numero}</h1></div>${maintenanceTypeHtml}</div>
-                <div class="form-section"><h2>Dados do Cliente</h2><p><strong>Contrato:</strong> ${order.contrato||'N/A'}</p><p><strong>Cliente:</strong> ${order.cliente||'N/A'}</p><p><strong>Endereço:</strong> ${order.endereco||'N/A'}</p></div>
-                <div class="form-section"><h2>Dados do Equipamento</h2>${equipmentDataHtml}</div>
-                <div class="form-section"><h2>Atendimento</h2>${attendanceHtml}</div>
-                <div class="form-section"><h2>Serviços e Peças</h2>${servicosDisplayHtml}<p class="mt-4"><strong>Peças Utilizadas:</strong></p>${pecasHtml}</div>
-                <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><div id="signature-container-details">${signatureSectionHtml}</div><div class="signature-line">Responsável</div></div><div class="signature-box"><img src="./images/assinatura-tecnico.png" style="max-width:200px;"><div class="signature-line">Responsável Técnico</div></div></div></div>
-                <div class="modal-footer">
-                    <button id="modal-btn-edit" class="btn-action btn-edit">Editar OS</button>
-                    <button id="modal-btn-finalize" class="btn-action btn-finalize">Finalizar OS</button>
-                    <div class="middle-buttons">
-                        <button id="modal-btn-history" class="btn-action btn-history">Histórico</button>
-                        <button id="modal-btn-pdf" class="btn-action btn-pdf">Gerar PDF</button>
-                        <button id="modal-btn-archive" class="btn-action btn-archive">Arquivar OS</button>
-                    </div>
-                </div>`;
         }
         
         function addModalEventListeners(order) {
             document.getElementById('modal-btn-history').addEventListener('click', () => openHistoryModal(order));
             document.getElementById('modal-btn-archive').addEventListener('click', handleArchiveClick);
+            
+            // Agora usa a nova função switchToEditMode que delega para o módulo
             document.getElementById('modal-btn-edit').addEventListener('click', () => switchToEditMode(order.id));
+            
             document.getElementById('modal-btn-pdf').addEventListener('click', (e) => generateOsPdf(order, e.target));
             document.getElementById('modal-btn-finalize').addEventListener('click', handleFinalizeClick);
-        }
-
-        function autoGrowTextarea(element) {
-            element.style.height = 'auto';
-            element.style.height = (element.scrollHeight) + 'px';
         }
 
         async function switchToEditMode(orderId) {
@@ -788,156 +692,9 @@
             if(!docSnap.exists()) return;
             
             const order = { id: docSnap.id, ...docSnap.data() };
-            modalBody.innerHTML = generateEditForm(order);
-
-            if (order.contrato !== 'Contrato N° 03/2024') {
-                activeEquipmentSelector = new EquipmentSelector({ contractId: order.contrato, elements: { equipmentSelect: document.getElementById('equipamento_select_edit'), brandSelect: document.getElementById('marca_select_edit'), modelSelect: document.getElementById('modelo_select_edit'), serialSelect: document.getElementById('serial_select_edit'), locationSelect: document.getElementById('edit_local_atendimento'), manualEquipmentDiv: document.getElementById('manual_equipment_name_edit'), manualBrandDiv: document.getElementById('manual_brand_name_edit'), manualModelDiv: document.getElementById('manual_model_name_edit'), manualSerialDiv: document.getElementById('manual_serial_name_edit'), equipmentManualInput: document.getElementById('equipamento_manual_edit'), brandManualInput: document.getElementById('marca_manual_edit'), modelManualInput: document.getElementById('modelo_manual_edit'), serialManualInput: document.getElementById('serial_manual_edit') } });
-                await activeEquipmentSelector.init();
-                activeEquipmentSelector.preselect(order);
-            }
             
-            const editForm = document.getElementById('edit-os-form');
-            const textareas = editForm.querySelectorAll('textarea');
-            textareas.forEach(textarea => {
-                textarea.addEventListener('input', () => autoGrowTextarea(textarea));
-                autoGrowTextarea(textarea);
-            });
-            
-            let currentParts = Array.isArray(order.pecas_utilizadas) ? [...order.pecas_utilizadas] : [];
-            if (!activePartsManager) activePartsManager = new PartsManager({});
-            activePartsManager.updateCallbacks({ onConfirm: (updatedParts) => { currentParts = updatedParts; updatePartsUI(); } });
-            
-            const partsInitialView = document.getElementById('parts-initial-view-edit');
-            const partsSummaryView = document.getElementById('parts-summary-view-edit');
-            const partsSummaryList = document.getElementById('parts-summary-list-edit');
-            function updatePartsUI() {
-                if (currentParts.length > 0) {
-                    partsInitialView.classList.add('hidden');
-                    partsSummaryView.classList.remove('hidden');
-                    partsSummaryList.innerHTML = `<ul class="list-disc pl-5 space-y-1">${currentParts.map(p => `<li><strong>${p.qtd}x</strong> - ${escapeHTML(p.descricao)}</li>`).join('')}</ul>`;
-                } else {
-                    partsInitialView.classList.remove('hidden');
-                    partsSummaryView.classList.add('hidden');
-                }
-            }
-            document.querySelectorAll('.btn-edit-parts').forEach(btn => btn.addEventListener('click', () => activePartsManager.open(currentParts)));
-            updatePartsUI();
-            
-            const signatureContainer = document.getElementById('signature-container-details');
-            const desconsiderarCheck = editForm.querySelector('#edit-desconsiderar-assinatura-check');
-
-            if (signatureContainer) {
-                signatureContainer.addEventListener('click', () => {
-                    if (desconsiderarCheck && desconsiderarCheck.checked) return;
-                    openModal(signatureModal);
-                    signaturePadManagerDetails.open((dataUrl) => {
-                        document.getElementById('edit_signature_data').value = dataUrl;
-                        signatureContainer.innerHTML = `<img src="${dataUrl}" class="signature-thumbnail" alt="Assinatura">`;
-                        if (desconsiderarCheck) {
-                            desconsiderarCheck.checked = false;
-                            desconsiderarCheck.dispatchEvent(new Event('change'));
-                        }
-                    });
-                });
-            }
-
-            if (desconsiderarCheck) {
-                const signatureArea = editForm.querySelector('.signature-area');
-                const updateSignatureArea = () => {
-                    const signatureImg = signatureContainer.querySelector('img');
-                    if (desconsiderarCheck.checked) {
-                        signatureArea.style.opacity = '0.5';
-                        signatureArea.style.pointerEvents = 'none';
-                        if (!signatureImg) signatureContainer.innerHTML = `<div id="signature-placeholder-details" class="signature-placeholder">Assinatura não necessária</div>`;
-                    } else {
-                        signatureArea.style.opacity = '1';
-                        signatureArea.style.pointerEvents = 'auto';
-                        if (!signatureImg) signatureContainer.innerHTML = `<div id="signature-placeholder-details" class="signature-placeholder is-clickable">Adicionar Assinatura</div>`;
-                    }
-                };
-                desconsiderarCheck.addEventListener('change', updateSignatureArea);
-                updateSignatureArea();
-            }
-            
-            editForm.addEventListener('submit', (e) => { e.preventDefault(); saveOrderChanges(orderId, currentParts); });
-        }
-        
-        function generateEditForm(order) {
-            const isSigned = order.signature_data && order.signature_data.length > 200;
-            let signatureSectionHtml = isSigned 
-                ? `<img src="${order.signature_data}" class="signature-thumbnail" alt="Assinatura">` 
-                : `<div id="signature-placeholder-details" class="signature-placeholder is-clickable">Adicionar Assinatura</div>`;
-            
-            let attendanceFields = '', equipmentFields = '';
-            let desconsiderarCheckboxHtml = '';
-
-            if (order.contrato === 'Contrato Nº 10/2025') {
-                desconsiderarCheckboxHtml = `<div class="checkbox-group mb-5"><input type="checkbox" id="edit-desconsiderar-assinatura-check" ${order.assinaturaDesconsiderada ? 'checked' : ''}><label for="edit-desconsiderar-assinatura-check">Desconsiderar Assinatura</label></div>`;
-            }
-
-            if (order.contrato === 'Contrato N° 03/2024') {
-                 attendanceFields = `<div class="form-group"><label for="edit_data_servico">Data do Serviço:</label><input type="date" id="edit_data_servico" value="${order.data_servico||''}"></div><div class="form-group"><label>Hora de Chegada:</label><input type="time" id="edit_hora_chegada" value="${order.hora_chegada||''}"></div><div class="form-group"><label>Hora de Saída:</label><input type="time" id="edit_hora_saida" value="${order.hora_saida||''}"></div>`;
-                 equipmentFields = `<div class="bg-gray-100 p-4 rounded-md"><p><strong>Equipamento:</strong> ${order.equipamento}</p><p><strong>Marca:</strong> ${order.marca}</p><p><strong>Modelo:</strong> ${order.modelo}</p><p><strong>Serial:</strong> ${order.serial}</p></div>`;
-            } else {
-                attendanceFields = `<div class="form-group"><label for="edit_data_retirada">Data da Retirada:</label><input type="date" id="edit_data_retirada" value="${order.data_retirada||''}"></div><div class="form-group"><label for="edit_data_devolucao">Data da Devolução:</label><input type="date" id="edit_data_devolucao" value="${order.data_devolucao||''}"></div>`;
-                const locations = order.contrato === 'Contrato Nº 138/2024' ? ['PA','UBS CENTRAL','UBS CASABOM','UBS I - PARQUE FRAGATA','UBS II - JARDIM AMÉRICA','UBS III - JARDIM AMÉRICA','CAPS'] : ['GO1', 'GO2', 'GO3', 'GO4', 'PMGUPEL'];
-                attendanceFields += `<div class="form-group"><label for="edit_local_atendimento">Local:</label><select id="edit_local_atendimento">${locations.map(l => `<option value="${l}" ${order.local_atendimento === l ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`;
-                equipmentFields = `<div class="form-group"><label>Equipamento:</label><select id="equipamento_select_edit" required></select></div><div id="manual_equipment_name_edit" class="form-group hidden"><label>Qual equipamento?</label><input type="text" id="equipamento_manual_edit" class="uppercase-input"></div><div class="form-group"><label>Marca:</label><select id="marca_select_edit" required disabled></select></div><div id="manual_brand_name_edit" class="form-group hidden"><label>Qual marca?</label><input type="text" id="marca_manual_edit" class="uppercase-input"></div><div class="form-group"><label>Modelo:</label><select id="modelo_select_edit" required disabled></select></div><div id="manual_model_name_edit" class="form-group hidden"><label>Qual modelo?</label><input type="text" id="modelo_manual_edit" class="uppercase-input"></div><div class="form-group"><label>Nº de Série:</label><select id="serial_select_edit" disabled></select></div><div id="manual_serial_name_edit" class="form-group hidden"><label>Qual nº de série?</label><input type="text" id="serial_manual_edit" class="uppercase-input"></div>`;
-            }
-            return `
-                <div class="modal-header-container"><div class="modal-header-top"><h1>Editar OS: ${order.os_numero}</h1></div></div>
-                <form id="edit-os-form">
-                    <input type="hidden" id="edit_signature_data" value="${order.signature_data || ''}">
-                    <div class="form-section"><h2>Dados do Equipamento</h2>${equipmentFields}</div>
-                    <div class="form-section"><h2>Atendimento</h2>${attendanceFields}</div>
-                    <div class="form-section">
-                        <h2>Serviços e Peças</h2>
-                        <div class="form-group"><label for="edit_servicos_realizados">Serviços Realizados:</label><textarea id="edit_servicos_realizados">${order.servicos_realizados||''}</textarea></div>
-                        <div class="form-group"><label>Peças Utilizadas:</label><div id="parts-initial-view-edit"><button type="button" class="btn-edit-parts w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Gerenciar Peças</button></div><div id="parts-summary-view-edit" class="hidden"><div id="parts-summary-list-edit" class="mb-4 bg-gray-50 p-3 border rounded-md"></div><button type="button" class="btn-edit-parts w-full sm:w-auto px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">Editar Peças</button></div></div>
-                    </div>
-                    <div class="form-section"><h2>Assinaturas</h2>${desconsiderarCheckboxHtml}<div class="signature-area"><div class="signature-grid"><div class="signature-box"><div id="signature-container-details">${signatureSectionHtml}</div><div class="signature-line">Responsável</div></div><div class="signature-box"><img src="./images/assinatura-tecnico.png" style="max-width:200px;"><div class="signature-line">Responsável Técnico</div></div></div></div></div>
-                    <div class="modal-footer"><button type="submit" class="btn-action btn-save">Salvar Alterações</button></div>
-                </form>`;
-        }
-        
-        async function saveOrderChanges(orderId, currentParts) {
-            const form = document.getElementById('edit-os-form');
-            const updatedData = activeEquipmentSelector ? activeEquipmentSelector.getSelection() : {};
-            const historyEntries = [];
-
-            const fields = ['data_servico', 'hora_chegada', 'hora_saida', 'data_retirada', 'data_devolucao', 'local_atendimento'];
-            fields.forEach(f => { if(form[f]) updatedData[f] = form[f].value; });
-            
-            updatedData.servicos_realizados = document.getElementById('edit_servicos_realizados').value;
-            updatedData.pecas_utilizadas = currentParts;
-            updatedData.signature_data = document.getElementById('edit_signature_data').value;
-            
-            const desconsiderarCheck = form.querySelector('#edit-desconsiderar-assinatura-check');
-            if (desconsiderarCheck) {
-                updatedData.assinaturaDesconsiderada = desconsiderarCheck.checked;
-                if (desconsiderarCheck.checked) updatedData.signature_data = ''; 
-            }
-            if (updatedData.signature_data) updatedData.assinaturaDesconsiderada = false;
-
-            const wasSigned = (currentOrderForAction.signature_data && currentOrderForAction.signature_data.length > 200) || currentOrderForAction.assinaturaDesconsiderada;
-            const isNowSigned = (updatedData.signature_data && updatedData.signature_data.length > 200) || updatedData.assinaturaDesconsiderada;
-
-            if (isNowSigned && !wasSigned) {
-                updatedData.signedAt = new Date();
-                historyEntries.push({ action: 'Assinada', details: 'Assinatura adicionada/confirmada.', timestamp: new Date() });
-            } else if (!isNowSigned && wasSigned) {
-                updatedData.signedAt = deleteField();
-                historyEntries.push({ action: 'Assinatura Removida', details: 'Assinatura removida.', timestamp: new Date() });
-            }
-
-            historyEntries.push({ action: 'Editada', details: 'Os dados da OS foram alterados.', timestamp: new Date() });
-            updatedData.history = arrayUnion(...historyEntries);
-
-            try {
-                await updateDoc(doc(db, "orders", orderId), updatedData);
-                showToast('OS atualizada com sucesso!');
-                history.back();
-            } catch (error) { console.error("Erro ao salvar:", error); showToast("Erro ao salvar."); }
+            // DELEGADO PARA O MÓDULO DE EDIÇÃO
+            await editModalManager.render(order, modalBody);
         }
 
         function handleFinalizeClick() {

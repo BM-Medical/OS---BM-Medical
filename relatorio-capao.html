@@ -124,7 +124,7 @@
                 <input type="month" id="month-selector" class="bg-transparent border-none text-white focus:ring-0 cursor-pointer text-sm font-bold h-6">
             </div>
 
-            <button onclick="carregarDadosRelatorio()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-xs uppercase font-bold tracking-wide transition flex items-center gap-2">
+            <button id="btn-update" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-xs uppercase font-bold tracking-wide transition flex items-center gap-2">
                 <i class="fas fa-sync-alt"></i> Atualizar
             </button>
         </div>
@@ -142,10 +142,9 @@
     <div class="a4-page" id="page-cover">
         
         <!-- CABEÇALHO (LOGO) -->
-        <!-- Logo mais próximo do topo e com margem inferior reduzida -->
         <div class="flex flex-col items-center justify-center mb-6 pt-0">
             <img src="./images/logo.png" alt="BM Medical" class="h-32 object-contain" 
-                 onerror="this.style.display='none'; this.insertAdjacentHTML('afterend', '<span class=\'text-red-500 text-xs border border-red-300 bg-red-50 p-1\'>Logo não carregado (./images/logo.png)</span>')">
+                 onerror="this.style.display='none';">
         </div>
 
         <!-- TÍTULO REDUZIDO -->
@@ -153,7 +152,7 @@
             <h1 class="text-2xl font-black text-gray-900 uppercase tracking-wide">RELATÓRIO MENSAL</h1>
         </div>
 
-        <!-- LISTA DE DADOS (LINHA ÚNICA - Espaçamento Reduzido ao Mínimo) -->
+        <!-- LISTA DE DADOS -->
         <div class="mb-8 text-base pl-2">
             <div class="mb-0 flex items-baseline">
                 <span class="font-bold text-gray-900 uppercase text-sm mr-2 w-24">Contrato:</span>
@@ -179,7 +178,6 @@
                 <label class="edit-label no-print">
                     <input type="checkbox" onchange="toggleField(this, 'texto-objeto')" class="mr-1"> Editar Texto
                 </label>
-                <!-- Com indentação -->
                 <textarea id="texto-objeto" readonly class="editable-field text-indent-custom text-justify text-sm leading-relaxed w-full h-24">Contratação de uma empresa especializada para fornecimento de serviços de manutenção corretiva e preventiva de materiais e equipamentos odontológicos e hospitalares, listados no Item 1.2. Planilha dos equipamentos do Edital de Pregão Eletrônico Nº 035/2024 1ª Reedição, instalados nas localidades descritas abaixo:</textarea>
             </div>
             
@@ -187,7 +185,6 @@
                 <label class="edit-label no-print">
                     <input type="checkbox" onchange="toggleField(this, 'lista-locais')" class="mr-1"> Editar Locais
                 </label>
-                <!-- Sem indentação na lista -->
                 <textarea id="lista-locais" readonly class="editable-field w-full text-sm leading-relaxed h-48 font-medium text-gray-700 pl-4" style="white-space: pre-line;">Pronto Atendimento Municipal;
 Unidade de Saúde Neli Domingues Silveira (UBS Central);
 Unidade de ESF Claudio Vitória (UBS Casabom);
@@ -203,16 +200,9 @@ CAPS (Casa Vida).</textarea>
         <div class="mb-4">
             <h2 class="text-lg font-bold uppercase mb-4 border-l-4 border-gray-900 pl-3">2. Atividades Realizadas</h2>
             
-            <!-- Com indentação -->
             <p class="text-sm text-justify mb-4 text-indent-custom leading-relaxed">
                 Durante o período de referência, houve a continuidade da execução do contrato, com a realização de serviços de manutenção preventiva e corretiva, conforme descrito a seguir.
             </p>
-
-            <div class="edit-label no-print">
-                <label class="flex items-center cursor-pointer">
-                    <input type="checkbox" onchange="toggleTableEdit(this)" class="mr-1"> Editar Tabela
-                </label>
-            </div>
 
             <!-- Tabela -->
             <table class="w-full border-collapse border border-gray-900 text-sm">
@@ -268,11 +258,6 @@ CAPS (Casa Vida).</textarea>
     <!-- CONTAINER DE OSs -->
     <div id="os-list-container"></div>
 
-    <!-- Scripts -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-    
     <!-- Inline JS para UI simples -->
     <script>
         function toggleField(checkbox, fieldId) {
@@ -284,19 +269,9 @@ CAPS (Casa Vida).</textarea>
                 field.setAttribute('readonly', true);
             }
         }
-        function toggleTableEdit(checkbox) {
-            const inputs = document.querySelectorAll('.table-input');
-            inputs.forEach(input => {
-                if (checkbox.checked) {
-                    input.removeAttribute('readonly');
-                } else {
-                    input.setAttribute('readonly', true);
-                }
-            });
-        }
     </script>
 
-    <script src="relatorio-capao.js"></script>
-    <script src="pdf-generator.js"></script> 
+    <!-- Importante: type="module" para usar imports no JS -->
+    <script type="module" src="relatorio-capao.js"></script>
 </body>
 </html>

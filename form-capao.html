@@ -3,273 +3,395 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Formulário OS - Capão do Leão</title>
+    <title>OS - Capão do Leão</title>
     <script src="favicon-loader.js" type="module"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="auth-guard.js" type="module"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
-        .header { padding: 20px 0; width: 100%; text-align: center; }
-        .header img { max-width: 450px; height: auto; margin: 0 auto; }
-        .main-content { margin-top: 20px; width: 100%; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: left; }
-        .main-content h1 { font-size: 2rem; color: #333; margin-bottom: 20px; text-align: center; }
-        .form-section { border: 1px solid #e0e0e0; padding: 20px; border-radius: 8px; margin-bottom: 25px; }
-        .form-section h2 { font-size: 1.2rem; color: #3498db; margin-top: 0; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-weight: 500; margin-bottom: 8px; color: #555; }
-        .form-group input[type="text"], .form-group input[type="date"], .form-group input[type="time"], .form-group textarea, .form-group select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        .form-group input[readonly], .form-group textarea:disabled, .form-group select:disabled { background-color: #e9ecef; cursor: not-allowed; }
-        .radio-group { display: flex; gap: 20px; align-items: center; }
-        .radio-group label { font-weight: normal; margin-bottom: 0; }
-        .prefilled-data { background-color: #e9ecef; padding: 15px; border-radius: 6px; border-left: 5px solid #3498db; }
-        .prefilled-data p { margin: 5px 0; font-size: 1rem; }
-        .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; text-align: center; margin-top: 20px; }
-        .signature-box { display: flex; flex-direction: column; align-items: center; }
-        .signature-image-container { height: 120px; width: 100%; max-width: 300px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 5px; }
-        .signature-image-container img { max-height: 120px; max-width: 100%; }
-        .signature-line { padding-top: 8px; font-weight: 500; font-size: 0.9rem; width: 100%; }
-        .btn-submit { display: block; width: 100%; padding: 15px; margin-top: 30px; background-color: #2ecc71; color: white; border: none; border-radius: 6px; font-size: 1.2rem; font-weight: 700; cursor: pointer; transition: background-color: 0.3s ease; }
-        .btn-submit:hover { background-color: #27ae60; }
-        .btn-submit:disabled { background-color: #bdc3c7; cursor: not-allowed; }
-        .footer { background-color: #34495e; color: #ecf0f1; padding: 20px 0; width: 100%; text-align: center; }
-        .footer p { margin: 5px 10px; }
-        .checkbox-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
-        .checkbox-group label { margin-bottom: 0; font-weight: normal; }
-        .signature-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); display: none; justify-content: center; align-items: center; z-index: 2000; }
-        .signature-modal-content { background-color: #fff; padding: 20px; border-radius: 10px; width: 95%; max-width: 600px; text-align: center; display: flex; flex-direction: column; }
-        .signature-modal-content canvas { border: 2px dashed #ccc; border-radius: 6px; cursor: crosshair; width: 100%; height: 250px; }
-        .signature-modal-buttons { margin-top: 15px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
-        .signature-modal-buttons button { padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer; font-size: 1rem; }
-        #signature-save-button { background-color: #2ecc71; color: white; }
-        #signature-undo-button { background-color: #f39c12; color: white; }
-        #signature-clear-button { background-color: #e74c3c; color: white; }
-        #signature-cancel-button { background-color: #95a5a6; color: white; }
-        #signature-error-message { color: #e74c3c; font-weight: 500; margin-top: 10px; display: none; }
-        .signature-placeholder { border: 2px dashed #ccc; border-radius: 6px; padding: 20px; text-align: center; cursor: pointer; color: #7f8c8d; }
-        .signature-thumbnail { max-width: 200px; max-height: 100px; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; }
-        .signature-modal-overlay:fullscreen { background-color: #fff; }
-        .signature-modal-overlay:fullscreen .signature-modal-content { height: 100%; width: 100%; max-width: none; border-radius: 0; padding: 15px; box-sizing: border-box; }
-        .signature-modal-overlay:fullscreen .signature-modal-content canvas { flex-grow: 1; height: auto; }
-        .uppercase-input { text-transform: uppercase; }
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #1f2937; }
         
-        .logout-icon { width: 1.25rem; height: 1.25rem; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-        .floating-back-btn { 
-            position: fixed; 
-            bottom: 90px;
-            right: 24px; 
-            background-color: #3498db;
-            color: white; 
-            width: 56px; 
-            height: 56px; 
-            border-radius: 50%; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-            text-decoration: none; 
-            transition: all 0.3s ease; 
-            z-index: 100; 
+        /* Estilos das Abas */
+        .tab-btn {
+            border-bottom: 3px solid transparent;
+            color: #6b7280;
+            transition: all 0.3s ease;
         }
-        .floating-back-btn:hover { 
-            background-color: #2980b9; 
-            transform: scale(1.05);
+        .tab-btn.active {
+            border-color: #1e40af; /* Azul Escuro do Capão */
+            color: #1e40af;
+            font-weight: 700;
+            background-color: #eff6ff;
         }
-        .floating-back-btn svg { width: 24px; height: 24px; }
+        
+        /* Formulários */
+        .form-section { border: 1px solid #e5e7eb; padding: 20px; border-radius: 8px; margin-bottom: 20px; background-color: white; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .form-section h2 { font-size: 1.1rem; color: #1e40af; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600; }
+        
+        .form-group label { display: block; font-weight: 500; margin-bottom: 6px; color: #374151; font-size: 0.9rem; }
+        .form-input { 
+            width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; 
+            font-size: 0.95rem; transition: border-color 0.2s; 
+        }
+        .form-input:focus { border-color: #2563eb; outline: none; ring: 2px solid #bfdbfe; }
+        .form-input:disabled, .form-input[readonly] { background-color: #f9fafb; color: #6b7280; cursor: not-allowed; }
+        
+        .uppercase-input { text-transform: uppercase; }
 
-        @media (max-width: 768px) {
-            .main-content { padding: 15px; }
-            .header img { max-width: 80%; }
-            .signature-grid { grid-template-columns: 1fr; gap: 30px; }
-            .main-content h1 { font-size: 1.8rem; }
+        /* Dados Pré-preenchidos - Correção Visual (Layout Flexível) */
+        .prefilled-data-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100%;
+            background-color: #eff6ff; 
+            border-radius: 6px; 
+            border-left: 4px solid #1e40af;
+            padding: 20px; /* Padding interno consistente */
+            box-sizing: border-box; /* Garante que o padding não aumente o tamanho total */
         }
+        .prefilled-data p { margin: 6px 0; font-size: 0.95rem; color: #1e3a8a; line-height: 1.4; }
+
+        /* Assinatura */
+        .signature-placeholder { border: 2px dashed #cbd5e1; border-radius: 6px; padding: 30px; text-align: center; color: #94a3b8; cursor: pointer; transition: all 0.2s; background-color: #f8fafc; }
+        .signature-placeholder:hover { border-color: #64748b; color: #475569; background-color: white; }
+        
+        /* Modais */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 50; padding: 1rem; }
+        .modal-content { background: white; padding: 24px; border-radius: 12px; width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column; }
+        
+        /* Tabela */
+        .os-row:hover { background-color: #f8fafc; }
+        .status-badge { padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+        .status-novas { background-color: #dbeafe; color: #1e40af; }
+        .status-finalizada { background-color: #dcfce7; color: #166534; }
+        .status-arquivada { background-color: #f3f4f6; color: #4b5563; }
+
+        /* Botão Voltar */
+        .floating-back-btn { 
+            position: fixed; bottom: 24px; right: 24px; 
+            background-color: #1e40af; color: white; 
+            width: 56px; height: 56px; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3); 
+            transition: transform 0.2s; z-index: 40;
+        }
+        .floating-back-btn:hover { transform: scale(1.05); background-color: #1e3a8a; }
     </style>
 </head>
-<body>
-    <div class="w-full max-w-4xl mx-auto p-4 sm:p-5 flex-1 flex flex-col items-center">
-        <header class="header">
-            <a href="index.html"><img id="company-logo" src="./images/logo.png" alt="Logo da Empresa"></a>
-        </header>
-        <main class="main-content">
-            <h1>Formulário de Nova OS</h1>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Header Fixo -->
+    <header class="bg-white shadow-sm sticky top-0 z-30">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <a href="index.html"><img src="./images/logo.png" alt="Logo" class="h-10 w-auto"></a>
+                <div class="hidden md:block w-px h-8 bg-gray-300"></div>
+                <div>
+                    <h1 class="text-lg md:text-xl font-bold text-gray-800">Contrato Capão do Leão</h1>
+                    <p class="text-xs text-blue-800 font-medium">Contrato Nº 138/2024</p>
+                </div>
+            </div>
+            
+            <!-- Botão Sair -->
+            <button id="logout-btn-header" class="text-sm text-gray-500 hover:text-red-600 font-medium hidden sm:block">Sair</button>
+        </div>
+        
+        <!-- Navegação de Abas -->
+        <div class="container mx-auto px-4 mt-2">
+            <div class="flex space-x-2 border-b border-gray-200">
+                <button onclick="switchTab('new')" id="tab-new" class="tab-btn active px-6 py-3 text-sm font-medium flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Nova OS
+                </button>
+                <button onclick="switchTab('list')" id="tab-list" class="tab-btn px-6 py-3 text-sm font-medium flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+                    Consultar Histórico
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-6 flex-grow max-w-5xl">
+        
+        <!-- ================= ABA 1: NOVA OS ================= -->
+        <div id="view-new-os" class="animate-fade-in">
             <form id="os-form">
-                <div class="form-section">
-                    <h2>Detalhes do Atendimento</h2>
-                    <div class="form-group">
-                        <label for="os_numero">Número da OS:</label>
-                        <input type="text" id="os_numero" name="os_numero" readonly placeholder="Buscando...">
+                <!-- Detalhes e Cliente -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <!-- Coluna da Esquerda: Detalhes -->
+                    <div class="form-section h-full flex flex-col">
+                        <h2>Detalhes do Atendimento</h2>
+                        <div class="form-group mb-4">
+                            <label>Número da OS</label>
+                            <input type="text" id="os_numero" name="os_numero" readonly class="form-input font-bold text-blue-900 bg-blue-50" placeholder="Gerando...">
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de Manutenção</label>
+                            <div class="flex gap-4 mt-2 p-2 bg-gray-50 rounded border border-gray-200">
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="radio" name="tipo_manutencao" value="preventiva" checked class="text-blue-600 focus:ring-blue-500">
+                                    <span class="ml-2 font-medium">Preventiva</span>
+                                </label>
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="radio" name="tipo_manutencao" value="corretiva" class="text-red-600 focus:ring-red-500">
+                                    <span class="ml-2 font-medium">Corretiva</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
-                     <div class="form-group">
-                        <label>Tipo de Manutenção:</label>
-                        <div class="radio-group">
-                            <input type="radio" id="preventiva" name="tipo_manutencao" value="preventiva" checked>
-                            <label for="preventiva">Preventiva</label>
-                            <input type="radio" id="corretiva" name="tipo_manutencao" value="corretiva">
-                            <label for="corretiva">Corretiva</label>
+
+                    <!-- Coluna da Direita: Cliente (CORRIGIDO PARA NÃO VAZAR) -->
+                    <div class="form-section h-full border-blue-200 flex flex-col">
+                        <h2>Dados do Cliente</h2>
+                        <!-- Usei flex-grow para ocupar o espaço restante sem estourar -->
+                        <div class="flex-grow">
+                            <div class="prefilled-data-container h-full">
+                                <p><strong>Cliente:</strong> Secretaria Municipal de Saúde De Capão Do Leão</p>
+                                <p><strong>Razão Social:</strong> Município de Capão Do Leao</p>
+                                <p><strong>CNPJ:</strong> 87.691.507/0001-17</p>
+                                <p><strong>Endereço:</strong> Av. Narciso Silva, 2360, Capão Do Leão - RS</p>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="form-section">
-                    <h2>Dados do Cliente</h2>
-                    <div class="prefilled-data">
-                        <p><strong>Contrato:</strong> Contrato Nº 138/2024</p>
-                        <p><strong>Cliente:</strong> Secretaria Municipal de Saúde De Capão Do Leão</p>
-                        <p><strong>Razão Social:</strong> Município de Capão Do Leao</p>
-                        <p><strong>CNPJ:</strong> 87.691.507/0001-17</p>
-                        <p><strong>Endereço:</strong> Av. Narciso Silva, 2360, Capão Do Leão - RS</p>
-                    </div>
-                </div>
+
+                <!-- Equipamento -->
                 <div class="form-section">
                     <h2>Dados do Equipamento</h2>
-                    <div class="form-group">
-                        <label for="equipamento_select">Equipamento:</label>
-                        <select id="equipamento_select" name="equipamento_select" required>
-                            <option value="" disabled selected>Carregando...</option>
-                        </select>
-                    </div>
-                    <div id="manual_equipment_name" class="form-group" style="display: none;">
-                        <label for="equipamento_manual">Qual equipamento?</label>
-                        <input type="text" id="equipamento_manual" name="equipamento_manual" class="uppercase-input">
-                    </div>
-                     <div class="form-group">
-                        <label for="marca_select">Marca:</label>
-                        <select id="marca_select" name="marca_select" required disabled>
-                            <option value="" disabled selected>Selecione um equipamento</option>
-                        </select>
-                    </div>
-                    <div id="manual_brand_name" class="form-group" style="display: none;">
-                        <label for="marca_manual">Qual marca?</label>
-                        <input type="text" id="marca_manual" name="marca_manual" class="uppercase-input">
-                    </div>
-                     <div class="form-group">
-                        <label for="modelo_select">Modelo:</label>
-                        <select id="modelo_select" name="modelo_select" required disabled>
-                           <option value="" disabled selected>Selecione uma marca</option>
-                        </select>
-                    </div>
-                    <div id="manual_model_name" class="form-group" style="display: none;">
-                        <label for="modelo_manual">Qual modelo?</label>
-                        <input type="text" id="modelo_manual" name="modelo_manual" class="uppercase-input">
-                    </div>
-                     <div class="form-group">
-                        <label for="serial_select">Número de Série:</label>
-                        <select id="serial_select" name="serial_select" disabled>
-                            <option value="" disabled selected>Selecione um modelo</option>
-                        </select>
-                    </div>
-                    <div id="manual_serial_name" class="form-group" style="display: none;">
-                        <label for="serial_manual">Qual número de série?</label>
-                        <input type="text" id="serial_manual" name="serial_manual" class="uppercase-input">
-                    </div>
-                </div>
-                <div class="form-section">
-                    <h2>Atendimento</h2>
-                    <div class="form-group">
-                        <label for="data_retirada">Data da Retirada:</label>
-                        <input type="date" id="data_retirada" name="data_retirada" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="data_devolucao">Data da Devolução:</label>
-                        <input type="date" id="data_devolucao" name="data_devolucao">
-                    </div>
-                    <div class="form-group">
-                        <label for="local_atendimento">Local:</label>
-                        <select id="local_atendimento" name="local_atendimento" required>
-                            <option value="" disabled selected>Selecione um local</option>
-                            <option value="PA">Pronto Atendimento Municipal</option>
-                            <option value="UBS CENTRAL">UBS Central</option>
-                            <option value="UBS CASABOM">UBS Casabom</option>
-                            <option value="UBS I - PARQUE FRAGATA">UBS I - Parque Fragata</option>
-                            <option value="UBS II - JARDIM AMÉRICA">UBS II - Jardim América</option>
-                            <option value="UBS III - JARDIM AMÉRICA">UBS III - Jardim América</option>
-                            <option value="CAPS">CAPS - Casa Vida</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-section">
-                    <h2>Descrição dos Serviços Realizados</h2>
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="recebimento_check">
-                        <label for="recebimento_check">Apenas recebimento do equipamento</label>
-                    </div>
-                    <div class="form-group">
-                        <textarea id="servicos_realizados" name="servicos_realizados" required></textarea>
-                    </div>
-                </div>
-                <div class="form-section">
-                    <h2>Peças Utilizadas</h2>
-                    <div id="parts-initial-view">
-                        <div class="checkbox-group">
-                            <input type="checkbox" id="add-parts-checkbox">
-                            <label for="add-parts-checkbox">Adicionar peças na criação da OS</label>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Selects Dinâmicos -->
+                        <div class="form-group">
+                            <label>Equipamento</label>
+                            <select id="equipamento_select" class="form-input"></select>
+                        </div>
+                        <div class="form-group hidden" id="manual_equipment_name">
+                            <label>Qual equipamento?</label>
+                            <input type="text" id="equipamento_manual" class="form-input uppercase-input">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Marca</label>
+                            <select id="marca_select" disabled class="form-input"></select>
+                        </div>
+                        <div class="form-group hidden" id="manual_brand_name">
+                            <label>Qual marca?</label>
+                            <input type="text" id="marca_manual" class="form-input uppercase-input">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Modelo</label>
+                            <select id="modelo_select" disabled class="form-input"></select>
+                        </div>
+                        <div class="form-group hidden" id="manual_model_name">
+                            <label>Qual modelo?</label>
+                            <input type="text" id="modelo_manual" class="form-input uppercase-input">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Nº de Série</label>
+                            <select id="serial_select" disabled class="form-input"></select>
+                        </div>
+                        <div class="form-group hidden" id="manual_serial_name">
+                            <label>Qual número de série?</label>
+                            <input type="text" id="serial_manual" class="form-input uppercase-input">
                         </div>
                     </div>
-                    <div id="parts-summary-view" class="hidden">
-                        <div id="parts-summary-list" class="mb-4 bg-gray-50 p-3 rounded-md border"></div>
-                        <button type="button" id="edit-parts-btn" class="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 w-full sm:w-auto">
-                            Editar Peças
+                </div>
+
+                <!-- Atendimento -->
+                <div class="form-section">
+                    <h2>Dados do Atendimento</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label>Data da Retirada</label>
+                            <input type="date" id="data_retirada" name="data_retirada" required class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label>Data da Devolução</label>
+                            <input type="date" id="data_devolucao" name="data_devolucao" class="form-input">
+                        </div>
+                        <div class="form-group md:col-span-2">
+                            <label>Local de Retirada/Atendimento</label>
+                            <select id="local_atendimento" name="local_atendimento" class="form-input" required>
+                                <option value="" disabled selected>Selecione um local...</option>
+                                <option value="PA">Pronto Atendimento Municipal (PA)</option>
+                                <option value="UBS CENTRAL">UBS Central</option>
+                                <option value="UBS CASABOM">UBS Casabom</option>
+                                <option value="UBS I - PARQUE FRAGATA">UBS I - Parque Fragata</option>
+                                <option value="UBS II - JARDIM AMÉRICA">UBS II - Jardim América</option>
+                                <option value="UBS III - JARDIM AMÉRICA">UBS III - Jardim América</option>
+                                <option value="CAPS">CAPS - Casa Vida</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Execução -->
+                <div class="form-section">
+                    <h2>Execução do Serviço</h2>
+                    
+                    <div class="mb-4 p-3 bg-blue-50 rounded border border-blue-100">
+                        <label class="inline-flex items-center cursor-pointer w-full">
+                            <input type="checkbox" id="recebimento_check" class="rounded text-blue-600 focus:ring-blue-500 w-5 h-5">
+                            <span class="ml-3 text-sm font-medium text-blue-900">Apenas recebimento de equipamento (Preencher descrição automaticamente)</span>
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Descrição dos Serviços Realizados</label>
+                        <textarea id="servicos_realizados" name="servicos_realizados" rows="4" class="form-input" placeholder="Descreva detalhadamente o serviço..." required></textarea>
+                    </div>
+
+                    <!-- Módulo de Peças -->
+                    <div class="border-t border-gray-200 pt-4 mt-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="font-medium text-gray-700">Peças Utilizadas</label>
+                        </div>
+                        
+                        <div id="parts-initial-view">
+                            <button type="button" id="btn-manage-parts" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors text-sm font-medium">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                Adicionar Peças
+                            </button>
+                        </div>
+                        
+                        <div id="parts-summary-view" class="hidden">
+                            <div id="parts-list-display" class="bg-gray-50 p-3 rounded border border-gray-200 text-sm mb-2 space-y-1"></div>
+                            <button type="button" id="btn-edit-parts" class="text-sm text-blue-600 hover:text-blue-800 font-medium underline">Gerenciar Peças</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assinaturas -->
+                <div class="form-section">
+                    <h2>Assinaturas</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-center" id="signature-area">
+                        <!-- Cliente -->
+                        <div>
+                            <div id="signature-container" class="signature-placeholder bg-white">
+                                <p class="text-sm font-medium text-gray-600">Clique aqui para Assinar</p>
+                                <p class="text-xs text-gray-400 mt-1">(Responsável do Setor)</p>
+                            </div>
+                            <input type="hidden" id="signature_data" name="signature_data">
+                            <p class="mt-2 text-sm font-medium text-gray-700">Responsável do Setor</p>
+                        </div>
+                        
+                        <!-- Técnico -->
+                        <div>
+                            <div class="h-32 flex items-end justify-center pb-2 border-b border-gray-300">
+                                <img src="./images/assinatura-tecnico.png" alt="Técnico" class="max-h-24 opacity-90">
+                            </div>
+                            <p class="mt-2 text-sm font-medium text-gray-700">Responsável Técnico BM Medical</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botão Salvar -->
+                <div class="sticky bottom-4 z-20 pb-4">
+                    <button type="submit" class="w-full bg-blue-700 text-white font-bold py-4 rounded-lg shadow-lg hover:bg-blue-800 transition-all flex justify-center items-center gap-3 transform hover:-translate-y-1">
+                        <span class="text-lg">Criar Ordem de Serviço</span>
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- ================= ABA 2: CONSULTA ================= -->
+        <div id="view-list-os" class="hidden">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+                <!-- Filtros -->
+                <div class="p-5 bg-gray-50 border-b border-gray-200">
+                    <h3 class="font-bold text-gray-700 mb-4 text-lg">Histórico - Capão do Leão</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Status</label>
+                            <select id="filter-status" class="form-input text-sm">
+                                <option value="todos">Todos</option>
+                                <option value="novas">Abertas</option>
+                                <option value="finalizada">Finalizadas</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Data</label>
+                            <input type="date" id="filter-date" class="form-input text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Buscar</label>
+                            <input type="text" id="filter-search" placeholder="Nº OS ou Equipamento..." class="form-input text-sm">
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-end">
+                        <button onclick="applyFilters()" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            Filtrar
                         </button>
                     </div>
                 </div>
-                <div class="form-section">
-                    <h2>Assinaturas</h2>
-                    <div class="signature-grid">
-                        <div class="signature-box">
-                            <div id="signature-container">
-                                <div id="signature-placeholder" class="signature-placeholder">Clique para assinar</div>
-                            </div>
-                            <input type="hidden" id="signature-data" name="signature_data">
-                             <div class="signature-line">
-                                 Responsável do Setor
-                             </div>
-                        </div>
-                        <div class="signature-box">
-                            <div class="signature-image-container">
-                                <img id="tech-signature-img" src="./images/assinatura-tecnico.png" alt="Assinatura do Responsável Técnico">
-                            </div>
-                            <div class="signature-line">
-                                 Responsável Técnico da Empresa
-                             </div>
-                        </div>
-                    </div>
+                
+                <!-- Tabela -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-600 text-xs uppercase tracking-wider">
+                                <th class="p-4 font-bold border-b">OS</th>
+                                <th class="p-4 font-bold border-b">Data</th>
+                                <th class="p-4 font-bold border-b">Equipamento</th>
+                                <th class="p-4 font-bold border-b text-center">Status</th>
+                                <th class="p-4 font-bold border-b text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="os-table-body" class="text-sm divide-y divide-gray-100">
+                            <!-- Injetado via JS -->
+                            <tr><td colspan="5" class="p-8 text-center text-gray-500">Clique em "Filtrar" para carregar os dados.</td></tr>
+                        </tbody>
+                    </table>
                 </div>
-                <button type="submit" class="btn-submit">Criar Ordem de Serviço</button>
-            </form>
-        </main>
-    </div>
-    
-    <a href="nova-os.html" id="back-btn" class="floating-back-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-    </a>
+            </div>
+        </div>
 
-    <div id="signature-modal" class="signature-modal-overlay">
-        <div class="signature-modal-content">
-            <h3>Assine no campo abaixo:</h3>
-            <canvas id="signature-pad"></canvas>
-            <p id="signature-error-message">Por favor, desenhe uma assinatura para salvar.</p>
-            <div class="signature-modal-buttons">
-                <button type="button" id="signature-undo-button">Desfazer</button>
-                <button type="button" id="signature-clear-button">Limpar</button>
-                <button type="button" id="signature-save-button">Salvar</button>
-                <button type="button" id="signature-cancel-button">Cancelar</button>
+    </main>
+
+    <!-- Modal Assinatura -->
+    <div id="signature-modal" class="modal-overlay">
+        <div class="modal-content bg-white">
+            <h3 class="text-lg font-bold mb-4 text-center text-gray-800">Assinatura do Responsável</h3>
+            <div class="border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 mb-4 touch-none shadow-inner">
+                <canvas id="signature-pad" class="w-full h-48 cursor-crosshair"></canvas>
+            </div>
+            <div class="flex justify-center gap-3 mt-2">
+                <button type="button" id="btn-clear-sig" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-medium">Limpar</button>
+                <button type="button" id="btn-save-sig" class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold shadow">Confirmar</button>
+                <button type="button" id="btn-cancel-sig" class="px-4 py-2 text-gray-500 hover:text-gray-700">Cancelar</button>
             </div>
         </div>
     </div>
-    <footer class="footer">
-        <p><strong>BM MEDICAL Engenharia Clínica</strong></p>
-        <p>CNPJ: 48.673.158/0001-59</p>
-        <p>Endereço: Av. Duque de Caxias, 915-B403, Pelotas-RS</p>
-        <p>Contato: (51) 99377-5933 | Email: central.bmmedical@outlook.com</p>
-    </footer>
+
+    <!-- Modal Detalhes OS (Para Consulta) -->
+    <div id="details-modal" class="modal-overlay" style="z-index: 60;">
+        <div class="modal-content relative">
+            <button class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl" onclick="closeDetailsModal()">&times;</button>
+            <div id="modal-body-content"></div>
+        </div>
+    </div>
+
+    <!-- Botão Flutuante Voltar -->
+    <a href="index.html" class="floating-back-btn" title="Voltar ao Menu">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+    </a>
+
+    <!-- Scripts -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, runTransaction, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getFirestore, collection, query, where, getDocs, doc, runTransaction, orderBy, limit } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
         import { SignaturePadManager } from './signature-pad-helper.js';
-        import { PartsManager } from './modulo-pecas.js'; 
+        import { PartsManager } from './modulo-pecas.js';
         import { EquipmentSelector } from './equipment-selector.js';
+        import { generateOsPdf } from './pdf-generator.js';
+        import { logout } from './auth-guard.js';
 
+        // Configuração Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
             authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
@@ -281,195 +403,34 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        const signatureContainer = document.getElementById('signature-container');
-        const signatureDataInput = document.getElementById('signature-data');
-        
-        const signaturePadManager = new SignaturePadManager({
-            modal: document.getElementById('signature-modal'),
-            canvas: document.getElementById('signature-pad'),
-            saveButton: document.getElementById('signature-save-button'),
-            clearButton: document.getElementById('signature-clear-button'),
-            undoButton: document.getElementById('signature-undo-button'),
-            cancelButton: document.getElementById('signature-cancel-button'),
-            errorMessage: document.getElementById('signature-error-message')
-        });
+        // Constantes do Contrato Capão
+        const CONTRACT_NAME = "Contrato Nº 138/2024";
+        const COUNTER_ID = "capao_do_leao";
+        const CONTRACT_PREFIX = "CT138.24";
 
-        signatureContainer.addEventListener('click', () => {
-            signaturePadManager.open((dataUrl) => {
-                signatureDataInput.value = dataUrl;
-                signatureContainer.innerHTML = `<img src="${dataUrl}" class="signature-thumbnail" alt="Assinatura">`;
-            });
-        });
-
-        // --- LÓGICA DO GERENCIADOR DE PEÇAS (MODAL) ---
+        let equipmentSelector = null;
+        let partsManager = null;
         let currentParts = [];
-        let partsManager;
+        let allOrdersData = [];
 
-        const addPartsCheckbox = document.getElementById('add-parts-checkbox');
-        const partsInitialView = document.getElementById('parts-initial-view');
-        const partsSummaryView = document.getElementById('parts-summary-view');
-        const editPartsBtn = document.getElementById('edit-parts-btn');
-        const partsSummaryList = document.getElementById('parts-summary-list');
-        const backBtn = document.getElementById('back-btn');
-
-        function updatePartsUI() {
-            if (currentParts.length > 0) {
-                partsInitialView.classList.add('hidden');
-                partsSummaryView.classList.remove('hidden');
-                const listHtml = currentParts.map(part => `<li><strong>${part.qtd}x</strong> - ${part.descricao}</li>`).join('');
-                partsSummaryList.innerHTML = `<ul class="list-disc pl-5 space-y-1">${listHtml}</ul>`;
-            } else {
-                partsInitialView.classList.remove('hidden');
-                addPartsCheckbox.checked = false;
-                partsSummaryView.classList.add('hidden');
-            }
-        }
-
-        function initializePartsManager() {
-            if (partsManager) return;
-            partsManager = new PartsManager({
-                initialParts: currentParts,
-                onConfirm: (updatedParts) => {
-                    currentParts = updatedParts;
-                    updatePartsUI();
-                    backBtn.style.display = 'flex';
-                },
-                onCancel: () => {
-                    if (currentParts.length === 0) {
-                        addPartsCheckbox.checked = false;
-                    }
-                    backBtn.style.display = 'flex';
-                }
-            });
-        }
-
-        addPartsCheckbox.addEventListener('change', () => {
-            if (addPartsCheckbox.checked) {
-                initializePartsManager();
-                backBtn.style.display = 'none';
-                partsManager.open(currentParts);
-            }
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            initForm();
+            initTabs();
+            document.getElementById('logout-btn-header').addEventListener('click', logout);
         });
 
-        editPartsBtn.addEventListener('click', () => {
-            if (partsManager) {
-                backBtn.style.display = 'none';
-                partsManager.open(currentParts);
-            }
-        });
-
-        // --- LÓGICA DO FORMULÁRIO ---
-        const contractId = "Contrato Nº 138/2024";
-        let equipmentSelector;
-        
-        async function fetchAndSetOsNumber() {
-            const osInput = document.getElementById('os_numero');
-            osInput.value = 'Gerando...';
-            const counterDocId = 'capao_do_leao';
-            const contractNumber = '138.24';
-            const currentYear = new Date().getFullYear();
-            const counterRef = doc(db, "counters", counterDocId);
-            try {
-                const docSnap = await getDoc(counterRef);
-                let nextNumber = 1; 
-                if (docSnap.exists()) {
-                    nextNumber = (docSnap.data().sequence || 0) + 1;
-                }
-                const paddedNextNumber = String(nextNumber).padStart(3, '0');
-                osInput.value = `CT${contractNumber}-${currentYear}${paddedNextNumber}`;
-            } catch (error) {
-                console.error("Erro ao buscar o número da OS:", error);
-                osInput.value = 'Erro ao carregar';
-            }
-        }
-
-        const recebimentoCheck = document.getElementById('recebimento_check');
-        const servicosTextarea = document.getElementById('servicos_realizados');
-        recebimentoCheck.addEventListener('change', () => {
-            if (recebimentoCheck.checked) {
-                servicosTextarea.value = "Recebimento de equipamento para análise.";
-                servicosTextarea.disabled = true;
-                servicosTextarea.required = false;
-            } else {
-                servicosTextarea.value = "";
-                servicosTextarea.disabled = false;
-                servicosTextarea.required = true;
-            }
-        });
-
-        const form = document.getElementById('os-form');
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const submitButton = form.querySelector('.btn-submit');
-            submitButton.disabled = true;
-            submitButton.textContent = 'Salvando...';
-            try {
-                const formData = new FormData(form);
-                const servicosRealizadosValue = recebimentoCheck.checked 
-                    ? "Recebimento de equipamento para análise." 
-                    : servicosTextarea.value;
-                const signatureValue = formData.get('signature_data');
-                const equipmentData = equipmentSelector.getSelection();
-                
-                const osData = {
-                    contrato: "Contrato Nº 138/2024",
-                    cliente: "Secretaria Municipal de Saúde De Capão Do Leão",
-                    razao_social: "Município de Capão Do Leao",
-                    cnpj: "87.691.507/0001-17",
-                    endereco: "Av. Narciso Silva, 2360, Capão Do Leão - RS",
-                    local_atendimento: formData.get('local_atendimento'),
-                    equipamento: equipmentData.equipamento,
-                    marca: equipmentData.marca,
-                    modelo: equipmentData.modelo,
-                    serial: equipmentData.serial,
-                    tipo_manutencao: formData.get('tipo_manutencao'),
-                    os_numero: formData.get('os_numero'),
-                    data_retirada: formData.get('data_retirada'),
-                    data_devolucao: formData.get('data_devolucao'),
-                    servicos_realizados: servicosRealizadosValue,
-                    pecas_utilizadas: currentParts, 
-                    signature_data: signatureValue,
-                    status: 'novas',
-                    createdAt: new Date()
-                };
-                osData.history = [{ action: 'Criada', timestamp: new Date(), details: 'OS aberta no sistema.' }];
-                if (signatureValue && signatureValue.length > 200) {
-                    osData.signedAt = new Date();
-                    osData.history.push({ action: 'Assinada', timestamp: new Date(), details: 'OS criada com assinatura.' });
-                }
-                const counterDocId = 'capao_do_leao';
-                const counterRef = doc(db, "counters", counterDocId);
-                await runTransaction(db, async (transaction) => {
-                    const counterDoc = await transaction.get(counterRef);
-                    let nextNumber = 1;
-                    if (counterDoc.exists()) {
-                        nextNumber = (counterDoc.data().sequence || 0) + 1;
-                    }
-                    const contractNumber = '138.24';
-                    const currentYear = new Date().getFullYear();
-                    const paddedNextNumber = String(nextNumber).padStart(3, '0');
-                    osData.os_numero = `CT${contractNumber}-${currentYear}${paddedNextNumber}`;
-                    const newOrderRef = doc(collection(db, "orders"));
-                    transaction.set(newOrderRef, osData);
-                    transaction.set(counterRef, { sequence: nextNumber }, { merge: true });
-                });
-                window.location.href = 'confirmacao-os.html';
-            } catch (error) {
-                console.error("Erro ao salvar a OS: ", error);
-                alert("Ocorreu um erro ao salvar a Ordem de Serviço. Tente novamente.");
-                submitButton.disabled = false;
-                submitButton.textContent = 'Criar Ordem de Serviço';
-            }
-        });
-
-        window.onload = () => {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('data_retirada').value = today;
-            fetchAndSetOsNumber();
+        // --- Lógica do Formulário (Nova OS) ---
+        function initForm() {
+            // Data padrão: Hoje
+            document.getElementById('data_retirada').valueAsDate = new Date();
             
-            // CORREÇÃO: Inicializa o seletor de equipamentos
+            // Buscar próximo número
+            fetchNextOsNumber();
+
+            // Equipamento Selector
             equipmentSelector = new EquipmentSelector({
-                contractId: contractId,
+                contractId: CONTRACT_NAME,
                 elements: {
                     equipmentSelect: document.getElementById('equipamento_select'),
                     brandSelect: document.getElementById('marca_select'),
@@ -487,8 +448,301 @@
                 }
             });
             equipmentSelector.init();
+
+            // Checkbox Recebimento
+            const checkRec = document.getElementById('recebimento_check');
+            const txtServ = document.getElementById('servicos_realizados');
+            checkRec.addEventListener('change', () => {
+                if(checkRec.checked) {
+                    txtServ.value = "Recebimento de equipamento para análise.";
+                    txtServ.readOnly = true;
+                } else {
+                    txtServ.value = "";
+                    txtServ.readOnly = false;
+                }
+            });
+
+            // Gerenciador de Peças
+            const handleParts = () => {
+                if (!partsManager) {
+                    partsManager = new PartsManager({
+                        initialParts: currentParts,
+                        onConfirm: (p) => { currentParts = p; renderPartsSummary(); },
+                        onCancel: () => {}
+                    });
+                }
+                partsManager.open(currentParts);
+            };
+            document.getElementById('btn-manage-parts').addEventListener('click', handleParts);
+            document.getElementById('btn-edit-parts').addEventListener('click', handleParts);
+
+            // Assinatura
+            const sigPad = new SignaturePadManager({
+                modal: document.getElementById('signature-modal'),
+                canvas: document.getElementById('signature-pad'),
+                saveButton: document.getElementById('btn-save-sig'),
+                clearButton: document.getElementById('btn-clear-sig'),
+                cancelButton: document.getElementById('btn-cancel-sig')
+            });
+            
+            const sigContainer = document.getElementById('signature-container');
+            sigContainer.addEventListener('click', () => {
+                sigPad.open((dataUrl) => {
+                    document.getElementById('signature_data').value = dataUrl;
+                    sigContainer.innerHTML = `<img src="${dataUrl}" class="max-h-24 mx-auto">`;
+                    sigContainer.classList.remove('border-dashed');
+                });
+            });
+
+            // Submit
+            document.getElementById('os-form').addEventListener('submit', handleFormSubmit);
+        }
+
+        function renderPartsSummary() {
+            const list = document.getElementById('parts-list-display');
+            if(currentParts.length > 0) {
+                document.getElementById('parts-initial-view').classList.add('hidden');
+                document.getElementById('parts-summary-view').classList.remove('hidden');
+                list.innerHTML = currentParts.map(p => `<div>• <strong>${p.qtd}x</strong> ${p.descricao}</div>`).join('');
+            } else {
+                document.getElementById('parts-initial-view').classList.remove('hidden');
+                document.getElementById('parts-summary-view').classList.add('hidden');
+            }
+        }
+
+        async function fetchNextOsNumber() {
+            const input = document.getElementById('os_numero');
+            try {
+                const docSnap = await getDocs(query(collection(db, "counters"), where("__name__", "==", COUNTER_ID)));
+                let next = 1;
+                docSnap.forEach(d => next = (d.data().sequence || 0) + 1);
+                
+                const year = new Date().getFullYear();
+                input.value = `${CONTRACT_PREFIX}-${year}${String(next).padStart(3, '0')}`;
+            } catch (e) {
+                console.error(e);
+                input.value = "Erro";
+            }
+        }
+
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin h-5 w-5 mr-3 border-t-2 border-b-2 border-white rounded-full" viewBox="0 0 24 24"></svg>Salvando...`;
+
+            try {
+                const formData = new FormData(e.target);
+                const signatureData = formData.get('signature_data');
+
+                if (!signatureData) throw new Error("A assinatura do responsável é obrigatória.");
+
+                const equipData = equipmentSelector.getSelection();
+
+                const osData = {
+                    contrato: CONTRACT_NAME,
+                    cliente: "Secretaria Municipal de Saúde De Capão Do Leão",
+                    razao_social: "Município de Capão Do Leao",
+                    cnpj: "87.691.507/0001-17",
+                    endereco: "Av. Narciso Silva, 2360, Capão Do Leão - RS",
+                    
+                    // Form Data
+                    tipo_manutencao: formData.get('tipo_manutencao'),
+                    ...equipData,
+                    
+                    data_retirada: formData.get('data_retirada'),
+                    data_devolucao: formData.get('data_devolucao'),
+                    local_atendimento: formData.get('local_atendimento'),
+                    
+                    servicos_realizados: formData.get('servicos_realizados'),
+                    pecas_utilizadas: currentParts,
+                    
+                    signature_data: signatureData,
+                    signedAt: new Date(),
+                    status: 'novas',
+                    createdAt: new Date(),
+                    
+                    history: [{ action: 'Criada', timestamp: new Date(), details: 'OS Criada via Painel Web' }]
+                };
+
+                // Transaction p/ Número OS
+                const counterRef = doc(db, "counters", COUNTER_ID);
+                await runTransaction(db, async (transaction) => {
+                    const cDoc = await transaction.get(counterRef);
+                    let next = 1;
+                    if (cDoc.exists()) next = (cDoc.data().sequence || 0) + 1;
+                    
+                    const year = new Date().getFullYear();
+                    osData.os_numero = `${CONTRACT_PREFIX}-${year}${String(next).padStart(3, '0')}`;
+                    
+                    const newRef = doc(collection(db, "orders"));
+                    transaction.set(newRef, osData);
+                    transaction.set(counterRef, { sequence: next }, { merge: true });
+                });
+
+                alert("OS Criada com Sucesso!");
+                window.location.reload();
+
+            } catch (err) {
+                console.error(err);
+                alert("Erro ao salvar: " + err.message);
+                btn.disabled = false;
+                btn.innerHTML = "Criar Ordem de Serviço";
+            }
+        }
+
+        // --- Lógica de Abas e Consulta ---
+        window.switchTab = (tab) => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            
+            if (tab === 'new') {
+                document.getElementById('view-new-os').classList.remove('hidden');
+                document.getElementById('view-list-os').classList.add('hidden');
+            } else {
+                document.getElementById('view-new-os').classList.add('hidden');
+                document.getElementById('view-list-os').classList.remove('hidden');
+                window.applyFilters(); // Carrega lista automaticamente
+            }
+        };
+
+        window.applyFilters = async () => {
+            const tbody = document.getElementById('os-table-body');
+            tbody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-gray-500">Carregando...</td></tr>';
+
+            try {
+                const status = document.getElementById('filter-status').value;
+                const date = document.getElementById('filter-date').value;
+                const search = document.getElementById('filter-search').value.toLowerCase();
+
+                let constraints = [where("contrato", "==", CONTRACT_NAME)];
+                
+                if (status !== 'todos') {
+                    if (status === 'novas') {
+                        constraints.push(where("status", "in", ['novas', 'em_execucao']));
+                    } else {
+                        constraints.push(where("status", "==", status));
+                    }
+                }
+                
+                // Ordenação
+                constraints.push(orderBy("createdAt", "desc"));
+                constraints.push(limit(50)); // Limite de segurança
+
+                const q = query(collection(db, "orders"), ...constraints);
+                const snap = await getDocs(q);
+                
+                allOrdersData = [];
+                snap.forEach(d => allOrdersData.push({id: d.id, ...d.data()}));
+
+                // Filtro em Memória (Data e Texto)
+                let filtered = allOrdersData;
+                
+                if (date) {
+                    filtered = filtered.filter(os => os.data_retirada === date);
+                }
+                if (search) {
+                    filtered = filtered.filter(os => 
+                        (os.os_numero && os.os_numero.toLowerCase().includes(search)) || 
+                        (os.equipamento && os.equipamento.toLowerCase().includes(search))
+                    );
+                }
+
+                renderTable(filtered);
+
+            } catch (e) {
+                console.error(e);
+                tbody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-red-500">Erro ao carregar dados.</td></tr>';
+            }
+        };
+
+        function renderTable(orders) {
+            const tbody = document.getElementById('os-table-body');
+            tbody.innerHTML = '';
+            
+            if (orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-gray-500">Nenhuma OS encontrada.</td></tr>';
+                return;
+            }
+
+            orders.forEach(os => {
+                const tr = document.createElement('tr');
+                tr.className = 'os-row border-b border-gray-100 transition-colors cursor-pointer';
+                
+                const statusClass = os.status === 'finalizada' ? 'status-finalizada' : (os.status === 'arquivada' ? 'status-arquivada' : 'status-novas');
+                const formattedDate = os.data_retirada ? os.data_retirada.split('-').reverse().join('/') : 'N/A';
+
+                tr.innerHTML = `
+                    <td class="p-4 font-bold text-gray-700">${os.os_numero}</td>
+                    <td class="p-4 text-gray-600">${formattedDate}</td>
+                    <td class="p-4 text-gray-600 truncate max-w-xs">${os.equipamento || '-'}</td>
+                    <td class="p-4 text-center"><span class="status-badge ${statusClass}">${os.status}</span></td>
+                    <td class="p-4 text-right">
+                        <button class="text-blue-600 hover:text-blue-800 font-medium text-xs px-2 py-1 border border-blue-200 rounded hover:bg-blue-50" onclick="event.stopPropagation(); generatePdf('${os.id}')">PDF</button>
+                    </td>
+                `;
+                
+                tr.addEventListener('click', () => openDetails(os));
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- Detalhes e PDF ---
+        window.generatePdf = (id) => {
+            const os = allOrdersData.find(o => o.id === id);
+            if(os) generateOsPdf(os);
+        };
+
+        function openDetails(os) {
+            const modal = document.getElementById('details-modal');
+            const content = document.getElementById('modal-body-content');
+            
+            // Reutilizando lógica de HTML de detalhes simples
+            const isSigned = os.signature_data ? `<img src="${os.signature_data}" class="h-20 mx-auto">` : '<span class="text-gray-400">Sem assinatura</span>';
+            const partsList = os.pecas_utilizadas ? os.pecas_utilizadas.map(p => `<li>${p.qtd}x ${p.descricao}</li>`).join('') : '<li>Nenhuma peça</li>';
+
+            content.innerHTML = `
+                <h2 class="text-xl font-bold text-blue-800 mb-4 border-b pb-2">Detalhes: ${os.os_numero}</h2>
+                <div class="grid grid-cols-2 gap-4 text-sm mb-4">
+                    <div>
+                        <p class="font-bold text-gray-600">Equipamento</p>
+                        <p>${os.equipamento}</p>
+                        <p class="text-xs text-gray-500">${os.marca} - ${os.modelo}</p>
+                    </div>
+                    <div>
+                        <p class="font-bold text-gray-600">Local e Data</p>
+                        <p>${os.local_atendimento}</p>
+                        <p>${os.data_retirada}</p>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <p class="font-bold text-gray-600 text-sm">Serviços</p>
+                    <p class="bg-gray-50 p-2 rounded border text-sm">${os.servicos_realizados}</p>
+                </div>
+                <div class="mb-4">
+                    <p class="font-bold text-gray-600 text-sm">Peças</p>
+                    <ul class="list-disc pl-5 text-sm">${partsList}</ul>
+                </div>
+                <div class="grid grid-cols-2 gap-4 text-center border-t pt-4">
+                    <div>
+                        <p class="text-xs font-bold mb-1">Responsável Setor</p>
+                        ${isSigned}
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold mb-1">Técnico</p>
+                        <img src="./images/assinatura-tecnico.png" class="h-16 mx-auto opacity-80">
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end">
+                    <button class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" onclick="generatePdf('${os.id}')">Baixar PDF</button>
+                </div>
+            `;
+            modal.style.display = 'flex';
+        }
+
+        window.closeDetailsModal = () => {
+            document.getElementById('details-modal').style.display = 'none';
         };
     </script>
 </body>
 </html>
-
