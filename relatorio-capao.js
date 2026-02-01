@@ -1,9 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+import { gerarRelatorioPDFCompleto } from './pdf-generator-relatcapao.js';
 
-// --- CONFIGURAÇÃO DO FIREBASE ---
-// Usa a configuração global OU a chave colada manualmente
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
     apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE", 
     authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
@@ -17,99 +16,100 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// Estado da Aplicação
 const relatorioState = {
-    mesSelecionado: null,
-    dataInicioStr: null,
-    dataFimStr: null,
-    ossCarregadas: [],
-    modoEdicao: false,
-    textosIniciais: { objeto: '', locais: '' },
-    usuarioLogado: null,
-    authCarregado: false
+    mesSelecionado: null, dataInicioStr: null, dataFimStr: null,
+    ossCarregadas: [], ossPendentes: [], modoEdicao: false,
+    textosIniciais: { objeto: '', locais: '' }, usuarioLogado: null, authCarregado: false, periodoTexto: ''
 };
 
-// ============================================================================
-// 1. INICIALIZAÇÃO
-// ============================================================================
+const LOCAIS_TABELA_FIXA = [
+    "SECRETARIA DE SAÚDE", "PRONTO ATENDIMENTO", "UBS PARQUE FRAGATA",
+    "UBS JARDIM AMÉRICA II", "UBS JARDIM AMÉRICA III", "UBS CASABOM",
+    "UBS CENTRAL", "UBS CAMPUS UFPEL", "CAPS"
+];
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Define mês atual no seletor
     const hoje = new Date();
     const ano = hoje.getFullYear();
     const mes = String(hoje.getMonth() + 1).padStart(2, '0');
     document.getElementById('month-selector').value = `${ano}-${mes}`;
 
-    // Listeners
     document.getElementById('btn-update').addEventListener('click', carregarDadosRelatorio);
-    document.getElementById('month-selector').addEventListener('change', () => {
-        // Opcional: Auto carregar ao mudar mês
-    });
+    document.getElementById('btn-print-pdf').addEventListener('click', handlePrintPDF);
+    document.getElementById('btn-sel-all').addEventListener('click', () => toggleAllCheckboxes(true));
+    document.getElementById('btn-sel-none').addEventListener('click', () => toggleAllCheckboxes(false));
 
-    // Monitora o estado de autenticação (Padrão do sistema)
+    const btnToggle = document.getElementById('btn-toggle-sidebar');
+    const sidebar = document.getElementById('os-selection-sidebar');
+    if(btnToggle && sidebar) {
+        btnToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            const icon = btnToggle.querySelector('i');
+            if (sidebar.classList.contains('collapsed')) {
+                icon.classList.remove('fa-chevron-right');
+                icon.classList.add('fa-chevron-left');
+            } else {
+                icon.classList.remove('fa-chevron-left');
+                icon.classList.add('fa-chevron-right');
+            }
+        });
+    }
+
     onAuthStateChanged(auth, (user) => {
         relatorioState.authCarregado = true;
-        if (user) {
-            console.log("Usuário detectado:", user.email || user.uid);
-            relatorioState.usuarioLogado = user;
-        } else {
-            console.warn("Nenhum usuário logado.");
-            relatorioState.usuarioLogado = null;
-            // Se quiser redirecionar automaticamente como o auth-guard:
-            // window.location.href = "login.html";
-        }
+        if (user) { relatorioState.usuarioLogado = user; } 
+        else { relatorioState.usuarioLogado = null; }
     });
 
-    console.log("Módulo Relatório Capão (138/2024) carregado - Modo Seguro (Sem Auth Anônima).");
+    console.log("Módulo Relatório Capão (138/2024) carregado.");
 });
 
-// ============================================================================
-// 2. FUNÇÕES DE BUSCA (MODULAR SDK)
-// ============================================================================
+async function handlePrintPDF() {
+    const btn = document.getElementById('btn-print-pdf');
+    const ossParaImprimir = relatorioState.ossCarregadas.filter(os => {
+        const chk = document.getElementById(`chk-${os.id}`);
+        return chk && chk.checked;
+    });
+
+    if (ossParaImprimir.length === 0) { alert("Selecione ao menos uma OS."); return; }
+
+    const dados = {
+        ossImprimir: ossParaImprimir,
+        ossPendentes: relatorioState.ossPendentes || [],
+        periodoTexto: relatorioState.periodoTexto,
+        mesRef: document.getElementById('month-selector').value,
+        textoObjeto: document.getElementById('texto-objeto').value,
+        textoAtividadesIntro: document.getElementById('texto-atividades-intro').value,
+        textoAtividadesFooter: document.getElementById('texto-atividades-footer').value,
+        textoLocais: document.getElementById('lista-locais').value.replace(/^[ \t]*•[ \t]*/gm, '')
+    };
+
+    await gerarRelatorioPDFCompleto(dados, btn);
+}
 
 async function carregarDadosRelatorio() {
-    // 1. Verifica se a verificação de auth já terminou
-    if (!relatorioState.authCarregado) {
-        alert("Aguarde, verificando credenciais...");
-        return;
-    }
-
-    // 2. Bloqueia se não estiver logado (Igual ao auth-guard)
-    if (!relatorioState.usuarioLogado) {
-        const confirmar = confirm("Você não está logado no sistema.\nPara acessar os dados, é necessário fazer login.\n\nDeseja ir para a tela de login agora?");
-        if (confirmar) {
-            window.location.href = "login.html";
-        }
-        return;
-    }
+    if (!relatorioState.authCarregado) { alert("Aguarde..."); return; }
+    if (!relatorioState.usuarioLogado) { if(confirm("Ir para login?")) window.location.href = "login.html"; return; }
 
     const mesInput = document.getElementById('month-selector').value;
     if (!mesInput) { alert("Selecione um mês."); return; }
 
     const [anoStr, mesStr] = mesInput.split('-');
-    
-    // Datas em String YYYY-MM-DD
     const dataInicioStr = `${anoStr}-${mesStr}-01`;
     const ultimoDia = new Date(parseInt(anoStr), parseInt(mesStr), 0).getDate();
     const dataFimStr = `${anoStr}-${mesStr}-${String(ultimoDia).padStart(2, '0')}`;
 
-    // Atualiza texto na tela (Formato visual)
     const dataInicioObj = new Date(parseInt(anoStr), parseInt(mesStr) - 1, 1);
     const dataFimObj = new Date(parseInt(anoStr), parseInt(mesStr) - 1, ultimoDia);
     const fmt = { day: '2-digit', month: '2-digit', year: 'numeric' };
-    document.getElementById('periodo-texto').innerText = `${dataInicioObj.toLocaleDateString('pt-BR', fmt)} - ${dataFimObj.toLocaleDateString('pt-BR', fmt)}`;
+    
+    relatorioState.periodoTexto = `${dataInicioObj.toLocaleDateString('pt-BR', fmt)} - ${dataFimObj.toLocaleDateString('pt-BR', fmt)}`;
+    document.getElementById('periodo-texto').innerText = relatorioState.periodoTexto;
 
     mostrarCarregando(true);
 
     try {
-        console.log("Iniciando busca de OSs...");
-
-        // Busca TUDO do contrato 138/2024
-        const q = query(
-            collection(db, "orders"), 
-            where("contrato", "==", "Contrato Nº 138/2024")
-        );
-
+        const q = query(collection(db, "orders"), where("contrato", "==", "Contrato Nº 138/2024"));
         const snapshot = await getDocs(q);
         const todasFinalizadas = [];
         const todasPendentes = [];
@@ -117,59 +117,92 @@ async function carregarDadosRelatorio() {
         snapshot.forEach(doc => {
             const data = doc.data();
             const os = { id: doc.id, ...data };
-
-            // Lógica de Filtro no Cliente
             if (data.status === 'finalizada') {
-                // Verifica Data da conclusão
                 if (data.data_conclusao && data.data_conclusao >= dataInicioStr && data.data_conclusao <= dataFimStr) {
                     todasFinalizadas.push(os);
                 }
             } else if (['novas', 'em_execucao', 'aguardando_pecas', 'pronto_entrega'].includes(data.status)) {
-                // É uma pendente
                 todasPendentes.push(os);
             }
         });
 
-        console.log(`Encontradas: ${todasFinalizadas.length} finalizadas e ${todasPendentes.length} pendentes.`);
+        const extrairNumeroOS = (os) => { const m = (os.os_numero || '').match(/(\d+)$/); return m ? parseInt(m[0], 10) : 0; };
+        todasFinalizadas.sort((a, b) => extrairNumeroOS(a) - extrairNumeroOS(b));
 
         relatorioState.ossCarregadas = todasFinalizadas;
+        relatorioState.ossPendentes = todasPendentes;
 
-        // Processar e Renderizar
         const estatisticas = processarEstatisticas(todasFinalizadas, todasPendentes);
         renderizarTabelaResumo(estatisticas);
+        
         renderizarListaOSs(todasFinalizadas);
+        renderizarMenuLateral(todasFinalizadas);
 
-    } catch (error) {
-        console.error("Erro detalhado ao gerar relatório:", error);
-        alert(`Erro ao buscar dados: ${error.message}\nVerifique o console.`);
-    } finally {
-        mostrarCarregando(false);
-    }
+    } catch (error) { console.error("Erro:", error); alert(`Erro: ${error.message}`); } 
+    finally { mostrarCarregando(false); }
 }
 
-// ============================================================================
-// 3. PROCESSAMENTO E RENDERIZAÇÃO
-// ============================================================================
+function renderizarMenuLateral(listaOSs) {
+    const sidebar = document.getElementById('os-selection-sidebar');
+    const listContainer = document.getElementById('sidebar-list');
+    listContainer.innerHTML = '';
+
+    if (listaOSs.length === 0) { sidebar.classList.add('hidden'); return; }
+    sidebar.classList.remove('hidden');
+    updateCounter(listaOSs.length, listaOSs.length);
+
+    listaOSs.forEach(os => {
+        const row = document.createElement('div');
+        row.className = "flex items-start p-2 border-b border-gray-100 hover:bg-gray-100 transition rounded cursor-pointer";
+        const num = os.os_numero || 'S/N';
+        const data = os.data_conclusao ? os.data_conclusao.split('-').reverse().join('/') : '-';
+        const equip = os.equipamento ? (os.equipamento.length > 20 ? os.equipamento.substring(0, 18) + '...' : os.equipamento) : 'Equipamento';
+
+        row.innerHTML = `
+            <input type="checkbox" id="chk-${os.id}" checked class="mt-1 mr-2 cursor-pointer h-4 w-4 text-blue-600 rounded">
+            <label for="chk-${os.id}" class="cursor-pointer flex-grow">
+                <div class="flex justify-between items-center"><span class="font-bold text-gray-800 text-xs">${num}</span><span class="text-[10px] text-gray-500">${data}</span></div>
+                <div class="text-[10px] text-gray-600 truncate w-48" title="${os.equipamento}">${equip}</div>
+            </label>`;
+        
+        const checkbox = row.querySelector('input');
+        checkbox.addEventListener('change', (e) => {
+            const pageId = `page-os-${os.id}`;
+            const pageElement = document.getElementById(pageId);
+            if (pageElement) {
+                if (e.target.checked) { pageElement.classList.remove('hidden'); pageElement.classList.add('flex'); } 
+                else { pageElement.classList.add('hidden'); pageElement.classList.remove('flex'); }
+            }
+            const total = listaOSs.length;
+            const checked = listContainer.querySelectorAll('input:checked').length;
+            updateCounter(checked, total);
+        });
+        listContainer.appendChild(row);
+    });
+}
+
+function updateCounter(checked, total) { document.getElementById('count-selected').textContent = `${checked}/${total}`; }
+function toggleAllCheckboxes(state) {
+    document.querySelectorAll('#sidebar-list input[type="checkbox"]').forEach(chk => { chk.checked = state; chk.dispatchEvent(new Event('change')); });
+}
 
 function processarEstatisticas(realizadas, pendentes) {
     const stats = {};
-
-    // Função para normalizar nomes de locais
     const normalizar = (str) => {
-        if(!str) return "LOCAL NÃO INFORMADO";
-        let s = str.toUpperCase().trim();
-        // Agrupamentos comuns
-        if(s.includes('PRONTO') || s === 'PA') return 'PRONTO ATENDIMENTO';
-        if(s.includes('CASABOM')) return 'UBS CASABOM';
-        if(s.includes('CENTRAL')) return 'UBS CENTRAL';
-        if(s.includes('FRAGATA')) return 'UBS PARQUE FRAGATA';
-        if(s.includes('AMÉRICA') || s.includes('AMERICA')) return 'UBS JARDIM AMÉRICA';
-        if(s.includes('CAPS')) return 'CAPS';
-        if(s.includes('UFPEL')) return 'UBS CAMPUS UFPEL';
-        return s;
+        if(!str) return "OUTROS";
+        const s = str.toUpperCase().trim();
+        if(s.includes("SECRETARIA")) return "SECRETARIA DE SAÚDE";
+        if(s.includes("PRONTO") || s === "PA") return "PRONTO ATENDIMENTO";
+        if(s.includes("FRAGATA")) return "UBS PARQUE FRAGATA";
+        if(s.includes("AMÉRICA III") || s.includes("AMERICA III") || (s.includes("AMÉRICA") && s.includes("III"))) return "UBS JARDIM AMÉRICA III";
+        if(s.includes("AMÉRICA II") || s.includes("AMERICA II") || (s.includes("AMÉRICA") && s.includes("II"))) return "UBS JARDIM AMÉRICA II";
+        if(s.includes("CASABOM") || s.includes("CASA BOM")) return "UBS CASABOM";
+        if(s.includes("CENTRAL")) return "UBS CENTRAL";
+        if(s.includes("UFPEL")) return "UBS CAMPUS UFPEL";
+        if(s.includes("CAPS")) return "CAPS";
+        return "OUTROS";
     };
 
-    // Inicializa Stats com contadores
     const registrar = (lista, tipo) => {
         lista.forEach(os => {
             const local = normalizar(os.local_atendimento);
@@ -177,230 +210,94 @@ function processarEstatisticas(realizadas, pendentes) {
             stats[local][tipo]++;
         });
     };
-
     registrar(realizadas, 'realizados');
     registrar(pendentes, 'pendentes');
-
     return stats;
 }
 
 function renderizarTabelaResumo(stats) {
     const tbody = document.getElementById('tabela-resumo-body');
     tbody.innerHTML = '';
-    const locais = Object.keys(stats).sort();
-
-    if (locais.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="3" class="border border-gray-900 px-4 py-3 text-center text-gray-500 italic">Nenhum dado encontrado para o período.</td></tr>`;
-        return;
-    }
-
-    let totalRealizados = 0;
-    let totalPendentes = 0;
-
-    locais.forEach(local => {
-        const d = stats[local];
-        totalRealizados += d.realizados;
-        totalPendentes += d.pendentes;
-        
+    
+    LOCAIS_TABELA_FIXA.forEach(local => {
+        const d = stats[local] || { realizados: 0, pendentes: 0 };
         const tr = document.createElement('tr');
         tr.className = "hover:bg-gray-50";
         tr.innerHTML = `
             <td class="border border-gray-900 px-3 py-1 text-left font-semibold text-gray-800 text-xs">${local}</td>
             <td class="border border-gray-900 px-2 py-1 text-center font-bold">${d.realizados}</td>
-            <td class="border border-gray-900 px-2 py-1 text-center font-bold text-red-600">${d.pendentes}</td>
+            <td class="border border-gray-900 px-2 py-1 text-center font-bold text-gray-900">${d.pendentes}</td>
         `;
         tbody.appendChild(tr);
     });
-
-    // Linha Total
-    const trTotal = document.createElement('tr');
-    trTotal.className = "bg-gray-200 font-bold";
-    trTotal.innerHTML = `
-        <td class="border border-gray-900 px-3 py-1 text-right text-xs uppercase">Total Geral</td>
-        <td class="border border-gray-900 px-2 py-1 text-center">${totalRealizados}</td>
-        <td class="border border-gray-900 px-2 py-1 text-center text-red-700">${totalPendentes}</td>
-    `;
-    tbody.appendChild(trTotal);
 }
 
 function renderizarListaOSs(listaOSs) {
     const container = document.getElementById('os-list-container');
     container.innerHTML = '';
-
-    // Ordenar por data de conclusão
-    listaOSs.sort((a, b) => (a.data_conclusao || '').localeCompare(b.data_conclusao || ''));
-
     listaOSs.forEach(os => {
         const pageDiv = document.createElement('div');
-        pageDiv.className = 'a4-page relative mb-8 print:mb-0 print:shadow-none print:m-0';
+        pageDiv.className = 'a4-page relative mb-8 print:mb-0 print:shadow-none print:m-0 flex flex-col';
         pageDiv.style.pageBreakBefore = 'always';
-
-        // Botão remover (UI apenas)
-        const btnRemove = document.createElement('button');
-        btnRemove.className = 'no-print absolute top-2 right-2 text-red-400 hover:text-red-600 p-2';
-        btnRemove.innerHTML = '<i class="fas fa-trash"></i>';
-        btnRemove.onclick = () => {
-            if(confirm("Remover esta página da impressão?")) pageDiv.remove();
-        };
-        pageDiv.appendChild(btnRemove);
-
-        // Renderiza o HTML da OS
+        pageDiv.id = `page-os-${os.id}`;
+        
         pageDiv.innerHTML += renderOSHTML(os);
         container.appendChild(pageDiv);
     });
 }
 
-// ============================================================================
-// 4. GERADOR DE HTML DA FICHA DE OS (ANEXO I)
-// ============================================================================
 function renderOSHTML(os) {
-    // Formata datas
-    const fmt = (d) => {
-        if(!d) return '___/___/____';
-        const [y, m, da] = d.split('-');
-        return `${da}/${m}/${y}`;
-    }
-
+    const fmt = (d) => { if(!d) return ''; const [y, m, da] = d.split('-'); return `${da}/${m}/${y}`; }
     const isLote = os.equipamento && os.equipamento.includes('(LOTE');
-    
-    // Tratamento de assinatura
     let assinaturaImg = '';
-    if (os.assinaturaDesconsiderada) {
-        assinaturaImg = '<div class="text-xs text-gray-500 italic border border-gray-300 p-2 rounded bg-gray-50 text-center">Assinatura Dispensada/Desconsiderada</div>';
-    } else if (os.signature_data) {
-        assinaturaImg = `<img src="${os.signature_data}" class="h-16 object-contain mx-auto" alt="Assinatura Cliente">`;
-    } else {
-        assinaturaImg = '<div class="h-16 border-b border-gray-400"></div>';
-    }
-
-    // Detalhes do Equipamento
-    let detalhesEquipamento = '';
-    if (isLote && os.itens && os.itens.length > 0) {
-        // Tabela para lote
-        const rows = os.itens.map(item => `
-            <tr class="text-xs">
-                <td class="border px-1">${item.nome}</td>
-                <td class="border px-1">${item.marca}/${item.modelo}</td>
-                <td class="border px-1 text-center">${item.serial}</td>
-                <td class="border px-1 text-center">${item.patrimonio || '-'}</td>
-                <td class="border px-1">${item.local || '-'}</td>
-            </tr>
-        `).join('');
-        
-        detalhesEquipamento = `
-            <div class="mt-2">
-                <p class="font-bold text-xs mb-1">Itens do Lote:</p>
-                <table class="w-full border-collapse border border-gray-300">
-                    <thead class="bg-gray-100">
-                        <tr class="text-xs text-left"><th class="px-1">Equip.</th><th class="px-1">Marca/Mod.</th><th class="px-1">Serial</th><th class="px-1">Pat.</th><th class="px-1">Local</th></tr>
-                    </thead>
-                    <tbody>${rows}</tbody>
-                </table>
-            </div>`;
-    } else {
-        // Item único
-        detalhesEquipamento = `
-            <div class="grid grid-cols-2 gap-4 mt-2 text-sm">
-                <div><span class="font-bold">Marca:</span> ${os.marca || '-'}</div>
-                <div><span class="font-bold">Modelo:</span> ${os.modelo || '-'}</div>
-                <div><span class="font-bold">Nº Série:</span> ${os.serial || '-'}</div>
-                <div><span class="font-bold">Patrimônio:</span> ${os.patrimonio || '-'}</div>
-            </div>`;
-    }
-
-    // Peças
-    let pecasHtml = 'Nenhuma peça utilizada.';
+    if (os.assinaturaDesconsiderada) { assinaturaImg = '<div class="text-[10px] text-gray-500 italic p-2 text-center">Assinatura Desconsiderada</div>'; }
+    else if (os.signature_data) { assinaturaImg = `<img src="${os.signature_data}" class="h-16 object-contain mx-auto" alt="Assinatura Cliente">`; }
+    else { assinaturaImg = '<div class="h-16"></div>'; }
+    const tipoManutencao = os.tipo_manutencao === 'preventiva' ? 'MP - Manutenção Preventiva' : 'MC - Manutenção Corretiva';
+    let linhasPecas = '';
     if (os.pecas_utilizadas && os.pecas_utilizadas.length > 0) {
-        pecasHtml = `<ul class="list-disc pl-4 text-sm">${os.pecas_utilizadas.map(p => `<li>${p.qtd}x ${p.descricao}</li>`).join('')}</ul>`;
-    }
+        os.pecas_utilizadas.forEach((peca, idx) => {
+            linhasPecas += `<div class="grid grid-cols-12 text-xs py-1 border-t border-gray-300"><div class="col-span-1 text-center font-bold">${idx + 1}</div><div class="col-span-2 text-center">${peca.qtd}</div><div class="col-span-9 pl-2">${peca.descricao}</div></div>`;
+        });
+    } else { linhasPecas = '<div class="text-xs text-gray-500 italic py-2 text-center border-t border-gray-300">Nenhuma peça utilizada.</div>'; }
+    const boxClass = "border border-gray-300 rounded-lg p-2 mb-3 relative bg-white";
+    const titleClass = "text-[#3498db] font-bold text-sm mb-1";
+    const lineClass = "border-t border-[#3498db] mb-2";
 
     return `
-        <div class="border-2 border-gray-800 p-6 h-full flex flex-col justify-between">
-            
-            <!-- Cabeçalho OS -->
-            <div class="flex justify-between items-start border-b-2 border-gray-800 pb-4 mb-4">
-                <img src="./images/logo.png" class="h-12 object-contain" alt="Logo">
-                <div class="text-right">
-                    <h2 class="text-xl font-black text-gray-900">ORDEM DE SERVIÇO</h2>
-                    <p class="text-lg text-red-600 font-bold">Nº ${os.os_numero || 'PENDENTE'}</p>
-                    <p class="text-xs font-bold mt-1 uppercase bg-gray-200 px-2 py-1 rounded inline-block">${os.tipo_manutencao || 'Manutenção'}</p>
-                </div>
-            </div>
-
-            <!-- Corpo -->
-            <div class="flex-grow space-y-4">
-                
-                <!-- Info Básica -->
-                <div class="grid grid-cols-2 gap-4 text-sm border-b border-gray-300 pb-2">
-                    <div>
-                        <span class="block font-bold text-xs uppercase text-gray-500">Cliente / Local</span>
-                        <div class="font-bold text-gray-900">${os.local_atendimento || 'N/A'}</div>
-                        <div class="text-xs text-gray-600">Contrato: ${os.contrato}</div>
-                    </div>
-                    <div class="text-right">
-                        <div class="mb-1"><span class="font-bold">Data Solicitação/Retirada:</span> ${fmt(os.data_retirada || os.data_servico)}</div>
-                        <div><span class="font-bold">Data Conclusão/Devolução:</span> ${fmt(os.data_conclusao || os.data_devolucao)}</div>
-                    </div>
-                </div>
-
-                <!-- Equipamento -->
-                <div class="bg-gray-50 p-3 rounded border border-gray-200">
-                    <div class="font-bold text-blue-900 border-b border-gray-200 mb-2 uppercase text-xs">Equipamento</div>
-                    <div class="text-base font-bold text-gray-800">${os.equipamento || 'NÃO IDENTIFICADO'}</div>
-                    ${detalhesEquipamento}
-                </div>
-
-                <!-- Defeito / Serviços -->
-                <div>
-                    <div class="font-bold text-xs uppercase text-gray-500 mb-1">Serviços Realizados</div>
-                    <div class="border border-gray-300 p-3 rounded bg-white text-sm min-h-[80px] text-justify whitespace-pre-wrap leading-relaxed">${os.servicos_realizados || 'Nenhum serviço descrito.'}</div>
-                </div>
-
-                <!-- Peças -->
-                <div>
-                    <div class="font-bold text-xs uppercase text-gray-500 mb-1">Peças / Materiais</div>
-                    <div class="border border-gray-300 p-3 rounded bg-white text-sm min-h-[40px]">${pecasHtml}</div>
-                </div>
-
-            </div>
-
-            <!-- Assinaturas -->
-            <div class="mt-6 pt-4 border-t-2 border-gray-800 grid grid-cols-2 gap-8">
-                <div class="text-center">
-                    <div class="h-16 flex items-end justify-center pb-2">
-                        ${assinaturaImg}
-                    </div>
-                    <div class="border-t border-gray-400 pt-1">
-                        <p class="font-bold text-xs uppercase">Responsável pelo Local</p>
-                    </div>
-                </div>
-                <div class="text-center">
-                    <div class="h-16 flex items-end justify-center pb-2">
-                        <img src="./images/assinatura-tecnico.png" class="h-12 object-contain mx-auto" alt="Técnico">
-                    </div>
-                    <div class="border-t border-gray-400 pt-1">
-                        <p class="font-bold text-xs uppercase">Técnico Responsável</p>
-                        <p class="text-[10px] text-gray-500">BM Medical Manutenção</p>
+        <div class="font-sans text-gray-900 h-full flex flex-col p-8 bg-white relative">
+            <div class="flex justify-between items-start mb-4">
+                <div class="w-1/2"><img src="./images/logo.png" class="h-24 w-auto object-contain" alt="BM Medical"></div>
+                <div class="w-1/2 text-right pt-2">
+                    <div class="text-[10px] text-black leading-snug">
+                        <p class="font-bold text-black text-sm mb-1">BM MEDICAL Engenharia Clínica</p>
+                        <p>CNPJ: 48.673.158/0001-59</p>
+                        <p>Av. Duque de Caxias, 915-B403, Pelotas-RS</p>
+                        <p>Fone: (51) 99377-5933</p>
+                        <p class="text-black font-medium">central.bmmedical@outlook.com</p>
                     </div>
                 </div>
             </div>
-            
-            <!-- Rodapé Página -->
-            <div class="text-center mt-4 text-[10px] text-gray-400">
-                Documento gerado eletronicamente em ${new Date().toLocaleDateString('pt-BR')} via Sistema BM Medical.
+            <div class="text-center mb-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-1">OS ${os.os_numero || 'PENDENTE'}</h2>
+                <p class="text-sm font-bold text-gray-700 uppercase tracking-wide">${tipoManutencao}</p>
             </div>
-        </div>
-    `;
+            <div class="space-y-4 flex-grow">
+                <div class="${boxClass}"><h3 class="${titleClass}">Dados do Cliente</h3><div class="${lineClass}"></div><div class="text-xs space-y-1 pl-1"><p><span class="font-bold w-20 inline-block">Contrato:</span> ${os.contrato || '-'}</p><p><span class="font-bold w-20 inline-block">Cliente:</span> Secretaria Municipal de Saúde De Capão Do Leão</p><p><span class="font-bold w-20 inline-block">Endereço:</span> Av. Narciso Silva, 2360, Capão Do Leão - RS</p></div></div>
+                <div class="${boxClass}"><h3 class="${titleClass}">Dados do Equipamento</h3><div class="${lineClass}"></div><div class="text-xs grid grid-cols-2 gap-x-8 gap-y-1 pl-1"><div class="flex"><span class="font-bold w-24 inline-block">Equipamento:</span> <span>${os.equipamento || '-'}</span></div><div class="flex"><span class="font-bold w-24 inline-block">Marca:</span> <span>${os.marca || '-'}</span></div><div class="flex"><span class="font-bold w-24 inline-block">Modelo:</span> <span>${os.modelo || '-'}</span></div><div class="flex"><span class="font-bold w-24 inline-block">Serial:</span> <span>${os.serial || '-'}</span></div></div>${isLote ? `<div class="text-[10px] text-gray-500 italic mt-1 pl-1">(Ver anexo para lista completa do lote)</div>` : ''}</div>
+                <div class="${boxClass}"><h3 class="${titleClass}">Atendimento</h3><div class="${lineClass}"></div><div class="text-xs grid grid-cols-2 gap-x-8 gap-y-1 pl-1"><div><span class="font-bold w-28 inline-block">Data da Retirada:</span> ${fmt(os.data_retirada || os.data_servico)}</div><div><span class="font-bold w-28 inline-block">Data da Devolução:</span> ${fmt(os.data_conclusao || os.data_devolucao)}</div><div class="col-span-2"><span class="font-bold w-28 inline-block">Local:</span> ${os.local_atendimento || '-'}</div></div></div>
+                <div class="${boxClass}"><h3 class="${titleClass}">Descrição dos Serviços Realizados</h3><div class="${lineClass}"></div><div class="text-xs text-justify leading-relaxed p-1 min-h-[60px]">${os.servicos_realizados || 'Nenhum serviço descrito.'}</div></div>
+                <div class="${boxClass}"><h3 class="${titleClass}">Peças Utilizadas</h3><div class="${lineClass}"></div><div class="border border-gray-300 rounded overflow-hidden mt-1"><div class="grid grid-cols-12 bg-gray-100 text-[10px] font-bold py-1 border-b border-gray-300 text-black"><div class="col-span-1 text-center">Item</div><div class="col-span-2 text-center">Qtd.</div><div class="col-span-9 pl-2">Descrição</div></div>${linhasPecas}</div></div>
+            </div>
+            <div class="mt-auto grid grid-cols-2 gap-12 pt-2">
+                <div class="text-center relative"><div class="flex justify-center items-end h-16 pb-1">${assinaturaImg}</div><div class="border-t border-gray-400 w-3/4 mx-auto pt-1"><p class="font-bold text-xs uppercase text-gray-800">Responsável do Setor</p></div></div>
+                <div class="text-center relative"><div class="flex justify-center items-end h-16 pb-1"><img src="./images/assinatura-tecnico.png" class="h-16 object-contain" alt="Técnico"></div><div class="border-t border-gray-400 w-3/4 mx-auto pt-1"><p class="font-bold text-xs uppercase text-gray-800">Responsável Técnico</p><p class="text-[10px] text-gray-500 font-medium">BM Medical Manutenção</p></div></div>
+            </div>
+        </div>`;
 }
 
-// Helpers UI
 function mostrarCarregando(show) {
     const btn = document.getElementById('btn-update');
-    if(show) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> ...';
-    } else {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-sync-alt mr-2"></i> Atualizar';
-    }
+    if(show) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> ...'; } 
+    else { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync-alt mr-2"></i> Atualizar'; }
 }

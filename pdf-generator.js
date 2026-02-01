@@ -2,14 +2,13 @@
  * pdf-generator.js
  * Módulo centralizado para a criação de PDFs de Ordens de Serviço.
  * ATUALIZADO: Ajustes de espaçamento (Gap 18, Y+7) e lógica de Local para Lote (Secretaria de Saúde).
+ * CORREÇÃO CRÍTICA: Acesso ao window.jspdf movido para dentro das funções para evitar erro de carregamento (race condition).
  *
  * Funções exportadas:
  * - generateOsPdf(order, buttonElement): Gera e salva um PDF para uma única OS.
  * - addOrderPageToPdf(docPDF, order, assets): Adiciona a página de uma OS a um documento PDF existente.
+ * - imageToDataUrl(url, quality): Utilitário para converter imagens.
  */
-
-// Pega a instância global do jsPDF
-const { jsPDF } = window.jspdf;
 
 // NOVO: Constantes de Tema e Layout
 const THEME = {
@@ -24,7 +23,7 @@ const KV_SPACING = 2; // Espaço padrão entre a chave (key) e o valor (value)
  * @param {number} quality - A qualidade do JPEG (0 a 1).
  * @returns {Promise<string>} Uma promessa que resolve com a Data URL da imagem.
  */
-function imageToDataUrl(url, quality = 0.7) {
+export function imageToDataUrl(url, quality = 0.7) {
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = 'Anonymous';
@@ -90,8 +89,7 @@ function drawKeyValue(doc, x, y, key, value) {
 function drawBatchItemLine(doc, x, y, item, maxWidth) {
     const startX = x;
     let currentX = x;
-    // ALTERADO: Aumentado para 18 conforme solicitado
-    const FIELD_GAP = 18; // Espaçamento largo entre campos (sem hífen)
+    const FIELD_GAP = 18; 
     
     // Helper local para desenhar partes
     const drawPart = (label, value, isLast = false) => {
@@ -106,7 +104,7 @@ function drawBatchItemLine(doc, x, y, item, maxWidth) {
         doc.text(valText, currentX, y);
         currentX += doc.getTextWidth(valText);
         
-        // Separador (se não for o último) - Agora apenas adiciona espaço
+        // Separador (se não for o último)
         if (!isLast) {
             currentX += FIELD_GAP;
         }
@@ -119,15 +117,11 @@ function drawBatchItemLine(doc, x, y, item, maxWidth) {
     const sn = item.serial || item.numeroSerie || 'S/N';
     const pat = (item.codigoPatrimonio || item.patrimonio) ? ` (Pat: ${item.codigoPatrimonio || item.patrimonio})` : '';
 
-    // Verifica se cabe tudo em uma linha (estimativa simples)
-    // Se for muito longo, teremos que quebrar, mas para simplificar vamos tentar desenhar linearmente
-    // Para garantir alinhamento, vamos desenhar parte a parte
-    
     drawPart('Marca:', marca);
     drawPart('Modelo:', modelo);
     drawPart('Serial:', sn + pat, true);
     
-    return 5; // Retorna altura da linha (fixa para simplificar, assumindo que cabe)
+    return 5; 
 }
 
 
@@ -147,7 +141,6 @@ async function drawOrderContent(docPDF, order, assets) {
     // --- FUNÇÃO REUTILIZÁVEL PARA DESENHAR O CABEÇALHO ---
     const drawHeader = () => {
         const headerY = 10;
-        // ATUALIZADO: Altura definida como 0 para manter a proporção
         docPDF.addImage(logoDataUrl, 'JPEG', margin, headerY, 72, 0);
         docPDF.setFontSize(9).setFont(undefined, THEME.FONT_BOLD);
         docPDF.text('BM MEDICAL Engenharia Clínica', pageWidth - margin, headerY + 5, { align: 'right' });
@@ -169,7 +162,7 @@ async function drawOrderContent(docPDF, order, assets) {
 
     // --- Desenha o cabeçalho na primeira página ---
     drawHeader();
-    yPosition += 38; // Ajustar esta altura se a proporção do logo mudar muito
+    yPosition += 38; 
 
     // --- Título da OS ---
     docPDF.setFontSize(20).setFont(undefined, THEME.FONT_BOLD);
@@ -189,7 +182,7 @@ async function drawOrderContent(docPDF, order, assets) {
         
         // dryRun para calcular altura
         const dryRunFinalY = contentCallback(0, true, docPDF);
-        const contentHeight = dryRunFinalY; // O callback retorna a altura total usada
+        const contentHeight = dryRunFinalY; 
         const boxHeight = contentHeight + paddingTop + 8; 
 
         checkAndAddPage(boxHeight);
@@ -223,15 +216,11 @@ async function drawOrderContent(docPDF, order, assets) {
         return 14; 
     });
     
-    // --- SEÇÃO DADOS DO EQUIPAMENTO (COM SUPORTE A LOTE) ---
     drawSection('Dados do Equipamento', (currentY, isDryRun, doc) => {
         let y = currentY;
         const col1X = margin + 4;
         
-        // >>> Verifica se é Lote (tem itens) <<<
         if (order.itens && Array.isArray(order.itens) && order.itens.length > 0) {
-            
-            // 1. Agrupamento
             const gruposPorTipo = {};
             order.itens.forEach(item => {
                 const tipo = item.nome || 'Equipamento';
@@ -241,38 +230,29 @@ async function drawOrderContent(docPDF, order, assets) {
 
             const tipos = Object.keys(gruposPorTipo);
             
-            // 2. Renderização
             tipos.forEach((tipo, index) => {
-                if (index > 0) y += 5; // Espaço entre grupos
+                if (index > 0) y += 5; 
 
-                // Título do Grupo (Ex: ESFIGMOMANÔMETRO ADULTO)
                 if (!isDryRun) {
-                    // ALTERADO: PONTO 1 - Negrito ativado para o título do grupo
                     doc.setFont(undefined, THEME.FONT_BOLD).setTextColor('#000000');
                     doc.text(tipo, col1X, y);
                     doc.setTextColor('#000000'); 
-                    doc.setFont(undefined, THEME.FONT_NORMAL); // Reseta para normal
+                    doc.setFont(undefined, THEME.FONT_NORMAL); 
                 }
-                // ALTERADO: Aumentado para 7 conforme solicitado
                 y += 7;
 
-                // Lista de Itens
                 const listaItens = gruposPorTipo[tipo];
                 listaItens.forEach(item => {
-                    // ALTERADO: PONTO 2 - Usando função auxiliar para desenhar linha estruturada
-                    // "Marca: Valor      Modelo: Valor      Serial: Valor"
-                    
                     if (!isDryRun) {
                         drawBatchItemLine(doc, col1X + 3, y, item, pageWidth - (margin * 2) - 10);
                     }
-                    y += 5; // Altura fixa da linha
+                    y += 5; 
                 });
             });
 
             return (y - currentY) + 2;
 
         } else {
-            // >>> LÓGICA ORIGINAL (Item Único) <<<
             const ufpelContractId = 'Contrato N° 03/2024';
             const col2X = (order.contrato === ufpelContractId) ? margin + 138 : margin + 117;
             
@@ -294,17 +274,14 @@ async function drawOrderContent(docPDF, order, assets) {
         }
     });
 
-    // --- SEÇÃO ATENDIMENTO (AJUSTADA PARA LOCAL VS RETIRADA E LOTE) ---
     drawSection('Atendimento', (currentY, isDryRun, doc) => {
         const ufpelContractId = 'Contrato N° 03/2024';
         let y = currentY;
         const col1X = margin + 4;
         const col2X = margin + 80;
 
-        // Verifica se é Lote (para definir o local fixo)
         const isLote = order.itens && Array.isArray(order.itens) && order.itens.length > 0;
 
-        // Lógica Baumer / UFPEL (Mantida)
         if (order.contrato === ufpelContractId) {
             if (!isDryRun) {
                 drawKeyValue(doc, col1X, y, 'Data do Serviço', formatDate(order.data_servico));
@@ -313,32 +290,26 @@ async function drawOrderContent(docPDF, order, assets) {
                 drawKeyValue(doc, col1X, y, 'Hora de Chegada', order.hora_chegada);
                 drawKeyValue(doc, col2X, y, 'Hora de Saída', order.hora_saida);
             }
-            return 16; // 2 linhas
+            return 16; 
         } 
-        
-        // Lógica Geral (Capão, Exército)
         else {
-            // Se for Atendimento no Local, simplifica a exibição
             if (order.atendimento_no_local) {
                 if (!isDryRun) {
                     drawKeyValue(doc, col1X, y, 'Data do Serviço', formatDate(order.data_servico));
-                    // LÓGICA DE LOCAL PARA LOTE: Se for lote, força "SECRETARIA DE SAÚDE", senão usa o local original
                     const localParaExibir = isLote ? 'SECRETARIA DE SAÚDE' : order.local_atendimento;
                     drawKeyValue(doc, col2X, y, 'Local', localParaExibir);
                 }
-                return 10; // 1 linha apenas
+                return 10; 
             } 
-            // Se houver retirada/devolução
             else {
                 if (!isDryRun) {
                     drawKeyValue(doc, col1X, y, 'Data da Retirada', formatDate(order.data_retirada));
                     drawKeyValue(doc, col2X, y, 'Data da Devolução', formatDate(order.data_devolucao));
                     y += 6;
-                    // LÓGICA DE LOCAL PARA LOTE: Se for lote, força "SECRETARIA DE SAÚDE", senão usa o local original
                     const localParaExibir = isLote ? 'SECRETARIA DE SAÚDE' : order.local_atendimento;
                     drawKeyValue(doc, col1X, y, 'Local', localParaExibir);
                 }
-                return 16; // 2 linhas
+                return 16; 
             }
         }
     });
@@ -439,11 +410,10 @@ async function drawOrderContent(docPDF, order, assets) {
     if (order.signature_data && order.signature_data.length > 200) {
         docPDF.addImage(order.signature_data, 'JPEG', margin + 15, signatureY, signatureWidth, signatureHeight);
     }
-    // Caso a assinatura tenha sido dispensada (ex: Exército), podemos colocar um texto ou deixar em branco
     else if (order.assinaturaDesconsiderada) {
          docPDF.setFontSize(8).setFont(undefined, THEME.FONT_NORMAL).setTextColor('#999');
          docPDF.text('(Assinatura Dispensada)', margin + 45, signatureY + signatureHeight - 5, { align: 'center' });
-         docPDF.setTextColor('#000'); // Reseta cor
+         docPDF.setTextColor('#000'); 
     }
 
     docPDF.setDrawColor('#333333').setLineWidth(0.3);
@@ -464,6 +434,13 @@ async function drawOrderContent(docPDF, order, assets) {
  * @param {HTMLElement} buttonElement - O elemento do botão que acionou a função.
  */
 export async function generateOsPdf(order, buttonElement) {
+    // Acesso seguro ao jsPDF apenas quando a função é chamada
+    if (!window.jspdf) {
+        alert("Erro: A biblioteca jsPDF não foi carregada.");
+        return;
+    }
+    const { jsPDF } = window.jspdf;
+
     if (buttonElement) {
         buttonElement.disabled = true;
         buttonElement.textContent = 'Gerando...';
@@ -471,7 +448,6 @@ export async function generateOsPdf(order, buttonElement) {
     try {
         if (!order) throw new Error('Dados da OS não fornecidos.');
         
-        const { jsPDF } = window.jspdf;
         const docPDF = new jsPDF();
 
         const assets = {
@@ -488,7 +464,7 @@ export async function generateOsPdf(order, buttonElement) {
     } finally {
         if (buttonElement) {
             buttonElement.disabled = false;
-            buttonElement.textContent = 'PDF'; // Texto curto para o botão da tabela
+            buttonElement.textContent = 'PDF'; 
         }
     }
 }
