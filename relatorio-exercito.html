@@ -11,7 +11,6 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap');
         
-        /* Fundo padrão do sistema de relatórios */
         body { font-family: 'Roboto', sans-serif; background-color: #525659; margin: 0; }
 
         .a4-page {
@@ -24,14 +23,27 @@
 
         .tab-btn.active { border-bottom: 3px solid #2563eb; color: #2563eb; font-weight: 700; }
         
-        .editable-field { border: 1px dashed transparent; width: 100%; background: transparent; resize: none; overflow: hidden; font-family: inherit; font-size: inherit; color: inherit; display: block; line-height: 1.5; text-align: justify; }
+        .editable-field { 
+            border: 1px dashed transparent; 
+            width: 100%; 
+            background: transparent; 
+            resize: none; 
+            overflow: hidden; 
+            font-family: inherit; 
+            font-size: inherit; 
+            color: inherit; 
+            display: block; 
+            line-height: 1.5; 
+            text-align: justify; 
+            min-height: 20px;
+        }
         .editable-field:not([readonly]) { outline: none; border: 1px dashed #f59e0b; background-color: #fffbeb; padding: 5px; border-radius: 4px; }
         
-        /* Estilo do label de edição (Padronizado com o Capão) */
         .edit-label { cursor: pointer; font-size: 0.7rem; color: #9ca3af; display: flex; align-items: center; gap: 4px; margin-bottom: 2px; justify-content: flex-end; transition: color 0.2s; }
         .edit-label:hover { color: #2563eb; }
 
         .text-indent-custom { text-indent: 4rem; }
+        .bg-total-custom { background-color: rgb(189, 213, 237) !important; color: #000 !important; }
 
         @media print {
             .no-print { display: none !important; }
@@ -39,17 +51,8 @@
             .a4-page { box-shadow: none; margin: 0; width: 100%; page-break-after: always; padding: 10mm 20mm 20mm 20mm; }
         }
 
-        /* Sidebar Retrátil Estilizada */
-        #os-selection-sidebar {
-            transition: transform 0.3s ease-in-out;
-        }
-        #os-selection-sidebar.collapsed {
-            transform: translateX(100%);
-        }
-
-        #sidebar-list::-webkit-scrollbar { width: 6px; }
-        #sidebar-list::-webkit-scrollbar-track { background: #f1f1f1; }
-        #sidebar-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+        #os-selection-sidebar { transition: transform 0.3s ease-in-out; }
+        #os-selection-sidebar.collapsed { transform: translateX(100%); }
     </style>
 </head>
 <body class="text-gray-900">
@@ -75,13 +78,12 @@
 
     <!-- Barra de Abas -->
     <div class="fixed top-[64px] left-0 w-full bg-white border-b border-gray-200 z-40 no-print flex justify-center space-x-8">
-        <button class="tab-btn active px-6 py-3 text-sm uppercase tracking-widest transition" onclick="switchTab('relatorio')">Visualizar Relatório</button>
-        <button class="tab-btn px-6 py-3 text-sm uppercase tracking-widest transition" onclick="switchTab('editor')">Gestor de Peças e Gastos</button>
+        <button id="tab-btn-relatorio" class="tab-btn active px-6 py-3 text-sm uppercase tracking-widest transition">Visualizar Relatório</button>
+        <button id="tab-btn-editor" class="tab-btn px-6 py-3 text-sm uppercase tracking-widest transition">Gestor de Peças e Gastos</button>
     </div>
 
-    <!-- Sidebar de Seleção de OS (Padronizada com o Capão) -->
+    <!-- Sidebar de Seleção de OS -->
     <div id="os-selection-sidebar" class="fixed right-0 top-32 w-72 bg-white rounded-l-lg shadow-2xl border-l border-y border-gray-300 z-40 hidden no-print flex flex-col max-h-[75vh]">
-        <!-- Botão Toggle -->
         <button id="btn-toggle-sidebar" class="absolute -left-8 top-4 bg-white text-gray-600 p-2 rounded-l-md border-y border-l border-gray-300 shadow-md hover:bg-gray-50 focus:outline-none" title="Abrir/Fechar Lista">
             <i class="fas fa-chevron-right"></i>
         </button>
@@ -98,7 +100,7 @@
     </div>
 
     <div class="h-32 no-print"></div>
-s
+
     <!-- ABA 1: RELATÓRIO PREVIEW -->
     <div id="tab-relatorio" class="tab-content block">
         <div class="a4-page" id="report-capa">
@@ -107,50 +109,43 @@ s
             </div>
             <div class="text-center mb-10"><h1 class="text-2xl font-black text-gray-900 uppercase tracking-wide">RELATÓRIO MENSAL</h1></div>
             
-            <!-- Bloco de Identificação -->
             <div class="mb-8 text-base pl-2">
                 <div class="mb-0 flex items-baseline"><span class="font-bold text-gray-900 uppercase text-sm mr-2 w-24">Contrato:</span><span class="text-gray-800 font-medium">Termo de Contrato Nº. 10/2025</span></div>
                 <div class="mb-0 flex items-baseline"><span class="font-bold text-gray-900 uppercase text-sm mr-2 w-24">Cliente:</span><span class="text-gray-800 font-medium">9º Batalhão de Infantaria Motorizado</span></div>
                 <div class="mb-0 flex items-baseline"><span class="font-bold text-gray-900 uppercase text-sm mr-2 w-24">Período:</span><span id="periodo-texto" class="text-blue-900 font-bold">Selecione um mês acima...</span></div>
             </div>
 
-            <!-- 1. OBJETO -->
             <div class="mb-8">
                 <h2 class="text-lg font-bold uppercase mb-2 border-l-4 border-gray-900 pl-3">1. Objeto</h2>
                 <div class="relative group mt-2">
-                    <!-- AJUSTE: Label de edição agora à direita com o texto "Editar Texto" -->
-                    <label class="edit-label no-print"><input type="checkbox" onchange="toggleField(this, 'txt-objeto')" class="mr-1"> Editar Texto</label>
+                    <label class="edit-label no-print"><input type="checkbox" data-target="txt-objeto" class="toggle-edit mr-1"> Editar Texto</label>
                     <textarea id="txt-objeto" readonly class="editable-field text-indent-custom text-sm leading-relaxed">Contratação de serviços de manutenção preventiva e corretiva de equipamentos odontológicos da Odontoclínica do Posto Médico de Guarnição de Pelotas - PMGuPel, listados no Anexo A do documento Anexo IV Estudo Técnico Preliminar 131/2024, do Pregão Eletrônico nº 90001/2025.</textarea>
                 </div>
             </div>
 
-            <!-- 2. ATIVIDADES REALIZADAS -->
             <div class="mb-8">
                 <h2 class="text-lg font-bold uppercase mb-2 border-l-4 border-gray-900 pl-3">2. Atividades Realizadas</h2>
                 <div class="relative group mt-2">
-                    <!-- AJUSTE: Label de edição agora à direita com o texto "Editar Texto" -->
-                    <label class="edit-label no-print"><input type="checkbox" onchange="toggleField(this, 'txt-atividades')" class="mr-1"> Editar Texto</label>
+                    <label class="edit-label no-print"><input type="checkbox" data-target="txt-atividades" class="toggle-edit mr-1"> Editar Texto</label>
                     <textarea id="txt-atividades" readonly class="editable-field text-indent-custom text-sm leading-relaxed">Durante o mês de referência do presente relatório, foram realizados atendimentos de manutenção corretiva e preventiva, bem como a aquisição de peças necessárias para a execução dos serviços. As descrições detalhadas das atividades encontram-se registradas nas Ordens de Serviço - Manutenção, dispostas no Anexo I.</textarea>
                 </div>
             </div>
 
-            <!-- 3. AQUISIÇÃO DE PEÇAS -->
             <div class="mb-8">
                 <h2 class="text-lg font-bold uppercase mb-2 border-l-4 border-gray-900 pl-3">3. Aquisição de Peças e Controle de Gastos</h2>
-                
                 <p class="text-sm text-justify mb-4 text-indent-custom leading-relaxed">Na tabela abaixo, apresentam-se as peças adquiridas e seus respectivos valores para fins de referência.</p>
                 
                 <table class="w-full border-collapse border border-gray-900 text-[11px] mb-6">
                     <thead>
-                        <tr class="bg-gray-100 uppercase">
-                            <th class="border border-gray-900 p-2 text-left">Descrição</th>
-                            <th class="border border-gray-900 p-2 text-center w-16">Qtd</th>
-                            <th class="border border-gray-900 p-2 text-right w-28">Valor Unit.</th>
-                            <th class="border border-gray-900 p-2 text-right w-28">Valor Total</th>
+                        <tr class="bg-gray-100 uppercase font-bold text-center">
+                            <th class="border border-gray-900 p-2">Descrição</th>
+                            <th class="border border-gray-900 p-2 w-16">Qtd</th>
+                            <th class="border border-gray-900 p-2 w-28">Valor Unit.</th>
+                            <th class="border border-gray-900 p-2 w-28">Valor Total</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-pecas-mes">
-                        <tr><td colspan="4" class="p-4 text-center text-gray-400 italic">Selecione um mês e sincronize os dados...</td></tr>
+                        <tr><td colspan="4" class="p-4 text-center text-gray-400 italic">Sincronize os dados...</td></tr>
                     </tbody>
                 </table>
 
@@ -160,10 +155,10 @@ s
 
                 <table class="w-full border-collapse border border-gray-900 text-[11px]">
                     <thead>
-                        <tr class="bg-gray-100 uppercase">
-                            <th class="border border-gray-900 p-2 text-left">Mês de Referência</th>
-                            <th class="border border-gray-900 p-2 text-right">Valor Gasto (Mensal)</th>
-                            <th class="border border-gray-900 p-2 text-right">Valor Sobrando (Mensal)</th>
+                        <tr class="bg-gray-100 uppercase font-bold text-center">
+                            <th class="border border-gray-900 p-2">Mês de Referência</th>
+                            <th class="border border-gray-900 p-2">Valor Gasto (Mensal)</th>
+                            <th class="border border-gray-900 p-2">Valor Sobrando (Mensal)</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-controle-gastos"></tbody>
@@ -175,10 +170,10 @@ s
                 <h2 class="text-lg font-bold uppercase mb-4 border-l-4 border-gray-900 pl-3">4. Faturamento</h2>
                 <table class="w-full border-collapse border border-gray-900 text-[11px] mt-2">
                     <thead>
-                        <tr class="bg-gray-100 uppercase font-bold">
-                            <th class="border border-gray-900 p-2 text-center w-12">Item</th>
-                            <th class="border border-gray-900 p-2 text-left">Descrição</th>
-                            <th class="border border-gray-900 p-2 text-right w-32">Valor Executado</th>
+                        <tr class="bg-gray-100 uppercase font-bold text-center">
+                            <th class="border border-gray-900 p-2 w-12">Item</th>
+                            <th class="border border-gray-900 p-2">Descrição</th>
+                            <th class="border border-gray-900 p-2 w-32">Valor Executado</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-faturamento"></tbody>
@@ -188,15 +183,15 @@ s
 
         <!-- SEPARADOR ANEXO I -->
         <div class="a4-page" style="page-break-before: always;">
-            <div class="flex flex-col items-center justify-center mb-10 pt-0"><img src="./images/logo.png" alt="BM Medical" class="h-32 object-contain" onerror="this.style.display='none';"></div>
+            <div class="flex flex-col items-center justify-center mb-6 pt-0">
+                <img src="./images/logo.png" alt="BM Medical" class="h-32 object-contain" onerror="this.src='https://via.placeholder.com/200x100?text=LOGO+BM+MEDICAL'">
+            </div>
             <div class="flex-grow flex flex-col items-center justify-center text-center">
-                <h1 class="text-5xl font-black mb-0 tracking-widest uppercase">ANEXO I</h1>
-                <p class="mt-4 text-gray-500 font-bold uppercase tracking-widest">Ordens de Serviço do Período</p>
+                <h1 style="font-size: 24pt;" class="font-bold uppercase tracking-widest">ANEXO I</h1>
             </div>
             <div class="h-24"></div>
         </div>
-
-        <!-- CONTAINER DAS OSs -->
+        
         <div id="os-pages-container"></div>
     </div>
 
@@ -206,25 +201,20 @@ s
             <div class="bg-blue-600 p-4 text-white flex justify-between items-center">
                 <h2 class="font-bold uppercase tracking-wide"><i class="fas fa-edit mr-2"></i> Gestor de Itens e Valores</h2>
                 <div class="flex gap-2">
-                    <button id="btn-reload-os" class="bg-blue-500 hover:bg-blue-400 px-3 py-1 rounded text-xs font-bold uppercase transition" title="Puxar peças novamente das OSs"><i class="fas fa-sync mr-1"></i> Importar das OSs</button>
+                    <button id="btn-reload-os" class="bg-blue-500 hover:bg-blue-400 px-3 py-1 rounded text-xs font-bold uppercase transition"><i class="fas fa-sync mr-1"></i> Importar das OSs</button>
                     <button id="btn-add-item" class="bg-blue-800 hover:bg-blue-700 px-3 py-1 rounded text-xs font-bold uppercase transition"><i class="fas fa-plus mr-1"></i> Item Extra</button>
                     <button id="btn-save-data" class="bg-green-600 hover:bg-green-700 px-4 py-1 rounded text-xs font-bold uppercase transition"><i class="fas fa-save mr-1"></i> Salvar Fechamento</button>
                 </div>
             </div>
             
             <div class="p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <p class="text-sm text-gray-500 border-l-2 border-amber-500 pl-3">Insira os valores unitários para os itens comprados no mês.</p>
-                    <div id="status-fechamento" class="text-xs font-bold px-2 py-1 rounded bg-gray-100 text-gray-500">Nenhum dado salvo</div>
-                </div>
-                
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="text-gray-400 uppercase text-[10px] font-bold border-b border-gray-100">
                             <th class="pb-2 text-left">Descrição do Item</th>
                             <th class="pb-2 text-center w-20">Qtd</th>
-                            <th class="pb-2 text-right w-40">Valor Unitário (R$)</th>
-                            <th class="pb-2 text-right w-40">Total</th>
+                            <th class="pb-2 text-center w-40">Valor Unitário (R$)</th>
+                            <th class="pb-2 text-center w-40">Total</th>
                             <th class="pb-2 text-right w-12"></th>
                         </tr>
                     </thead>
@@ -232,7 +222,7 @@ s
                     <tfoot>
                         <tr class="border-t-2 border-gray-100 font-bold">
                             <td colspan="3" class="pt-4 text-right uppercase text-gray-500 text-xs">Total do Mês:</td>
-                            <td class="pt-4 text-right text-blue-600 text-lg" id="total-pecas-display">R$ 0,00</td>
+                            <td class="pt-4 text-center text-blue-600 text-lg" id="total-pecas-display">R$ 0,00</td>
                             <td></td>
                         </tr>
                     </tfoot>
@@ -248,32 +238,19 @@ s
                     <p class="text-xl font-black text-gray-800">R$ 30.000,00</p>
                 </div>
                 <div class="bg-blue-50 p-4 rounded-lg">
-                    <p class="text-[10px] text-blue-400 uppercase font-bold mb-1">Gasto Acumulado (Jan - Mês Anterior)</p>
+                    <p class="text-[10px] text-blue-400 uppercase font-bold mb-1">Gasto Acumulado (Anterior)</p>
                     <p class="text-xl font-black text-blue-800" id="acumulado-anterior-display">R$ 0,00</p>
                 </div>
                 <div class="bg-green-50 p-4 rounded-lg">
-                    <p class="text-[10px] text-green-400 uppercase font-bold mb-1">Saldo Remanescente Final</p>
+                    <p class="text-[10px] text-green-400 uppercase font-bold mb-1">Saldo Contratual Restante</p>
                     <p class="text-xl font-black text-green-800" id="saldo-final-display">R$ 30.000,00</p>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Script principal como módulo -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script>
-        function toggleField(checkbox, fieldId) {
-            const field = document.getElementById(fieldId);
-            if (checkbox.checked) { field.removeAttribute('readonly'); field.focus(); } 
-            else { field.setAttribute('readonly', true); }
-        }
-
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById('tab-' + tab).classList.remove('hidden');
-            event.target.classList.add('active');
-        }
-    </script>
     <script type="module" src="relatorio-exercito.js"></script>
 </body>
 </html>
