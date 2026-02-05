@@ -1,27 +1,25 @@
 /**
  * pdf-generator-relatexercito.js
  * Módulo especializado para o Contrato 10/2025 (Exército Brasileiro).
- * Focado em leveza de arquivo e fidelidade visual ao padrão BM Medical.
+ * Padronizado conforme o layout do Contrato 138/2024 (Capão).
  */
 
 import { addOrderPageToPdf, imageToDataUrl } from './pdf-generator.js';
 
 const VALOR_SERVICO_FIXO = 2920.00;
-const VALOR_META_MENSAL = 2500.00;
+const MARGEM_INFERIOR = 25; 
 
 /**
- * Helper para converter mês/ano para formato por extenso (ex: Dezembro de 2025)
+ * Helper para converter mês/ano para formato por extenso (ex: Janeiro/2026)
  */
-function formatMesExtenso(mesAnoStr, anoReferencia = new Date().getFullYear()) {
+function formatMesBarra(mesAnoStr) {
     if (!mesAnoStr) return "";
     const mesesNomes = [
         "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
         "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
     ];
     
-    let mes, ano = anoReferencia;
-
-    // Converte para string para garantir o uso de .includes
+    let mes, ano;
     const entrada = String(mesAnoStr);
 
     if (entrada.includes('-')) {
@@ -29,50 +27,94 @@ function formatMesExtenso(mesAnoStr, anoReferencia = new Date().getFullYear()) {
     } else if (entrada.includes('/')) {
         [mes, ano] = entrada.split('/');
         if (ano.length === 2) ano = "20" + ano;
-    } else if (!isNaN(parseInt(entrada))) {
-        // Caso venha apenas o número do mês (ex: "12")
+    } else if (!isNaN(parseInt(entrada)) && entrada.length <= 2) {
         mes = entrada;
+        ano = new Date().getFullYear();
     } else {
         return entrada;
     }
 
     const mesIdx = parseInt(mes) - 1;
     if (mesIdx >= 0 && mesIdx < 12) {
-        return `${mesesNomes[mesIdx]} de ${ano}`;
+        return `${mesesNomes[mesIdx]}/${ano}`;
     }
-    
     return entrada;
 }
 
-/**
- * Função Reutilizável para Desenhar o Cabeçalho Padrão das OSs
- */
-const drawStandardHeader = (doc, logoDataUrl, pageWidth, margin) => {
-    const headerY = 10;
-    if (logoDataUrl) {
-        doc.addImage(logoDataUrl, 'PNG', margin, headerY, 72, 0);
-    }
-    doc.setFontSize(9).setFont("helvetica", "bold");
-    doc.setTextColor(0); // Garante cor preta
-    doc.text('BM MEDICAL Engenharia Clínica', pageWidth - margin, headerY + 5, { align: 'right' });
-    doc.setFontSize(8).setFont("helvetica", "normal");
-    doc.text('CNPJ: 48.673.158/0001-59', pageWidth - margin, headerY + 9, { align: 'right' });
-    doc.text('Av. Duque de Caxias, 915-B403, Pelotas-RS', pageWidth - margin, headerY + 13, { align: 'right' });
-    doc.text('Fone: (51) 99377-5933', pageWidth - margin, headerY + 17, { align: 'right' });
-    doc.text('central.bmmedical@outlook.com', pageWidth - margin, headerY + 21, { align: 'right' });
-    return headerY + 40; 
-};
-
-/**
- * Helper para formatar texto em caixa baixa com primeiras letras maiúsculas
- */
-function toTitleCase(str) {
-    if (!str) return '';
-    return str.toLowerCase().replace(/(?:^|\s|-)\S/g, function(a) { return a.toUpperCase(); });
+function formatMesExtenso(mesAnoStr) {
+    const res = formatMesBarra(mesAnoStr);
+    return res.replace('/', ' de ');
 }
 
 /**
- * Função: Gera a Planilha de Compra de Peças 
+ * Verifica se precisa de nova página e desenha cabeçalho
+ */
+function checkPageBreak(doc, currentY, requiredSpace, logoDataUrl) {
+    const pageHeight = doc.internal.pageSize.height;
+    if (currentY + requiredSpace > pageHeight - MARGEM_INFERIOR) {
+        doc.addPage();
+        return desenharCabecalhoPadrao(doc, logoDataUrl, doc.internal.pageSize.width);
+    }
+    return currentY;
+}
+
+/**
+ * Desenha o cabeçalho com logo centralizado
+ */
+function desenharCabecalhoPadrao(doc, logoDataUrl, pageWidth) {
+    const logoWidth = 70;
+    const y = 5; 
+    if (logoDataUrl) {
+        doc.addImage(logoDataUrl, 'PNG', (pageWidth - logoWidth) / 2, y, logoWidth, 0);
+    }
+    doc.setTextColor(0);
+    return y + 30;
+}
+
+/**
+ * Formata texto com a primeira linha indentada e justifica perfeitamente as linhas
+ */
+function drawJustifiedTextWithIndent(doc, text, x, y, width, indent, logoDataUrl) {
+    doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(0);
+    if (!text) return y;
+
+    // 1. Obtém a primeira linha com o recuo
+    const linesFirst = doc.splitTextToSize(text, width - indent);
+    const line1 = linesFirst[0];
+    
+    y = checkPageBreak(doc, y, 7, logoDataUrl);
+    
+    if (linesFirst.length === 1) {
+        // Se só tem uma linha, não justifica (alinha à esquerda)
+        doc.text(line1, x + indent, y);
+    } else {
+        // Justifica a primeira linha forçando o jsPDF a entender que há uma "próxima" linha
+        doc.text([line1, ""], x + indent, y, { align: "justify", maxWidth: width - indent });
+        
+        // 2. Processa o restante do texto
+        const restText = text.substring(line1.length).trim();
+        if (restText) {
+            const linesRest = doc.splitTextToSize(restText, width);
+            for (let i = 0; i < linesRest.length; i++) {
+                y += 5;
+                y = checkPageBreak(doc, y, 7, logoDataUrl);
+                
+                if (i < linesRest.length - 1) {
+                    // Justifica linhas intermediárias usando o truque do array [linha, ""]
+                    doc.text([linesRest[i], ""], x, y, { align: "justify", maxWidth: width });
+                } else {
+                    // Última linha do parágrafo: alinha apenas à esquerda
+                    doc.text(linesRest[i], x, y);
+                }
+            }
+        }
+    }
+    
+    return y + 5;
+}
+
+/**
+ * Função para gerar apenas a planilha de peças
  */
 export async function gerarPlanilhaPecasExercito(dados, btnElement) {
     if (btnElement) {
@@ -84,112 +126,49 @@ export async function gerarPlanilhaPecasExercito(dados, btnElement) {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.width;
-        const margin = 15;
+        const margin = 20;
         const safeWidth = pageWidth - (margin * 2);
-
-        const logoDataUrl = await imageToDataUrl('./images/logo.png', 0.6);
+        const logoDataUrl = await imageToDataUrl('./images/logo.png', 0.9);
         
-        // --- 1. CABEÇALHO PADRONIZADO ---
-        let currentY = drawStandardHeader(doc, logoDataUrl, pageWidth, margin);
+        let currentY = desenharCabecalhoPadrao(doc, logoDataUrl, pageWidth);
 
-        // Título da Planilha
-        doc.setFontSize(14).setFont("helvetica", "bold");
+        currentY += 10;
+
+        doc.setFont("helvetica", "bold").setFontSize(14).setTextColor(0);
         doc.text("Planilha de Compra de Peças", pageWidth / 2, currentY, { align: "center" });
-        
-        // --- 2. BLOCO DE INFORMAÇÕES ---
-        currentY += 15;
-        doc.setFontSize(10);
-        
-        const mesExtenso = formatMesExtenso(dados.mesReferenciaNome || dados.mesRef, dados.anoRef);
+        currentY += 12;
 
         const info = [
-            { label: "Contrato:", value: toTitleCase("CONTRATO ADMINISTRATIVO Nº 10/2025") },
-            { label: "Cliente:", value: toTitleCase("EXÉRCITO BRASILEIRO - 9° BATALHÃO DE INFANTARIA MOTORIZADO - REGIMENTO TUIUTI") },
-            { label: "Mês de Referência:", value: mesExtenso }
+            { label: "Contrato:", value: "Termo de Contrato Nº. 10/2025" },
+            { label: "Cliente:", value: "9º Batalhão de Infantaria Motorizado" },
+            { label: "Referência:", value: formatMesExtenso(dados.mesRef) }
         ];
 
+        doc.setFontSize(11);
         info.forEach(item => {
-            doc.setFont("helvetica", "bold");
-            doc.text(item.label, margin, currentY);
-            
-            doc.setFont("helvetica", "normal");
-            const labelWidth = 35; 
-            const textLines = doc.splitTextToSize(item.value, safeWidth - labelWidth);
-            doc.text(textLines, margin + labelWidth, currentY);
-            
-            currentY += (textLines.length * 6);
+            doc.setFont("helvetica", "bold").text(item.label, margin, currentY);
+            doc.setFont("helvetica", "normal").text(item.value, margin + 35, currentY);
+            currentY += 6;
         });
+        currentY += 4;
 
-        // --- 3. TABELA DE PEÇAS ---
-        currentY += 5;
-        const colW = { item: 15, desc: 100, qtd: 15, unit: 25, total: 25 };
+        const headers = ["ITEM", "DESCRIÇÃO", "QTD", "VALOR UNIT.", "VALOR TOTAL"];
+        const rows = (dados.itens || []).map((it, idx) => [
+            idx + 1,
+            it.descricao.toUpperCase(),
+            it.qtd,
+            formatMoeda(it.valorUnit),
+            formatMoeda(it.qtd * it.valorUnit)
+        ]);
 
-        const drawRow = (cells, isHeader = false) => {
-            const h = 8;
-            let x = margin;
-            
-            if (isHeader) {
-                doc.setDrawColor(0);
-                doc.setTextColor(0); 
-                doc.setFont("helvetica", "bold");
-            } else {
-                doc.setTextColor(0);
-                doc.setFont("helvetica", "normal");
-                doc.setDrawColor(0);
-            }
+        const totalPecas = (dados.itens || []).reduce((acc, it) => acc + (it.qtd * it.valorUnit), 0);
+        rows.push(["TOTAL GERAL", "", "", "", formatMoeda(totalPecas)]);
 
-            cells.forEach((text, i) => {
-                const w = Object.values(colW)[i];
-                if (isHeader) {
-                    doc.setFillColor(230, 230, 230); // Cinza garantido para cada célula do cabeçalho
-                    doc.rect(x, currentY, w, h, 'FD'); 
-                } else {
-                    doc.setFillColor(255, 255, 255);
-                    doc.rect(x, currentY, w, h, 'S'); 
-                }
+        currentY = drawTableStyle(doc, headers, rows, margin, currentY, safeWidth, [12, 83, 15, 30, 30], true, logoDataUrl, [220, 220, 220]);
 
-                const align = (i === 1 && !isHeader) ? "left" : "center";
-                const textX = align === "left" ? x + 2 : x + (w / 2);
-                
-                doc.setFontSize(8);
-                doc.text(String(text), textX, currentY + 5.5, { align });
-                x += w;
-            });
-            currentY += h;
-        };
-
-        // Header da Tabela
-        drawRow(["Item", "Descrição", "Qtd", "Valor Unit.", "Valor Total"], true);
-
-        // Itens
-        let total = 0;
-        if (dados.itens && dados.itens.length > 0) {
-            dados.itens.forEach((it, idx) => {
-                const lineTotal = it.qtd * it.valorUnit;
-                total += lineTotal;
-                drawRow([
-                    idx + 1, 
-                    it.descricao.toUpperCase(), 
-                    it.qtd, 
-                    formatMoedaSimples(it.valorUnit), 
-                    formatMoedaSimples(lineTotal)
-                ]);
-            });
-        }
-
-        // Rodapé Total
-        doc.setFontSize(10).setFont("helvetica", "bold");
-        const baseW = colW.item + colW.desc + colW.qtd;
-        doc.rect(margin, currentY, baseW, 10, 'S');
-        doc.text("TOTAL", margin + (baseW / 2), currentY + 6.5, { align: "center" });
-        
-        doc.rect(margin + baseW, currentY, colW.unit + colW.total, 10, 'S');
-        doc.text(formatMoeda(total), margin + safeWidth - 5, currentY + 6.5, { align: "right" });
-
-        doc.save(`Planilha-Pecas-Exercito-${dados.mesRef || 'geral'}.pdf`);
-
-    } catch (error) {
-        console.error("Erro ao gerar planilha:", error);
+        doc.save(`Planilha-Pecas-Exercito-${dados.mesRef}.pdf`);
+    } catch (e) {
+        console.error(e);
     } finally {
         if (btnElement) {
             btnElement.disabled = false;
@@ -199,7 +178,7 @@ export async function gerarPlanilhaPecasExercito(dados, btnElement) {
 }
 
 /**
- * Função Principal: Gera o Relatório Mensal Completo
+ * Função: Gera o Relatório Mensal Completo
  */
 export async function gerarRelatorioExercitoCompleto(dados, btnElement) {
     if (btnElement) {
@@ -211,22 +190,17 @@ export async function gerarRelatorioExercitoCompleto(dados, btnElement) {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.width;
-        const pageHeight = doc.internal.pageSize.height;
-
-        const logoDataUrl = await imageToDataUrl('./images/logo.png', 0.6);
-        const techSigDataUrl = await imageToDataUrl('./images/assinatura-tecnico.png', 0.6);
+        const logoDataUrl = await imageToDataUrl('./images/logo.png', 0.9);
+        const techSigDataUrl = await imageToDataUrl('./images/assinatura-tecnico.png', 0.7);
         const assets = { logoDataUrl, techSigDataUrl };
 
-        // 1. Capa e Tabelas
-        await desenharCapaERelatorio(doc, logoDataUrl, dados);
+        await desenharCapaRelatorio(doc, logoDataUrl, dados);
 
-        // 2. Separador ANEXO I
         doc.addPage();
-        drawStandardHeader(doc, logoDataUrl, pageWidth, 20);
-        doc.setFont("helvetica", "bold").setFontSize(24);
-        doc.text("ANEXO I", pageWidth / 2, pageHeight / 2, { align: "center" });
+        desenharCabecalhoPadrao(doc, logoDataUrl, pageWidth);
+        doc.setFont("helvetica", "bold").setFontSize(16);
+        doc.text("ANEXO I", pageWidth / 2, doc.internal.pageSize.height / 2, { align: "center" });
 
-        // 3. Páginas de OS
         if (dados.ossImprimir && dados.ossImprimir.length > 0) {
             for (const os of dados.ossImprimir) {
                 doc.addPage();
@@ -234,10 +208,9 @@ export async function gerarRelatorioExercitoCompleto(dados, btnElement) {
             }
         }
 
-        doc.save(`Relatorio-Completo-Exercito-${dados.mesRef || 'geral'}.pdf`);
-
+        doc.save(`Relatorio-Exercito-${dados.mesRef}.pdf`);
     } catch (error) {
-        console.error("Erro ao gerar PDF completo:", error);
+        console.error(error);
     } finally {
         if (btnElement) {
             btnElement.disabled = false;
@@ -246,128 +219,207 @@ export async function gerarRelatorioExercitoCompleto(dados, btnElement) {
     }
 }
 
-async function desenharCapaERelatorio(doc, logoDataUrl, dados) {
+async function desenharCapaRelatorio(doc, logoDataUrl, dados) {
     const pageWidth = doc.internal.pageSize.width;
     const margin = 20;
     const safeWidth = pageWidth - (margin * 2);
     const indent = 12;
 
-    let y = drawStandardHeader(doc, logoDataUrl, pageWidth, margin);
+    let y = desenharCabecalhoPadrao(doc, logoDataUrl, pageWidth);
+    
+    // Ajuste solicitado: Baixar um pouco o título
+    y += 10;
 
-    doc.setFont("helvetica", "bold").setFontSize(16);
+    doc.setFont("helvetica", "bold").setFontSize(16).setTextColor(0);
     doc.text("RELATÓRIO MENSAL", pageWidth / 2, y, { align: "center" });
     y += 12;
 
-    const addLine = (l, v) => {
-        doc.setFont("helvetica", "bold");
-        doc.text(l, margin, y);
-        doc.setFont("helvetica", "normal");
-        doc.text(v, margin + 35, y);
+    doc.setFontSize(11);
+    const addDataLine = (l, v) => {
+        doc.setFont("helvetica", "bold").text(l, margin, y);
+        doc.setFont("helvetica", "normal").text(v, margin + 25, y);
         y += 6;
     };
 
-    addLine("Contrato:", "Termo de Contrato Nº. 10/2025");
-    addLine("Cliente:", "9º Batalhão de Infantaria Motorizado");
-    addLine("Período:", dados.periodoTexto || formatMesExtenso(dados.mesRef, dados.anoRef));
-    y += 5;
+    addDataLine("Contrato:", "Termo de Contrato Nº. 10/2025");
+    addDataLine("Cliente:", "9º Batalhão de Infantaria Motorizado");
+    addDataLine("Período:", dados.periodoTexto || formatMesExtenso(dados.mesRef));
+    y += 8;
 
     // 1. Objeto
-    y = drawSectionHeader(doc, "1. Objeto", margin, y);
-    y = drawJustifiedText(doc, dados.textoObjeto || "Prestação de serviços de manutenção preventiva e corretiva.", margin, y, safeWidth, indent);
-    y += 10;
+    y = checkPageBreak(doc, y, 15, logoDataUrl);
+    doc.setFont("helvetica", "bold").setFontSize(14).text("1. Objeto", margin, y);
+    y += 8;
+    y = drawJustifiedTextWithIndent(doc, dados.textoObjeto, margin, y, safeWidth, indent, logoDataUrl);
+    y += 5;
 
     // 2. Atividades Realizadas
-    y = drawSectionHeader(doc, "2. Atividades Realizadas", margin, y);
-    y = drawJustifiedText(doc, dados.textoAtividades || "As atividades foram realizadas conforme cronograma.", margin, y, safeWidth, indent);
-    y += 10;
-
-    // 3. Peças e Controle
-    y = drawSectionHeader(doc, "3. Aquisição de Peças e Controle de Gastos", margin, y);
-    doc.setFont("helvetica", "normal");
-    doc.text("Na tabela abaixo, apresentam-se as peças adquiridas e seus respectivos valores para fins de referência.", margin + indent, y);
+    y = checkPageBreak(doc, y, 15, logoDataUrl);
+    doc.setFont("helvetica", "bold").setFontSize(14).text("2. Atividades Realizadas", margin, y);
     y += 8;
-
-    const pHeaders = ["Descrição", "Qtd", "Valor Unit.", "Valor Total"];
-    const pRows = (dados.itens || []).map(it => [it.descricao, it.qtd, formatMoeda(it.valorUnit), formatMoeda(it.qtd * it.valorUnit)]);
-    y = drawSimpleTable(doc, pHeaders, pRows, margin, y, safeWidth, true);
-    
-    y += 8;
-    const txtC = "Considerando que o Contrato N°10/2025 prevê o limite anual de R$ 30.000,00 destinado à aquisição de peças, apresenta-se a seguir a tabela de controle mensal de despesas.";
-    y = drawJustifiedText(doc, txtC, margin, y, safeWidth, indent);
-    y += 8;
-
-    const cHeaders = ["Mês de Referência", "Valor Gasto (Mensal)", "Valor Sobrando (Mensal)"];
-    const cRows = (dados.historicoControle || []).map(h => [h.mesAno, formatMoeda(h.gasto), formatMoeda(h.sobrando)]);
-    y = drawSimpleTable(doc, cHeaders, cRows, margin, y, safeWidth, true);
-
-    y += 10;
-    y = drawSectionHeader(doc, "4. Faturamento", margin, y);
-    const totalP = (dados.itens || []).reduce((acc, it) => acc + (it.qtd * it.valorUnit), 0);
-    const fRows = [
-        ["1", "Serviço Mensal Manutenção Odontoclínica - PMGuPel", formatMoeda(VALOR_SERVICO_FIXO)],
-        ["2", "Fornecimento de peças (Total do Mês)", formatMoeda(totalP)],
-        ["", "TOTAL DO FATURAMENTO", formatMoeda(VALOR_SERVICO_FIXO + totalP)]
-    ];
-    y = drawSimpleTable(doc, ["Item", "Descrição", "Valor Executado"], fRows, margin, y, safeWidth, true);
-}
-
-// --- HELPERS INTERNOS ---
-
-function drawSectionHeader(doc, txt, x, y) {
-    doc.setDrawColor(0);
-    doc.setLineWidth(0.5);
-    doc.line(x, y - 5, x, y + 2);
-    doc.setFont("helvetica", "bold").setFontSize(12);
-    doc.text(txt, x + 4, y);
-    return y + 8;
-}
-
-function drawJustifiedText(doc, text, x, y, width, indent) {
-    doc.setFont("helvetica", "normal").setFontSize(10);
-    const lines = doc.splitTextToSize(text, width - indent);
-    doc.text(lines[0], x + indent, y, { align: "justify", maxWidth: width - indent });
+    y = drawJustifiedTextWithIndent(doc, dados.textoAtividades, margin, y, safeWidth, indent, logoDataUrl);
     y += 5;
-    if (lines.length > 1) {
-        const remaining = text.substring(text.indexOf(lines[1] || "") + (lines[1] ? lines[1].length : 0));
-        if (remaining) {
-            const restLines = doc.splitTextToSize(remaining, width);
-            doc.text(restLines, x, y, { align: "justify", maxWidth: width });
-            y += (restLines.length * 5);
-        }
-    }
-    return y;
+
+    // 3. Controle de Gastos
+    y = checkPageBreak(doc, y, 15, logoDataUrl);
+    doc.setFont("helvetica", "bold").setFontSize(14).text("3. Aquisição de Peças e Controle de Gastos", margin, y);
+    y += 8;
+    const introPecas = "Na tabela abaixo, apresentam-se as peças adquiridas e seus respectivos valores para fins de referência.";
+    y = drawJustifiedTextWithIndent(doc, introPecas, margin, y, safeWidth, indent, logoDataUrl);
+    y += 2;
+
+    const pHeaders = ["DESCRIÇÃO", "QTD", "VALOR UNIT.", "VALOR TOTAL"];
+    const pRows = (dados.itens || []).map(it => [it.descricao.toUpperCase(), it.qtd, formatMoeda(it.valorUnit), formatMoeda(it.qtd * it.valorUnit)]);
+    const totalPecasMes = (dados.itens || []).reduce((acc, it) => acc + (it.qtd * it.valorUnit), 0);
+    pRows.push(["TOTAL GERAL", "", "", formatMoeda(totalPecasMes)]);
+    y = drawTableStyle(doc, pHeaders, pRows, margin, y, safeWidth, [95, 15, 30, 30], true, logoDataUrl, [220, 220, 220]);
+    
+    // --- QUEBRA DE PÁGINA OBRIGATÓRIA APÓS A TABELA DE PEÇAS ---
+    doc.addPage();
+    y = desenharCabecalhoPadrao(doc, logoDataUrl, pageWidth);
+    y += 10; 
+
+    const txtC = "Considerando que o Contrato N°10/2025 prevê o limite anual de R$ 30.000,00 destinado à aquisição de peças, apresenta-se a seguir a tabela de controle mensal de despesas. O objetivo é permitir um acompanhamento progressivo da utilização dos recursos, garantindo maior transparência e prevenindo riscos de desequilíbrio financeiro durante a execução contratual.";
+    y = drawJustifiedTextWithIndent(doc, txtC, margin, y, safeWidth, indent, logoDataUrl);
+    y += 2;
+
+    const cHeaders = ["MÊS DE REFERÊNCIA", "VALOR GASTO EM PEÇAS (MENSAL)", "VALOR SOBRANDO (MENSAL)"];
+    const cRows = (dados.historicoControle || []).map(h => [formatMesBarra(h.mesAno), formatMoeda(h.gasto), formatMoeda(h.sobrando)]);
+    const saldoAnual = 30000 - (dados.historicoControle || []).reduce((acc, h) => acc + (h.gasto || 0), 0);
+    cRows.push(["VALOR CONTRATUAL DISPONÍVEL (ANUAL)", "", formatMoeda(saldoAnual)]);
+    
+    y = drawTableStyle(doc, cHeaders, cRows, margin, y, safeWidth, [60, 60, 50], true, logoDataUrl, [220, 220, 220]);
+
+    y += 10;
+    y = checkPageBreak(doc, y, 15, logoDataUrl);
+    doc.setFont("helvetica", "bold").setFontSize(14).text("4. Faturamento", margin, y);
+    y += 8;
+    const fRows = [
+        ["1", "Serviço Mensal Manutenção Manutenção Odontoclínica", formatMoeda(VALOR_SERVICO_FIXO)],
+        ["2", "Fornecimento de peças (Total do Mês)", formatMoeda(totalPecasMes)],
+        ["", "TOTAL DO FATURAMENTO", formatMoeda(VALOR_SERVICO_FIXO + totalPecasMes)]
+    ];
+    // Ajustado para fundo cinza no cabeçalho
+    y = drawTableStyle(doc, ["Item", "Descrição", "Valor Executado"], fRows, margin, y, safeWidth, [15, 115, 40], true, logoDataUrl, [220, 220, 220]);
 }
 
-function drawSimpleTable(doc, headers, rows, x, y, width, highlightLast = false) {
-    const colW = width / headers.length;
-    const h = 7;
-    doc.setFontSize(9);
+/**
+ * Desenha tabelas com lógica de cores e mesclagem de rodapé corrigida
+ */
+function drawTableStyle(doc, headers, rows, x, y, width, customWidths = [], highlightLast = false, logoDataUrl, headerBgColor = [37, 99, 235]) {
+    const colCount = headers.length;
+    const colWidths = customWidths.length > 0 ? customWidths : Array(colCount).fill(width / colCount);
+    const headerH = 8;
+    const rowH = 7;
 
-    doc.setFillColor(240, 240, 240);
-    doc.setFont("helvetica", "bold");
+    y = checkPageBreak(doc, y, headerH + rowH, logoDataUrl);
+    
+    // Header
+    const isLightHeader = (headerBgColor[0] + headerBgColor[1] + headerBgColor[2]) > 500;
+    doc.setFont("helvetica", "bold").setFontSize(8.5);
+
+    let curX = x;
     headers.forEach((txt, i) => {
-        doc.rect(x + (i * colW), y, colW, h, 'FD');
-        doc.text(txt, x + (i * colW) + (colW / 2), y + 5, { align: "center" });
+        const w = colWidths[i];
+        doc.setFillColor(headerBgColor[0], headerBgColor[1], headerBgColor[2]);
+        doc.setDrawColor(0);
+        doc.rect(curX, y, w, headerH, 'FD');
+        doc.setTextColor(isLightHeader ? 0 : 255);
+        doc.text(txt, curX + w / 2, y + 5.5, { align: "center" });
+        curX += w;
     });
-    y += h;
 
-    doc.setFont("helvetica", "normal");
+    y += headerH;
+    doc.setTextColor(0);
+
     rows.forEach((row, rIdx) => {
         const isLast = highlightLast && rIdx === rows.length - 1;
-        if (isLast) {
-            doc.setFillColor(189, 213, 237);
+        const oldY = y;
+        y = checkPageBreak(doc, y, rowH, logoDataUrl);
+        
+        if (y < oldY) { 
             doc.setFont("helvetica", "bold");
+            let headX = x;
+            headers.forEach((txt, i) => {
+                const w = colWidths[i];
+                doc.setFillColor(headerBgColor[0], headerBgColor[1], headerBgColor[2]);
+                doc.setDrawColor(0);
+                doc.rect(headX, y, w, headerH, 'FD');
+                doc.setTextColor(isLightHeader ? 0 : 255);
+                doc.text(txt, headX + w / 2, y + 5.5, { align: "center" });
+                headX += w;
+            });
+            y += headerH;
+            doc.setTextColor(0);
         }
-        row.forEach((txt, i) => {
-            doc.rect(x + (i * colW), y, colW, h, isLast ? 'FD' : 'S');
-            doc.text(String(txt), x + (i * colW) + (colW / 2), y + 5, { align: "center" });
-        });
-        y += h;
+
+        // Estilo da linha (Última linha em negrito e tamanho 10)
+        doc.setFont("helvetica", isLast ? "bold" : "normal");
+        doc.setFontSize(isLast ? 10 : 8);
+        
+        curX = x;
+
+        const labelText = row[0];
+        const isTotalGeral = isLast && labelText === "TOTAL GERAL";
+        const isSaldoAnual = isLast && labelText === "VALOR CONTRATUAL DISPONÍVEL (ANUAL)";
+        const isTotalFaturamento = isLast && row[1] === "TOTAL DO FATURAMENTO"; // Identifica o rótulo na segunda coluna se for faturamento
+
+        if (isTotalGeral || isSaldoAnual || (isLast && row[1] === "TOTAL DO FATURAMENTO")) {
+            let mergeCount = 0;
+            let mergeLabel = labelText;
+
+            if (isTotalGeral) mergeCount = 3; 
+            if (isSaldoAnual) mergeCount = 2;
+            if (isLast && row[1] === "TOTAL DO FATURAMENTO") {
+                mergeCount = 2;
+                mergeLabel = "TOTAL DO FATURAMENTO";
+            }
+
+            const wMerged = colWidths.slice(0, mergeCount).reduce((a, b) => a + b, 0);
+            
+            doc.setFillColor(189, 213, 237);
+            doc.rect(curX, y, wMerged, rowH, 'FD');
+            doc.setTextColor(0);
+            doc.text(mergeLabel, curX + wMerged / 2, y + 4.5, { align: "center" });
+            curX += wMerged;
+
+            row.slice(mergeCount).forEach((txt, i) => {
+                const w = colWidths[mergeCount + i];
+                doc.setFillColor(189, 213, 237);
+                doc.rect(curX, y, w, rowH, 'FD');
+                doc.text(String(txt), curX + w / 2, y + 4.5, { align: "center" });
+                curX += w;
+            });
+        } else {
+            row.forEach((txt, i) => {
+                const w = colWidths[i];
+                if (isLast) {
+                    doc.setFillColor(189, 213, 237);
+                    doc.rect(curX, y, w, rowH, 'FD');
+                } else {
+                    doc.setFillColor(255, 255, 255);
+                    doc.rect(curX, y, w, rowH, 'S');
+                }
+                doc.setTextColor(0);
+                
+                let align = "center";
+                // Alinhamento para colunas de descrição
+                if (row.length === 4 && i === 0 && !isLast) align = "left";
+                else if (row.length === 3 && i === 1 && !isLast) align = "left";
+                else if (row.length === 5 && i === 1 && !isLast) align = "left";
+
+                const textX = align === "left" ? curX + 2 : curX + w / 2;
+                doc.text(String(txt), textX, y + 4.5, { align });
+                curX += w;
+            });
+        }
+        y += rowH;
     });
+
     return y;
 }
 
-function formatMoeda(v) { return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
-function formatMoedaSimples(v) { 
-    return "R$ " + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); 
+function formatMoeda(v) { 
+    if (v === undefined || v === null) return "R$ 0,00";
+    return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); 
 }
