@@ -91,6 +91,8 @@
         .btn-history { background-color: #34495e; }
         .btn-pdf { background-color: #15803d; } /* Verde */
         .btn-close { background-color: #9ca3af; }
+        .btn-whatsapp { background-color: #25d366; color: white; }
+        .btn-whatsapp:hover { background-color: #20b858; }
 
         .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; text-align: center; }
         .signature-box { display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -293,7 +295,7 @@
                 <div class="sticky bottom-4 z-20">
                     <button type="submit" class="w-full theme-bg text-white font-bold py-4 rounded-lg shadow-lg theme-bg-hover transition-all flex justify-center items-center gap-2">
                         <span>Criar Ordem de Serviço</span>
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     </button>
                 </div>
             </form>
@@ -383,8 +385,8 @@
     <!-- Lógica Principal -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        // Importações extras necessárias para leitura completa (getDoc)
-        import { getFirestore, collection, query, where, getDocs, doc, runTransaction, orderBy, limit, startAfter, getDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        // Importações extras necessárias para leitura completa (getDoc) e atualização (updateDoc)
+        import { getFirestore, collection, query, where, getDocs, doc, runTransaction, orderBy, limit, startAfter, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
         import { SignaturePadManager } from './signature-pad-helper.js';
         import { PartsManager } from './modulo-pecas.js';
         import { EquipmentSelector } from './equipment-selector.js'; 
@@ -456,7 +458,10 @@
             }
         };
 
-        let currentContractId = sessionStorage.getItem('activeContractId');
+        // Força a identidade do contrato baseada neste ficheiro específico
+        let currentContractId = 'exercito';
+        sessionStorage.setItem('activeContractId', currentContractId); // Sobrescreve qualquer valor antigo na memória
+
         let currentConfig = null;
         let equipmentSelector = null;
         let partsManager = null;
@@ -466,11 +471,6 @@
         let openModalsStack = []; // Gerenciamento de modais
 
         document.addEventListener('DOMContentLoaded', async () => {
-            if (!currentContractId || !CONTRACT_CONFIGS[currentContractId]) {
-                console.log("Modo de teste: Forçando contrato 'exercito'");
-                currentContractId = 'exercito';
-            }
-
             currentConfig = CONTRACT_CONFIGS[currentContractId];
             setupUI();
             setupFormLogic();
@@ -535,14 +535,39 @@
                 
                 document.getElementById('modal-body').innerHTML = generateDetailsView(orderData);
                 
-                // Event Listeners Simplificados (Apenas PDF, Histórico e Fechar)
+                // Event Listeners Simplificados
                 document.getElementById('modal-btn-pdf').addEventListener('click', (e) => generateOsPdf(orderData, e.target));
                 document.getElementById('modal-btn-history').addEventListener('click', () => openHistoryModal(orderData));
                 document.getElementById('modal-btn-close').addEventListener('click', () => history.back());
                 
+                const btnWhatsapp = document.getElementById('modal-btn-whatsapp');
+                if (btnWhatsapp) {
+                    btnWhatsapp.addEventListener('click', () => handleSendWhatsappSignature(orderData));
+                }
+
                 openModal(document.getElementById('details-modal'));
             } catch (error) { console.error("Erro ao abrir detalhes:", error); showToast(`Erro: ${error.message}`); }
         };
+
+        async function handleSendWhatsappSignature(order) {
+            try {
+                let token = order.signature_token;
+                if (!token) {
+                    token = crypto.randomUUID();
+                    const docRef = doc(db, "orders", order.id);
+                    await updateDoc(docRef, { signature_token: token });
+                    order.signature_token = token; 
+                }
+                const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
+                const linkAssinatura = `${baseUrl}/assinatura-cliente.html?os=${order.id}&token=${token}`;
+                const mensagem = `Olá, aqui é da BM Medical. Segue o link para conferência e assinatura da OS #${order.os_numero}: \n\n${linkAssinatura}`;
+                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(mensagem)}`, '_blank');
+                showToast("Link gerado e WhatsApp aberto!");
+            } catch (error) {
+                console.error("Erro ao gerar link de assinatura:", error);
+                alert("Erro ao gerar link: " + error.message);
+            }
+        }
 
         function generateDetailsView(order) {
             // Lógica de Assinatura (incluindo dispensa para exército)
@@ -585,6 +610,10 @@
                 <p><strong>Serial:</strong> ${order.serial||'N/A'}</p>
             `;
 
+            const whatsappBtnHtml = (!isSigned && !order.assinaturaDesconsiderada) 
+                ? `<button id="modal-btn-whatsapp" class="btn-action btn-whatsapp">Enviar WhatsApp</button>` 
+                : '';
+
             // Footer simplificado sem botões de edição/finalização
             return `
                 <div class="modal-header-container"><div class="modal-header-top"><h1>Detalhes da OS ${order.os_numero}</h1></div>${maintenanceTypeHtml}</div>
@@ -594,6 +623,7 @@
                 <div class="form-section"><h2>Serviços e Peças</h2>${servicosDisplayHtml}<p class="mt-4"><strong>Peças Utilizadas:</strong></p>${pecasHtml}</div>
                 <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><div id="signature-container-details">${signatureSectionHtml}</div><div class="signature-line">Responsável</div></div><div class="signature-box"><img src="./images/assinatura-tecnico.png" style="max-width:200px;"><div class="signature-line">Responsável Técnico</div></div></div></div>
                 <div class="modal-footer">
+                    ${whatsappBtnHtml}
                     <button id="modal-btn-history" class="btn-action btn-history">Histórico de Eventos</button>
                     <button id="modal-btn-pdf" class="btn-action btn-pdf">Gerar PDF</button>
                     <button id="modal-btn-close" class="btn-action btn-close">Fechar</button>

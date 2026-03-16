@@ -84,12 +84,14 @@
         .modal-body h2 { font-size: 1.2rem; color: #7e22ce; margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid #7e22ce; padding-bottom: 10px; font-weight: 600; }
         
         /* Modal Footer Simplificado para Consulta */
-        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; flex-wrap: wrap; }
 
         .btn-action { text-decoration: none; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color: 0.2s ease; font-size: 0.875rem; text-align: center;}
         .btn-history { background-color: #34495e; }
         .btn-pdf { background-color: #7e22ce; } /* Roxo */
         .btn-close { background-color: #9ca3af; }
+        .btn-whatsapp { background-color: #25d366; color: white; }
+        .btn-whatsapp:hover { background-color: #20b858; }
 
         .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; text-align: center; }
         .signature-box { display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -378,7 +380,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         // Adicionadas importações para getDoc e leitura correta
-        import { getFirestore, collection, query, where, getDocs, doc, runTransaction, orderBy, limit, startAfter, getDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getFirestore, collection, query, where, getDocs, doc, runTransaction, orderBy, limit, startAfter, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
         import { SignaturePadManager } from './signature-pad-helper.js';
         import { PartsManager } from './modulo-pecas.js';
         import { EquipmentSelector } from './equipment-selector.js'; 
@@ -450,7 +452,10 @@
             }
         };
 
-        let currentContractId = sessionStorage.getItem('activeContractId');
+        // Força a identidade do contrato baseada neste ficheiro específico
+        let currentContractId = 'baumer';
+        sessionStorage.setItem('activeContractId', currentContractId);
+
         let currentConfig = null;
         let equipmentSelector = null;
         let partsManager = null;
@@ -460,17 +465,6 @@
         let openModalsStack = [];
 
         document.addEventListener('DOMContentLoaded', async () => {
-            if (!currentContractId || !CONTRACT_CONFIGS[currentContractId]) {
-                if (window.location.href.includes('os-autoclave.html')) {
-                    currentContractId = 'baumer';
-                    sessionStorage.setItem('activeContractId', 'baumer');
-                } else {
-                    alert("Contrato não identificado. Redirecionando...");
-                    window.location.href = 'index.html';
-                    return;
-                }
-            }
-
             currentConfig = CONTRACT_CONFIGS[currentContractId];
             setupUI();
             setupFormLogic();
@@ -535,14 +529,39 @@
                 
                 document.getElementById('modal-body').innerHTML = generateDetailsView(orderData);
                 
-                // Event Listeners Simplificados
+                // Event Listeners Simplificados (Apenas PDF, Histórico e Fechar)
                 document.getElementById('modal-btn-pdf').addEventListener('click', (e) => generateOsPdf(orderData, e.target));
                 document.getElementById('modal-btn-history').addEventListener('click', () => openHistoryModal(orderData));
                 document.getElementById('modal-btn-close').addEventListener('click', () => history.back());
                 
+                const btnWhatsapp = document.getElementById('modal-btn-whatsapp');
+                if (btnWhatsapp) {
+                    btnWhatsapp.addEventListener('click', () => handleSendWhatsappSignature(orderData));
+                }
+
                 openModal(document.getElementById('details-modal'));
             } catch (error) { console.error("Erro ao abrir detalhes:", error); showToast(`Erro: ${error.message}`); }
         };
+
+        async function handleSendWhatsappSignature(order) {
+            try {
+                let token = order.signature_token;
+                if (!token) {
+                    token = crypto.randomUUID();
+                    const docRef = doc(db, "orders", order.id);
+                    await updateDoc(docRef, { signature_token: token });
+                    order.signature_token = token; 
+                }
+                const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
+                const linkAssinatura = `${baseUrl}/assinatura-cliente.html?os=${order.id}&token=${token}`;
+                const mensagem = `Olá, aqui é da BM Medical. Segue o link para conferência e assinatura da OS #${order.os_numero}: \n\n${linkAssinatura}`;
+                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(mensagem)}`, '_blank');
+                showToast("Link gerado e WhatsApp aberto!");
+            } catch (error) {
+                console.error("Erro ao gerar link de assinatura:", error);
+                alert("Erro ao gerar link: " + error.message);
+            }
+        }
 
         function generateDetailsView(order) {
             const isSigned = order.signature_data && order.signature_data.length > 200;
@@ -582,6 +601,10 @@
                 <p><strong>Serial:</strong> ${order.serial||'N/A'}</p>
             `;
 
+            const whatsappBtnHtml = (!isSigned && !order.assinaturaDesconsiderada) 
+                ? `<button id="modal-btn-whatsapp" class="btn-action btn-whatsapp">Enviar WhatsApp</button>` 
+                : '';
+
             return `
                 <div class="modal-header-container"><div class="modal-header-top"><h1>Detalhes da OS ${order.os_numero}</h1></div>${maintenanceTypeHtml}</div>
                 <div class="form-section"><h2>Dados do Cliente</h2><p><strong>Contrato:</strong> ${order.contrato||'N/A'}</p><p><strong>Cliente:</strong> ${order.cliente||'N/A'}</p><p><strong>Endereço:</strong> ${order.endereco||'N/A'}</p></div>
@@ -590,6 +613,7 @@
                 <div class="form-section"><h2>Serviços e Peças</h2>${servicosDisplayHtml}<p class="mt-4"><strong>Peças Utilizadas:</strong></p>${pecasHtml}</div>
                 <div class="form-section"><h2>Assinaturas</h2><div class="signature-grid"><div class="signature-box"><div id="signature-container-details">${signatureSectionHtml}</div><div class="signature-line">Responsável</div></div><div class="signature-box"><img src="./images/assinatura-tecnico.png" style="max-width:200px;"><div class="signature-line">Responsável Técnico</div></div></div></div>
                 <div class="modal-footer">
+                    ${whatsappBtnHtml}
                     <button id="modal-btn-history" class="btn-action btn-history">Histórico de Eventos</button>
                     <button id="modal-btn-pdf" class="btn-action btn-pdf">Gerar PDF</button>
                     <button id="modal-btn-close" class="btn-action btn-close">Fechar</button>
@@ -814,6 +838,7 @@
             const searchInput = document.getElementById('search-os');
             const btnLoadMore = document.getElementById('btn-load-more');
 
+            // Filtro em Tempo Real e Reset
             searchInput.addEventListener('input', (e) => {
                 const term = e.target.value.trim();
                 if (term === '') {
@@ -857,6 +882,7 @@
             }
         }
 
+        // --- ABA LISTA/CONSULTA ---
         window.switchTab = (tab) => {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(`tab-${tab}`).classList.add('active');
@@ -923,7 +949,7 @@
                     row.innerHTML = `
                         <td class="p-4 font-bold text-gray-700">${os.os_numero}</td>
                         <td class="p-4 text-gray-600">${date}</td>
-                        <td class="p-4 text-gray-600 truncate max-w-xs">${os.equipamento || 'N/A'}</td>
+                        <td class="p-4 text-gray-600 truncate max-w-xs" title="${os.equipamento}">${os.equipamento || 'N/A'}</td>
                         <td class="p-4 text-center"><span class="status-badge ${statusClass}">${(os.status || 'NOVA').toUpperCase()}</span></td>
                         <td class="p-4 text-right flex justify-end gap-2 items-center">
                             <button class="text-gray-500 hover:text-purple-600 btn-details" title="Ver Detalhes">

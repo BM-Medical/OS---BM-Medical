@@ -262,7 +262,7 @@
         .signature-modal-overlay:fullscreen .signature-modal-content { height: 100%; width: 100%; max-width: none; border-radius: 0; padding: 15px; box-sizing: border-box; }
         .signature-modal-overlay:fullscreen .signature-modal-content canvas { flex-grow: 1; height: auto; }
 
-        #toast-notification { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 2000; left: 50%; transform: translateX(-50%); bottom: 30px; font-size: 1rem; opacity: 0; transition: opacity 0.5s, bottom 0.5s; }
+        #toast-notification { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 2000; left: 50%; transform: translateX(-50%); bottom: 30px; opacity: 0; transition: opacity 0.5s, bottom 0.5s; }
         #toast-notification.show { visibility: visible; opacity: 1; bottom: 50px; }
         
         .confirmation-modal-content { background-color: white; padding: 25px; border-radius: 8px; text-align: center; width: 90%; max-width: 400px; }
@@ -505,9 +505,9 @@
                         <div class="add-os-container">
                             <button id="add-os-btn" class="add-os-button" title="Criar nova OS">+</button>
                             <div id="new-os-menu" class="new-os-menu">
-                                <a href="form-ufpel.html">Contrato Autoclave BAUMER HE-UFPEL</a>
-                                <a href="form-capao.html">Contrato Capão do Leão</a>
-                                <a href="form-exercito.html">Contrato Exército Brasileiro</a>
+                                <a href="os-autoclave.html">Contrato Autoclave BAUMER HE-UFPEL</a>
+                                <a href="os-capao.html">Contrato Capão do Leão</a>
+                                <a href="os-exercito.html">Contrato Exército Brasileiro</a>
                             </div>
                         </div>`;
                 }
@@ -684,6 +684,39 @@
             
             document.getElementById('modal-btn-pdf').addEventListener('click', (e) => generateOsPdf(order, e.target));
             document.getElementById('modal-btn-finalize').addEventListener('click', handleFinalizeClick);
+            
+            // Handler do WhatsApp
+            const btnWhatsapp = document.getElementById('modal-btn-whatsapp');
+            if (btnWhatsapp) {
+                btnWhatsapp.addEventListener('click', () => handleSendWhatsappSignature(order));
+            }
+        }
+
+        async function handleSendWhatsappSignature(order) {
+            try {
+                let token = order.signature_token;
+
+                // Se não houver token, gera um novo UUID e atualiza no banco
+                if (!token) {
+                    token = crypto.randomUUID();
+                    const docRef = doc(db, "orders", order.id);
+                    await updateDoc(docRef, { signature_token: token });
+                    order.signature_token = token; // Atualiza o objeto local
+                }
+
+                const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
+                const linkAssinatura = `${baseUrl}/assinatura-cliente.html?os=${order.id}&token=${token}`;
+                
+                const mensagem = `Olá, aqui é da BM Medical. Segue o link para conferência e assinatura da OS #${order.os_numero}: \n\n${linkAssinatura}`;
+                
+                const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensagem)}`;
+                window.open(whatsappUrl, '_blank');
+                
+                showToast("Link gerado e WhatsApp aberto!");
+            } catch (error) {
+                console.error("Erro ao gerar link de assinatura:", error);
+                alert("Erro ao gerar link: " + error.message);
+            }
         }
 
         async function switchToEditMode(orderId) {

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assinatura Digital - BM Medical</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .loader { border-top-color: #2563eb; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4">
+
+    <!-- Header -->
+    <header class="w-full max-w-md flex flex-col items-center mb-6 mt-4">
+        <img src="./images/logo.png" alt="BM Medical" class="h-16 mb-3">
+        <h1 class="text-lg font-bold text-gray-800 text-center leading-tight">Validação de Ordem de Serviço</h1>
+        <p class="text-xs text-gray-500 text-center px-4 mt-1">Por favor, confira os detalhes do atendimento abaixo antes de realizar a assinatura.</p>
+    </header>
+
+    <!-- Card Principal de Informações da OS -->
+    <main id="main-content" class="w-full max-w-md bg-white rounded-xl shadow-lg p-5 mb-6 hidden border border-gray-100">
+        
+        <!-- Cabeçalho da OS -->
+        <div id="os-header-info"></div>
+
+        <!-- Conteúdo Detalhado -->
+        <div id="os-details-container" class="mt-4"></div>
+
+        <div class="mt-6 pt-4 border-t border-gray-200">
+            <button id="btn-open-pad" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-lg shadow transition-all flex justify-center items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                Assinar Documento
+            </button>
+            <p class="text-center text-[10px] text-gray-400 mt-3">Ao assinar, você concorda com os serviços e peças listados acima.</p>
+        </div>
+    </main>
+
+    <!-- Estado de Carregamento -->
+    <div id="loading-state" class="flex flex-col items-center mt-20">
+        <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4"></div>
+        <p class="text-gray-500 font-medium text-sm">Localizando documento de forma segura...</p>
+    </div>
+
+    <!-- Mensagem de Sucesso -->
+    <div id="success-state" class="hidden flex flex-col items-center mt-20 text-center animate-bounce">
+        <div class="bg-green-100 p-4 rounded-full mb-4">
+            <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-800">Assinatura Concluída!</h2>
+        <p class="text-gray-600 mt-2">A Ordem de Serviço foi validada e salva no sistema da BM Medical.</p>
+        <p class="text-xs text-gray-400 mt-6 font-medium">Você já pode fechar esta janela.</p>
+    </div>
+
+    <!-- Modal de Assinatura -->
+    <div id="signature-modal" class="fixed inset-0 bg-black bg-opacity-80 z-50 hidden flex-col items-center justify-center p-4">
+        <div class="w-full max-w-lg bg-white rounded-xl p-5 flex flex-col">
+            <h3 class="text-base font-bold mb-4 text-center text-gray-800">Desenhe sua assinatura no quadro:</h3>
+            <div class="border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 mb-4 touch-none">
+                <canvas id="signature-pad" class="w-full h-48 cursor-crosshair"></canvas>
+            </div>
+            <p id="signature-error-message" class="text-red-500 text-center font-semibold mb-4 text-sm" style="display: none;">Por favor, desenhe uma assinatura antes de salvar.</p>
+            <div class="flex justify-center gap-2 flex-wrap">
+                <button type="button" id="btn-undo-sig" class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-medium transition-colors text-sm">Desfazer</button>
+                <button type="button" id="btn-clear-sig" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 font-medium transition-colors text-sm">Limpar</button>
+                <button type="button" id="btn-save-sig" class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold transition-colors text-sm">Salvar</button>
+                <button type="button" id="btn-cancel-sig" class="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 font-medium transition-colors text-sm">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { SignaturePadManager } from './signature-pad-helper.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC8L8dTkuL_KxvW_-m7V3c0UmYwV-gbQfE",
+            authDomain: "ordem-de-servicos---bm-medical.firebaseapp.com",
+            projectId: "ordem-de-servicos---bm-medical",
+            storageBucket: "ordem-de-servicos---bm-medical.firebasestorage.app",
+            messagingSenderId: "92355637827",
+            appId: "1:92355637827:web:850b89afa5054781475af6"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let osData = null;
+
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token');
+        const osId = params.get('os'); 
+
+        async function init() {
+            if (!osId || !token) {
+                document.getElementById('loading-state').innerHTML = "<p class='text-red-500 font-bold text-center'>Link inválido ou expirado.<br><span class='text-xs font-normal'>Solicite um novo link ao técnico.</span></p>";
+                return;
+            }
+
+            try {
+                const docRef = doc(db, "orders", osId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    osData = docSnap.data();
+                    
+                    if (osData.signature_token !== token) {
+                        throw new Error("Acesso não autorizado ou token incorreto.");
+                    }
+
+                    if (osData.signature_data && osData.signature_data.length > 100) {
+                        showSuccess();
+                        return;
+                    }
+
+                    renderOS(osData);
+                } else {
+                    throw new Error("Ordem de serviço não encontrada no sistema.");
+                }
+            } catch (error) {
+                console.error(error);
+                document.getElementById('loading-state').innerHTML = `<p class='text-red-500 font-bold text-center'>Erro:<br><span class='text-sm font-normal'>${error.message}</span></p>`;
+            }
+        }
+
+        // Função principal para renderizar os dados de forma similar ao histórico, mas focado em celular
+        function renderOS(data) {
+            // Helpers
+            const escapeHTML = (str) => typeof str === 'string' ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
+            const formatDate = (dateStr) => {
+                if (!dateStr) return 'N/A';
+                const parts = dateStr.split('-');
+                if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                return dateStr;
+            };
+
+            // 1. Cabeçalho (Número e Tipo ajustado para não quebrar)
+            let tipoSpan = '';
+            if (data.tipo_manutencao === 'preventiva') tipoSpan = '<span class="inline-block bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Preventiva</span>';
+            else if (data.tipo_manutencao === 'corretiva') tipoSpan = '<span class="inline-block bg-red-100 text-red-800 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">Corretiva</span>';
+
+            // Ajuste na estrutura: flex-col e items-center para centralizar título e selo
+            document.getElementById('os-header-info').innerHTML = `
+                <div class="flex flex-col items-center border-b border-gray-100 pb-3 gap-1.5">
+                    <h2 class="text-xl font-extrabold text-gray-900 leading-tight text-center">OS ${data.os_numero || '---'}</h2>
+                    ${tipoSpan}
+                </div>
+            `;
+
+            // 2. Lógica de Equipamentos (Idêntico ao Quadro, suporta Lote)
+            let eqHtml = '';
+            if (data.itens && Array.isArray(data.itens) && data.itens.length > 0) {
+                eqHtml = '<div class="space-y-3">';
+                const grupos = {};
+                data.itens.forEach(item => {
+                    const tipo = item.nome || 'Equipamento';
+                    if(!grupos[tipo]) grupos[tipo] = [];
+                    grupos[tipo].push(item);
+                });
+                for (const [tipo, itens] of Object.entries(grupos)) {
+                    eqHtml += `
+                        <div class="bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+                            <p class="font-bold text-blue-800 text-xs uppercase mb-2 border-b border-blue-200 pb-1">${tipo}</p>
+                            <ul class="space-y-2 text-gray-700 text-xs">`;
+                    itens.forEach(i => {
+                        const pat = i.patrimonio || i.codigoPatrimonio ? `<span class="bg-white border px-1 rounded text-gray-500">Pat: ${i.patrimonio || i.codigoPatrimonio}</span>` : '';
+                        eqHtml += `<li class="flex flex-col gap-0.5"><span class="font-semibold text-gray-800">${i.marca || '-'} ${i.modelo ? '- ' + i.modelo : ''}</span><span class="font-mono text-blue-700">SN: ${i.serial || 'S/N'} ${pat}</span></li>`;
+                    });
+                    eqHtml += `</ul></div>`;
+                }
+                eqHtml += '</div>';
+            } else {
+                eqHtml = `
+                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 text-sm space-y-1.5 text-gray-700">
+                        <p><strong class="text-gray-500">Descrição:</strong> ${escapeHTML(data.equipamento)}</p>
+                        <p><strong class="text-gray-500">Marca/Mod:</strong> ${escapeHTML(data.marca)} ${data.modelo ? ' / ' + escapeHTML(data.modelo) : ''}</p>
+                        <p><strong class="text-gray-500">Série:</strong> <span class="font-mono text-blue-700 font-medium">${escapeHTML(data.serial)}</span></p>
+                    </div>
+                `;
+            }
+
+            // 3. Peças Utilizadas
+            let pecasHtml = '<p class="text-sm text-gray-400 italic">Nenhuma peça registrada.</p>';
+            if (data.pecas_utilizadas && Array.isArray(data.pecas_utilizadas) && data.pecas_utilizadas.length > 0) {
+                pecasHtml = '<ul class="list-none space-y-1.5">' + 
+                    data.pecas_utilizadas.map(p => `
+                        <li class="flex items-start gap-2 text-sm text-gray-700 bg-gray-50 p-2 rounded border border-gray-100">
+                            <span class="font-bold text-gray-900 min-w-[24px]">${p.qtd}x</span> 
+                            <span>${escapeHTML(p.descricao)}</span>
+                        </li>
+                    `).join('') + '</ul>';
+            }
+
+            // 4. Lógica de Datas e Local Dinâmica com Quadros Separados
+            let dateLocationHtml = '';
+            const localName = escapeHTML(data.local_atendimento || data.cliente || 'N/A');
+
+            if (!data.atendimento_no_local && data.data_devolucao) {
+                // Cenário: Retirada e Devolução (3 caixas separadas, datas ficam lado a lado)
+                dateLocationHtml = `
+                    <div class="flex flex-col gap-3">
+                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Local / Setor</h3>
+                            <p class="text-sm text-gray-800 font-semibold leading-tight">${localName}</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Retirada</h3>
+                                <p class="text-sm text-gray-800 font-semibold leading-tight">${formatDate(data.data_retirada || data.data_servico)}</p>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Devolução</h3>
+                                <p class="text-sm text-gray-800 font-semibold leading-tight">${formatDate(data.data_devolucao)}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Cenário: Atendimento no Local (2 caixas verticais, uma embaixo da outra)
+                dateLocationHtml = `
+                    <div class="flex flex-col gap-3">
+                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Local / Setor</h3>
+                            <p class="text-sm text-gray-800 font-semibold leading-tight">${localName}</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Data do Serviço</h3>
+                            <p class="text-sm text-gray-800 font-semibold leading-tight">${formatDate(data.data_servico || data.data_retirada)}</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 5. Montar o Corpo Principal (Detalhes)
+            document.getElementById('os-details-container').innerHTML = `
+                <div class="space-y-5">
+                    
+                    <!-- Bloco de Local e Data -->
+                    ${dateLocationHtml}
+                    
+                    <!-- Bloco de Equipamento -->
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                           <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
+                           Dados do(s) Equipamento(s)
+                        </h3>
+                        ${eqHtml}
+                    </div>
+                    
+                    <!-- Bloco de Serviços -->
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                           <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                           Serviços Realizados
+                        </h3>
+                        <p class="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-200 whitespace-pre-wrap">${escapeHTML(data.servicos_realizados)}</p>
+                    </div>
+                    
+                    <!-- Bloco de Peças -->
+                    <div>
+                        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                           <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                           Peças Utilizadas
+                        </h3>
+                        ${pecasHtml}
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('main-content').classList.remove('hidden');
+        }
+
+        function showSuccess() {
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('main-content').classList.add('hidden');
+            document.getElementById('success-state').classList.remove('hidden');
+        }
+
+        // Configuração do Signature Pad
+        const sigManager = new SignaturePadManager({
+            modal: document.getElementById('signature-modal'),
+            canvas: document.getElementById('signature-pad'),
+            saveButton: document.getElementById('btn-save-sig'),
+            clearButton: document.getElementById('btn-clear-sig'),
+            undoButton: document.getElementById('btn-undo-sig'), 
+            cancelButton: document.getElementById('btn-cancel-sig'),
+            errorMessage: document.getElementById('signature-error-message')
+        });
+
+        document.getElementById('btn-open-pad').addEventListener('click', () => {
+            sigManager.open(async (dataUrl) => {
+                try {
+                    document.getElementById('btn-save-sig').disabled = true;
+                    document.getElementById('btn-save-sig').textContent = "Aguarde...";
+                    
+                    const docRef = doc(db, "orders", osId);
+                    await updateDoc(docRef, {
+                        signature_data: dataUrl,
+                        signedAt: new Date(),
+                        history: arrayUnion({
+                            action: 'Assinada Remotamente',
+                            timestamp: new Date(),
+                            details: 'O cliente validou os serviços e peças via link de WhatsApp.'
+                        })
+                    });
+
+                    showSuccess();
+                } catch (error) {
+                    alert("Erro ao salvar assinatura: " + error.message);
+                    document.getElementById('btn-save-sig').disabled = false;
+                    document.getElementById('btn-save-sig').textContent = "Salvar";
+                }
+            });
+        });
+
+        init();
+    </script>
+</body>
+</html>

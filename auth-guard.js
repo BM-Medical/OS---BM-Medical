@@ -20,25 +20,28 @@ const firebaseConfig = {
   appId: "1:92355637827:web:850b89afa5054781475af6",
 };
 
-// Evita "App already exists" quando importado em várias páginas
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-// Define persistência LOCAL (sessão só termina ao clicar Sair)
 setPersistence(auth, browserLocalPersistence).catch((err) => {
   console.error("[auth-guard] Falha ao definir persistência:", err);
 });
 
-const isLoginPage = () => /(^|\/)login\.html($|\?|#)/i.test(location.pathname);
+// CRÍTICO: Adicionada a página de assinatura na lista de páginas públicas
+const isPublicPage = () => {
+    const path = location.pathname;
+    return /(^|\/)(login\.html|assinatura-cliente\.html)($|\?|#)/i.test(path);
+};
 
 // Protege rotas
 onAuthStateChanged(auth, (user) => {
-  if (!user && !isLoginPage()) {
+  if (!user && !isPublicPage()) {
     console.info("[auth-guard] Usuário não autenticado. Redirecionando para login...");
     location.href = "login.html";
     return;
   }
-  if (user && isLoginPage()) {
+  // Se o usuário já está logado e tenta ir pro login, manda pra home
+  if (user && /(^|\/)login\.html($|\?|#)/i.test(location.pathname)) {
     console.info("[auth-guard] Sessão ativa. Redirecionando para a home...");
     location.href = "index.html";
   }
@@ -52,11 +55,9 @@ async function logout() {
     location.href = "login.html";
   } catch (err) {
     console.error("[auth-guard] Erro ao sair:", err);
-    alert("Erro ao sair. Tente novamente.");
   }
 }
 
-// Vincula o botão de sair quando existir
 addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("logout-button");
   if (btn) {

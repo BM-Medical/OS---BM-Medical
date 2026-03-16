@@ -1,7 +1,7 @@
 /**
  * quadros-modal-edit.js
  * Responsável por gerenciar todo o ciclo de EDIÇÃO da OS dentro do modal.
- * Inclui: Formulário, EquipmentSelector, Lógica de Lote (Batch), Peças e Salvamento.
+ * ATUALIZADO: Inclusão do checkbox dinâmico "Atendimento no Local".
  */
 import { doc, updateDoc, collection, query, where, getDocs, deleteField, arrayUnion } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 import { EquipmentSelector } from './equipment-selector.js';
@@ -35,15 +35,10 @@ export class EditModalManager {
                            (order.contrato === 'Contrato Nº 138/2024' && order.equipamento && order.equipamento.toUpperCase().includes('ESFIGMO'));
         
         this.batchItemsEdit = order.itens || [];
-        // Fallback: Se virou lote agora mas tinha 1 item, converte o item único para lista
         if (this.isBatchMode && this.batchItemsEdit.length === 0 && order.equipamento) {
             this.batchItemsEdit.push({
-                nome: order.equipamento,
-                marca: order.marca || '',
-                modelo: order.modelo || '',
-                serial: order.serial || '',
-                patrimonio: '',
-                local: order.local_atendimento || ''
+                nome: order.equipamento, marca: order.marca || '', modelo: order.modelo || '',
+                serial: order.serial || '', patrimonio: '', local: order.local_atendimento || ''
             });
         }
 
@@ -67,35 +62,45 @@ export class EditModalManager {
             desconsiderarCheckboxHtml = `<div class="checkbox-group mb-5"><input type="checkbox" id="edit-desconsiderar-assinatura-check" ${order.assinaturaDesconsiderada ? 'checked' : ''}><label for="edit-desconsiderar-assinatura-check">Desconsiderar Assinatura</label></div>`;
         }
 
-        // Campos de Data/Local
+        // --- CORREÇÃO 2: Checkbox e Campos de Data Dinâmicos ---
         if (order.contrato === 'Contrato N° 03/2024') {
-             attendanceFields = `<div class="form-group"><label for="edit_data_servico">Data do Serviço:</label><input type="date" id="edit_data_servico" value="${order.data_servico||''}"></div><div class="form-group"><label>Hora de Chegada:</label><input type="time" id="edit_hora_chegada" value="${order.hora_chegada||''}"></div><div class="form-group"><label>Hora de Saída:</label><input type="time" id="edit_hora_saida" value="${order.hora_saida||''}"></div>`;
+             // Autoclave: Padrão Fixo
+             attendanceFields = `<div class="form-group"><label for="edit_data_servico">Data do Serviço:</label><input type="date" id="edit_data_servico" value="${order.data_servico || order.data_retirada || ''}"></div><div class="form-group"><label>Hora de Chegada:</label><input type="time" id="edit_hora_chegada" value="${order.hora_chegada||''}"></div><div class="form-group"><label>Hora de Saída:</label><input type="time" id="edit_hora_saida" value="${order.hora_saida||''}"></div>`;
              equipmentFields = `<div class="bg-gray-100 p-4 rounded-md"><p><strong>Equipamento:</strong> ${order.equipamento}</p><p><strong>Marca:</strong> ${order.marca}</p><p><strong>Modelo:</strong> ${order.modelo}</p><p><strong>Serial:</strong> ${order.serial}</p></div>`;
         } else {
-            attendanceFields = `<div class="form-group"><label for="edit_data_retirada">Data da Retirada:</label><input type="date" id="edit_data_retirada" value="${order.data_retirada||''}"></div><div class="form-group"><label for="edit_data_devolucao">Data da Devolução:</label><input type="date" id="edit_data_devolucao" value="${order.data_devolucao||''}"></div>`;
+            // Exército e Capão: Lógica Dinâmica
+            let isLocalChecked = order.atendimento_no_local ? 'checked' : '';
+            let lblRetirada = order.atendimento_no_local ? 'Data do Serviço:' : 'Data da Retirada:';
+            let displayDevolucao = order.atendimento_no_local ? 'display: none;' : '';
+
+            let checkboxAtendimentoLocal = `<div style="margin-bottom: 15px;"><label style="display: flex; align-items: center; cursor: pointer; font-weight: 500; color: #4b5563; font-size: 0.95rem;"><input type="checkbox" id="edit_atendimento_local_check" style="width: 16px; height: 16px; margin-right: 8px;" ${isLocalChecked}> Atendimento realizado no local (Sem retirada de equipamento)</label></div>`;
+
+            attendanceFields = `
+                ${checkboxAtendimentoLocal}
+                <div class="grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group" id="group_data_retirada">
+                        <label id="lbl_data_retirada" for="edit_data_retirada">${lblRetirada}</label>
+                        <input type="date" id="edit_data_retirada" value="${order.data_retirada || order.data_servico || ''}">
+                    </div>
+                    <div class="form-group" id="group_data_devolucao" style="${displayDevolucao}">
+                        <label for="edit_data_devolucao">Data da Devolução:</label>
+                        <input type="date" id="edit_data_devolucao" value="${order.data_devolucao || ''}">
+                    </div>
+                </div>
+            `;
             
-            // Definição das opções de local
             let locations = order.contrato && order.contrato.includes('138/2024') ? ['PA','UBS CENTRAL','UBS CASABOM','UBS I - PARQUE FRAGATA','UBS II - JARDIM AMÉRICA','UBS III - JARDIM AMÉRICA','CAPS'] : ['GO1', 'GO2', 'GO3', 'GO4', 'PMGUPEL'];
-            
-            // Lógica para definir qual local deve aparecer selecionado
             let selectedLocation = order.local_atendimento;
 
-            // --- AJUSTE SOLICITADO ---
-            // Se for Modo Lote e contrato 138/2024, força o local para "SECRETARIA DE SAÚDE"
             if (this.isBatchMode && order.contrato && order.contrato.includes('138/2024')) {
                 const batchLocation = 'SECRETARIA DE SAÚDE';
-                // Garante que a opção existe na lista
-                if (!locations.includes(batchLocation)) {
-                    locations.push(batchLocation);
-                }
-                // Força a seleção visual
+                if (!locations.includes(batchLocation)) locations.push(batchLocation);
                 selectedLocation = batchLocation;
             }
 
-            attendanceFields += `<div class="form-group"><label for="edit_local_atendimento">Local:</label><select id="edit_local_atendimento">${locations.map(l => `<option value="${l}" ${selectedLocation === l ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`;
+            attendanceFields += `<div class="form-group" style="margin-top: 15px;"><label for="edit_local_atendimento">Local:</label><select id="edit_local_atendimento">${locations.map(l => `<option value="${l}" ${selectedLocation === l ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`;
             
             if (this.isBatchMode) {
-                // HTML LOTE (Batch)
                 equipmentFields = `
                 <div class="bg-blue-50 p-4 rounded border border-blue-200 mb-4">
                     <h3 class="text-sm font-bold text-blue-800 mb-2">Gerenciar Itens do Lote (Esfigmomanômetros)</h3>
@@ -121,7 +126,6 @@ export class EditModalManager {
                     <div class="mt-1 text-right text-xs text-gray-600">Total: <span id="batch-count-edit" class="font-bold">0</span></div>
                 </div>`;
             } else {
-                // HTML ITEM ÚNICO (Novo Seletor)
                 equipmentFields = `
                     <div id="search-panel_edit" class="mb-4">
                         <p class="text-xs text-gray-500 mb-2">Busque para alterar o equipamento:</p>
@@ -171,10 +175,26 @@ export class EditModalManager {
     }
 
     async initializeLogic(order) {
-        // --- 1. Equipamento ---
+        const contractCode = this.getContractCode(order.contrato);
+        this.currentContractCode = contractCode; 
+        
+        // --- 1.1 Lógica do Checkbox de Atendimento no Local ---
+        const checkLocalEdit = document.getElementById('edit_atendimento_local_check');
+        if (checkLocalEdit) {
+            checkLocalEdit.addEventListener('change', () => {
+                const isLocal = checkLocalEdit.checked;
+                document.getElementById('lbl_data_retirada').textContent = isLocal ? 'Data do Serviço:' : 'Data da Retirada:';
+                document.getElementById('group_data_devolucao').style.display = isLocal ? 'none' : 'block';
+                if (isLocal) {
+                    document.getElementById('edit_data_devolucao').value = '';
+                }
+            });
+        }
+
+        // --- 1.2 Equipamento ---
         if (this.isBatchMode) {
             this.setupBatchLogic(order);
-        } else if (order.contrato !== 'Contrato N° 03/2024') {
+        } else if (contractCode !== '03/2024') {
             this.setupSingleLogic(order);
         }
 
@@ -237,50 +257,37 @@ export class EditModalManager {
         }
     }
 
-    // --- HELPER: Converter Nome do Contrato para Código do Banco ---
     getContractCode(contractName) {
         if (!contractName) return null;
         if (contractName.includes('138/2024')) return '138/2024';
         if (contractName.includes('10/2025')) return '10/2025';
         if (contractName.includes('03/2024')) return '03/2024';
-        return contractName; // Fallback se já estiver no formato correto
+        return contractName; 
     }
 
-    // --- Lógica Single Item ---
     async setupSingleLogic(order) {
-        const contractCode = this.getContractCode(order.contrato);
-        this.currentContractCode = contractCode; // Salva para uso
-        
         this.activeEquipmentSelector = new EquipmentSelector({ 
-            contractId: contractCode,
+            contractId: this.currentContractCode,
             database: this.db,
             elements: { 
                 searchInputs: {
-                    name: document.getElementById('search-eq_edit'),
-                    brand: document.getElementById('search-brand_edit'),
-                    serial: document.getElementById('search-serial_edit'),
-                    loc: document.getElementById('search-loc_edit')
+                    name: document.getElementById('search-eq_edit'), brand: document.getElementById('search-brand_edit'),
+                    serial: document.getElementById('search-serial_edit'), loc: document.getElementById('search-loc_edit')
                 },
                 btnSearch: document.getElementById('btn-search-eq_edit'),
                 resultsContainer: document.getElementById('search-results_edit'),
                 selectedCard: {
-                    container: document.getElementById('selected-card_edit'),
-                    nameEl: document.getElementById('sel-eq-name_edit'),
-                    detailsEl: document.getElementById('sel-eq-details_edit'),
-                    btnChange: document.getElementById('btn-change-eq_edit')
+                    container: document.getElementById('selected-card_edit'), nameEl: document.getElementById('sel-eq-name_edit'),
+                    detailsEl: document.getElementById('sel-eq-details_edit'), btnChange: document.getElementById('btn-change-eq_edit')
                 },
                 finalInputs: {
-                    container: document.getElementById('final-inputs-container_edit'),
-                    equipamento: document.getElementById('final-equipamento_edit'),
-                    marca: document.getElementById('final-equipamento_edit'),
-                    modelo: document.getElementById('final-modelo_edit'),
+                    container: document.getElementById('final-inputs-container_edit'), equipamento: document.getElementById('final-equipamento_edit'),
+                    marca: document.getElementById('final-marca_edit'), modelo: document.getElementById('final-modelo_edit'),
                     serial: document.getElementById('final-serial_edit')
                 },
                 manualMode: {
-                    btnTrigger: document.getElementById('btn-manual-entry_edit'),
-                    btnCancel: document.getElementById('btn-cancel-manual_edit'),
-                    searchPanel: document.getElementById('search-panel_edit'),
-                    locationSelect: document.getElementById('edit_local_atendimento')
+                    btnTrigger: document.getElementById('btn-manual-entry_edit'), btnCancel: document.getElementById('btn-cancel-manual_edit'),
+                    searchPanel: document.getElementById('search-panel_edit'), locationSelect: document.getElementById('edit_local_atendimento')
                 }
             } 
         });
@@ -288,23 +295,15 @@ export class EditModalManager {
         this.activeEquipmentSelector.prefill(order);
     }
 
-    // --- Lógica Batch (Lote) ---
     async setupBatchLogic(order) {
         this.renderBatchList();
-        
-        const contractCode = this.getContractCode(order.contrato);
         const originalName = order.contrato;
-        this.currentContractCode = contractCode || originalName;
-        
-        // Passa ambos: o código calculado e o nome original para tentativa de fallback
-        await this.ensureInventoryLoaded(contractCode, originalName);
+        await this.ensureInventoryLoaded(this.currentContractCode, originalName);
 
         document.getElementById('btn-batch-search-edit').addEventListener('click', () => this.performBatchSearch());
-        
-        // Botão de recarregar manual
         document.getElementById('btn-reload-inventory-edit').addEventListener('click', async () => {
              this.contractInventoryCache = [];
-             await this.ensureInventoryLoaded(contractCode, originalName);
+             await this.ensureInventoryLoaded(this.currentContractCode, originalName);
         });
 
         ['batch-search-name', 'batch-search-brand', 'batch-search-serial', 'batch-search-loc'].forEach(id => {
@@ -315,14 +314,7 @@ export class EditModalManager {
         document.getElementById('btn-add-manual-batch-edit').addEventListener('click', () => {
             const serial = prompt("Digite o Número de Série:");
             if (!serial) return;
-            this.batchItemsEdit.push({
-                nome: "ESFIGMOMANÔMETRO",
-                marca: "GENÉRICO",
-                modelo: "",
-                serial: serial.toUpperCase(),
-                patrimonio: "",
-                local: "Manual"
-            });
+            this.batchItemsEdit.push({ nome: "ESFIGMOMANÔMETRO", marca: "GENÉRICO", modelo: "", serial: serial.toUpperCase(), patrimonio: "", local: "Manual" });
             this.renderBatchList();
         });
         
@@ -343,51 +335,29 @@ export class EditModalManager {
             listContainer.innerHTML = this.batchItemsEdit.map((item, idx) => `
                 <div class="batch-item">
                     <div class="flex flex-col">
-                        <div class="flex items-center gap-2">
-                            <span class="font-mono text-xs font-bold text-gray-800">${item.serial || 'S/N'}</span>
-                            ${item.patrimonio ? `<span class="text-[10px] bg-gray-200 px-1 rounded text-gray-600">Pat: ${item.patrimonio}</span>` : ''}
-                        </div>
+                        <div class="flex items-center gap-2"><span class="font-mono text-xs font-bold text-gray-800">${item.serial || 'S/N'}</span>${item.patrimonio ? `<span class="text-[10px] bg-gray-200 px-1 rounded text-gray-600">Pat: ${item.patrimonio}</span>` : ''}</div>
                         <span class="text-[10px] text-gray-500">${item.nome} - ${item.marca}</span>
                     </div>
-                    <button type="button" onclick="removeBatchItemEdit(${idx})" class="text-red-500 hover:text-red-700 p-1" title="Remover">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    </button>
+                    <button type="button" onclick="removeBatchItemEdit(${idx})" class="text-red-500 hover:text-red-700 p-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
                 </div>
             `).join('');
         }
         if(countDisplay) countDisplay.textContent = this.batchItemsEdit.length;
     }
 
-    normalizeStr(str) {
-        return String(str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
-    }
+    normalizeStr(str) { return String(str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim(); }
 
     async ensureInventoryLoaded(contractCode, originalName = null) {
-        if (!contractCode && !originalName) {
-            console.error("Código do contrato inválido.");
-            document.getElementById('cache-status-text-edit').textContent = "Erro: Sem Contrato";
-            return;
-        }
-
-        if (this.contractInventoryCache.length > 0) {
-             document.getElementById('cache-status-text-edit').textContent = `${this.contractInventoryCache.length} itens (Cache)`;
-             return;
-        }
+        if (!contractCode && !originalName) return;
+        if (this.contractInventoryCache.length > 0) return;
         
         const statusEl = document.getElementById('cache-status-text-edit');
         statusEl.textContent = "Carregando...";
         
         try {
-            console.log(`Tentativa 1: Buscando inventário para: '${contractCode}'`);
-            
-            // Tentativa 1: Pelo código curto (ex: 138/2024)
             let q = query(collection(this.db, "inventory_equipment"), where("contract", "==", contractCode));
             let snap = await getDocs(q);
-            
-            // Tentativa 2: Se vazio, tenta pelo nome original (ex: Contrato Nº 138/2024)
-            // Isso cobre casos onde o banco foi salvo com o nome completo
             if (snap.empty && originalName && originalName !== contractCode) {
-                console.log(`Tentativa 2 (Fallback): Buscando inventário para: '${originalName}'`);
                 q = query(collection(this.db, "inventory_equipment"), where("contract", "==", originalName));
                 snap = await getDocs(q);
             }
@@ -395,82 +365,34 @@ export class EditModalManager {
             this.contractInventoryCache = [];
             snap.forEach(doc => {
                 const d = doc.data();
-                // Mapeamento Robusto (Igual ao EquipmentSelector)
-                const name = d.name || d.equipamento || '';
-                const brand = d.brand || d.marca || '';
-                const model = d.model || d.modelo || '';
-                const serial = d.serial || d.serie || d.num_serie || '';
-                const patrimonio = d.patrimonio || '';
-                const local = d.location || d.localizacao || d.setor || '';
-
-                const fullText = [name, brand, model, serial, patrimonio, local].map(this.normalizeStr).join(' ');
-                
-                this.contractInventoryCache.push({ 
-                    id: doc.id, 
-                    ...d, 
-                    // Campos normalizados para uso garantido na busca
-                    _name: name,
-                    _brand: brand,
-                    _model: model,
-                    _serial: serial,
-                    _local: local,
-                    _fullSearch: fullText 
-                });
+                const fullText = [d.name||d.equipamento||'', d.brand||d.marca||'', d.model||d.modelo||'', d.serial||d.serie||d.num_serie||'', d.patrimonio||'', d.location||d.localizacao||d.setor||''].map(this.normalizeStr).join(' ');
+                this.contractInventoryCache.push({ id: doc.id, ...d, _name: d.name||d.equipamento||'', _brand: d.brand||d.marca||'', _model: d.model||d.modelo||'', _serial: d.serial||d.serie||d.num_serie||'', _local: d.location||d.localizacao||d.setor||'', _fullSearch: fullText });
             });
             
-            console.log(`Inventário carregado: ${this.contractInventoryCache.length} itens.`);
-            
             if (this.contractInventoryCache.length === 0) {
-                 statusEl.textContent = "Vazio (0 itens).";
-                 statusEl.classList.add('text-red-500');
+                 statusEl.textContent = "Vazio."; statusEl.classList.add('text-red-500');
             } else {
-                 statusEl.textContent = `${this.contractInventoryCache.length} itens.`;
-                 statusEl.classList.remove('text-red-500');
-                 statusEl.classList.add('text-green-600');
+                 statusEl.textContent = `${this.contractInventoryCache.length} itens.`; statusEl.classList.remove('text-red-500'); statusEl.classList.add('text-green-600');
             }
-
-        } catch (e) { 
-            console.error("Erro ao carregar inventário:", e);
-            statusEl.textContent = "Erro na busca.";
-            statusEl.classList.add('text-red-500');
-        }
+        } catch (e) { statusEl.textContent = "Erro."; statusEl.classList.add('text-red-500'); }
     }
 
     performBatchSearch() {
         const container = document.getElementById('batch-search-results-edit');
-        container.innerHTML = '';
-        container.classList.remove('hidden');
+        container.innerHTML = ''; container.classList.remove('hidden');
         
         const tName = this.normalizeStr(document.getElementById('batch-search-name').value);
         const tBrand = this.normalizeStr(document.getElementById('batch-search-brand').value);
         const tSerial = this.normalizeStr(document.getElementById('batch-search-serial').value);
         const tLoc = this.normalizeStr(document.getElementById('batch-search-loc').value);
 
-        // Se o cache estiver vazio, avisa o usuário com opção de retry
         if (this.contractInventoryCache.length === 0) {
-             container.innerHTML = `
-             <div class="p-3 text-center">
-                <p class="text-xs text-red-500 font-bold mb-1">Inventário não carregado ou vazio.</p>
-                <p class="text-[10px] text-gray-500 mb-2">Código usado: ${this.currentContractCode || '?'}</p>
-                <button type="button" id="btn-force-reload-search" class="text-xs bg-gray-200 px-2 py-1 rounded hover:bg-gray-300">
-                    Tentar Novamente
-                </button>
-             </div>`;
-             
-             setTimeout(() => {
-                 document.getElementById('btn-force-reload-search')?.addEventListener('click', () => {
-                     document.getElementById('btn-reload-inventory-edit').click();
-                 });
-             }, 100);
+             container.innerHTML = `<div class="p-3 text-center"><p class="text-xs text-red-500 font-bold">Inventário vazio.</p></div>`;
              return;
         }
 
         const matches = this.contractInventoryCache.filter(item => {
-            // Filtro ESPECÍFICO PARA LOTE DE ESFIGMO
-            // Agora verifica nos campos mapeados (_fullSearch é seguro agora)
             if (!item._fullSearch.includes('ESFIGMO') && !item._fullSearch.includes('PRESSAO')) return false;
-            
-            // Compara com os campos normalizados seguros
             if (tName && !this.normalizeStr(item._name).includes(tName)) return false;
             if (tBrand && !this.normalizeStr(item._brand).includes(tBrand) && !this.normalizeStr(item._model).includes(tBrand)) return false;
             if (tSerial && !this.normalizeStr(item._serial).includes(tSerial) && !this.normalizeStr(item.patrimonio).includes(tSerial)) return false;
@@ -478,32 +400,17 @@ export class EditModalManager {
             return true;
         }).slice(0, 30);
 
-        if (matches.length === 0) {
-            container.innerHTML = '<div class="p-2 text-xs text-gray-500">Nenhum item encontrado.</div>';
-            return;
-        }
+        if (matches.length === 0) { container.innerHTML = '<div class="p-2 text-xs text-gray-500">Nenhum item encontrado.</div>'; return; }
 
         matches.forEach(item => {
             const div = document.createElement('div');
             div.className = 'batch-search-result-item';
-            // Usa os campos seguros (_name, _serial) para exibição
             div.innerHTML = `<div class="flex justify-between"><span class="font-bold text-xs">${item._name}</span><span class="font-mono text-xs text-blue-700">${item._serial || 'S/N'}</span></div><div class="text-xs text-gray-500">${item._brand} ${item._model} - ${item._local || ''}</div>`;
             div.addEventListener('click', () => {
                 const serialCheck = (item._serial || '').toUpperCase();
-                // Evita duplicatas pelo serial
-                if (this.batchItemsEdit.some(i => i.serial === serialCheck && serialCheck !== '')) {
-                    alert('Item já na lista.'); return;
-                }
-                this.batchItemsEdit.push({ 
-                    nome: item._name, 
-                    marca: item._brand, 
-                    modelo: item._model, 
-                    serial: item._serial, 
-                    patrimonio: item.patrimonio || '', 
-                    local: item._local 
-                });
-                this.renderBatchList();
-                container.classList.add('hidden');
+                if (this.batchItemsEdit.some(i => i.serial === serialCheck && serialCheck !== '')) { alert('Item já na lista.'); return; }
+                this.batchItemsEdit.push({ nome: item._name, marca: item._brand, modelo: item._model, serial: item._serial, patrimonio: item.patrimonio || '', local: item._local });
+                this.renderBatchList(); container.classList.add('hidden');
             });
             container.appendChild(div);
         });
@@ -514,12 +421,10 @@ export class EditModalManager {
         const partsSummary = document.getElementById('parts-summary-view-edit');
         const partsList = document.getElementById('parts-summary-list-edit');
         if (this.currentParts.length > 0) {
-            partsInitial.classList.add('hidden');
-            partsSummary.classList.remove('hidden');
+            partsInitial.classList.add('hidden'); partsSummary.classList.remove('hidden');
             partsList.innerHTML = `<ul class="list-disc pl-5 space-y-1">${this.currentParts.map(p => `<li><strong>${p.qtd}x</strong> - ${p.descricao}</li>`).join('')}</ul>`;
         } else {
-            partsInitial.classList.remove('hidden');
-            partsSummary.classList.add('hidden');
+            partsInitial.classList.remove('hidden'); partsSummary.classList.add('hidden');
         }
     }
 
@@ -528,21 +433,39 @@ export class EditModalManager {
         let updatedData = {};
 
         if (this.isBatchMode) {
-            if (this.batchItemsEdit.length === 0) { alert("Lote vazio. Adicione ao menos um item ou arquive a OS."); return; }
+            if (this.batchItemsEdit.length === 0) { alert("Lote vazio. Adicione ao menos um item."); return; }
             const count = this.batchItemsEdit.length;
-            updatedData = {
-                equipamento: `${this.batchItemsEdit[0].nome} (LOTE: ${count} un.)`,
-                marca: "VÁRIAS", modelo: "VÁRIOS", serial: "VER LISTA",
-                itens: this.batchItemsEdit
-            };
+            updatedData = { equipamento: `${this.batchItemsEdit[0].nome} (LOTE: ${count} un.)`, marca: "VÁRIAS", modelo: "VÁRIOS", serial: "VER LISTA", itens: this.batchItemsEdit };
         } else {
             updatedData = this.activeEquipmentSelector ? this.activeEquipmentSelector.getSelection() : {};
             updatedData.itens = deleteField();
         }
         
-        // Campos fixos
-        const fields = ['data_servico', 'hora_chegada', 'hora_saida', 'data_retirada', 'data_devolucao', 'local_atendimento'];
-        fields.forEach(f => { if(form[f]) updatedData[f] = form[f].value; });
+        // --- CORREÇÃO: Salvamento de Datas Dinâmicas ---
+        const checkLocalEdit = document.getElementById('edit_atendimento_local_check');
+        const isLocalEdit = checkLocalEdit ? checkLocalEdit.checked : (this.currentContractCode === '03/2024');
+
+        updatedData.atendimento_no_local = isLocalEdit;
+
+        if (this.currentContractCode === '03/2024') {
+             updatedData.data_servico = document.getElementById('edit_data_servico').value;
+             updatedData.data_retirada = updatedData.data_servico;
+             updatedData.data_devolucao = updatedData.data_servico;
+             updatedData.hora_chegada = document.getElementById('edit_hora_chegada').value;
+             updatedData.hora_saida = document.getElementById('edit_hora_saida').value;
+        } else {
+             const valRetirada = document.getElementById('edit_data_retirada').value;
+             updatedData.data_retirada = valRetirada;
+             
+             if (isLocalEdit) {
+                 updatedData.data_servico = valRetirada;
+                 updatedData.data_devolucao = valRetirada;
+             } else {
+                 updatedData.data_servico = valRetirada; 
+                 updatedData.data_devolucao = document.getElementById('edit_data_devolucao').value;
+             }
+             updatedData.local_atendimento = document.getElementById('edit_local_atendimento').value;
+        }
         
         updatedData.servicos_realizados = document.getElementById('edit_servicos_realizados').value;
         updatedData.pecas_utilizadas = this.currentParts;
@@ -555,11 +478,10 @@ export class EditModalManager {
         }
         if (updatedData.signature_data) updatedData.assinaturaDesconsiderada = false;
 
-        // Histórico
         const historyEntries = [{ action: 'Editada', details: this.isBatchMode ? 'Lote de equipamentos editado.' : 'Os dados da OS foram alterados.', timestamp: new Date() }];
         updatedData.history = arrayUnion(...historyEntries);
 
-        if (updatedData.signature_data) updatedData.signedAt = new Date(); // Simplificação
+        if (updatedData.signature_data) updatedData.signedAt = new Date(); 
 
         try {
             await updateDoc(doc(this.db, "orders", orderId), updatedData);
