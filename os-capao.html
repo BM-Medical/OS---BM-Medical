@@ -1229,9 +1229,10 @@
             }
             
             try {
-                let q = query(collection(db, "orders"), where("contrato", "==", currentConfig.name), orderBy("createdAt", "desc"), limit(20));
+                // ATENÇÃO AQUI: Mudado orderBy de 'createdAt' para 'os_numero'
+                let q = query(collection(db, "orders"), where("contrato", "==", currentConfig.name), orderBy("os_numero", "desc"), limit(20));
                 if (isAppend && lastVisibleDoc) {
-                    q = query(collection(db, "orders"), where("contrato", "==", currentConfig.name), orderBy("createdAt", "desc"), startAfter(lastVisibleDoc), limit(20));
+                    q = query(collection(db, "orders"), where("contrato", "==", currentConfig.name), orderBy("os_numero", "desc"), startAfter(lastVisibleDoc), limit(20));
                 }
                 const snap = await getDocs(q);
 
@@ -1282,7 +1283,10 @@
                 if (snap.docs.length < 20) btnLoadMore.classList.add('hidden');
                 else { btnLoadMore.classList.remove('hidden'); btnLoadMore.textContent = "Carregar mais registros..."; btnLoadMore.disabled = false; }
 
-            } catch (e) { console.error(e); tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">Erro: ${e.message}</td></tr>`; }
+            } catch (e) { 
+                console.error(e); 
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">Erro: ${e.message}<br><small>Se for erro de Index, abra o F12 (Console) e clique no link azul para criar no Firebase.</small></td></tr>`; 
+            }
         }
 
         function formatDate(dateString) {
