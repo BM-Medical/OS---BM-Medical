@@ -1,7 +1,7 @@
 /**
  * escala-sobreaviso.js
  * Script para a página de Gestão de Escala de Sobreaviso - Contrato 14/2024.
- * Versão: 5.6 - Correção definitiva da integração com o PDF e exibição de feriados.
+ * Versão: 6.8 - Fix: Cálculo da 2ª feira na virada do mês baseado no mês anterior + Salvamento manual.
  */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
@@ -23,7 +23,6 @@ const firebaseConfig = {
     appId: "1:92355637827:web:850b89afa5054781475af6"
 };
 
-// Inicialização ÚNICA do Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
@@ -38,18 +37,11 @@ const STANDBY_HOURS = {
 };
 
 const FIXED_HOLIDAYS = {
-    '01-01': 'Confraternização Universal',
-    '02-02': 'Nossa Senhora dos Navegantes (Pelotas)',
-    '04-21': 'Tiradentes',
-    '05-01': 'Dia do Trabalhador',
-    '07-07': 'Aniversário de Pelotas',
-    '09-07': 'Independência do Brasil',
-    '09-20': 'Revolução Farroupilha',
-    '10-12': 'Nossa Senhora Aparecida',
-    '11-02': 'Finados',
-    '11-15': 'Proclamação da República',
-    '11-20': 'Consciência Negra',
-    '12-25': 'Natal'
+    '01-01': 'Confraternização Universal', '02-02': 'Nossa Senhora dos Navegantes (Pelotas)',
+    '04-21': 'Tiradentes', '05-01': 'Dia do Trabalhador', '07-07': 'Aniversário de Pelotas',
+    '09-07': 'Independência do Brasil', '09-20': 'Revolução Farroupilha',
+    '10-12': 'Nossa Senhora Aparecida', '11-02': 'Finados', '11-15': 'Proclamação da República',
+    '11-20': 'Consciência Negra', '12-25': 'Natal'
 };
 
 // --- ESTADO GLOBAL ---
@@ -59,6 +51,7 @@ let currentYear, currentMonth;
 let technicianOverrides = {}; 
 let holidayOverrides = {}; 
 let weeklyAssignmentRecord = [];
+let prevMonthLastWeekTech = null; // Guarda o técnico da última semana do mês anterior
 let signaturePadManager;
 let editingAtendimentoId = null;
 
@@ -78,10 +71,11 @@ function hideModal(modalElement) {
 
 function formatHours(h) { return (h || 0).toFixed(2).replace('.', ','); }
 
-function formatDateBR(dateStr) {
+function formatDateBR(dateStr, shortYear = false) {
     if(!dateStr) return "";
     const [y, m, d] = dateStr.split('-');
-    return `${d}/${m}/${y}`;
+    const yearDisplay = shortYear ? y.substring(2) : y;
+    return `${d}/${m}/${yearDisplay}`;
 }
 
 function calculateDurationInHours(startTime, endTime) {
@@ -136,6 +130,44 @@ function getBaselineTechnician(date) {
     const diffWeeks = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7));
     const index = ((diffWeeks % TECHNICIANS.length) + TECHNICIANS.length) % TECHNICIANS.length;
     return TECHNICIANS[index];
+}
+
+// NOVA FUNÇÃO: Simula o mês passado para descobrir quem foi o último técnico
+async function determinePrevMonthLastTech(year, month) {
+    let prevMonth = month - 1;
+    let prevYear = year;
+    
+    if (prevMonth === 0) {
+        prevMonth = 12;
+        prevYear--;
+    }
+    
+    const docId = `${prevYear}-${String(prevMonth).padStart(2, '0')}`;
+    let prevOverrides = {};
+    
+    try {
+        const snap = await getDoc(doc(db, "escalaSobreaviso", docId));
+        if (snap.exists()) prevOverrides = snap.data().overrides || {};
+    } catch(e) { console.error("Erro ao buscar mês anterior:", e); }
+
+    const prevWeeks = getWeeksInMonth(prevYear, prevMonth);
+    let currentTech = "";
+    
+    for (let i = 0; i < prevWeeks.length; i++) {
+        const weekKey = `week_${i}`;
+        if (prevOverrides[weekKey]) {
+            currentTech = prevOverrides[weekKey];
+        } else {
+            if (i === 0) {
+                const firstValidDay = prevWeeks[i].days.find(d => d instanceof Date);
+                currentTech = getBaselineTechnician(firstValidDay);
+            } else {
+                const prevIdx = TECHNICIANS.indexOf(currentTech);
+                currentTech = TECHNICIANS[(prevIdx + 1) % TECHNICIANS.length];
+            }
+        }
+    }
+    return currentTech;
 }
 
 // --- RENDERIZAÇÃO ---
@@ -203,7 +235,8 @@ function renderScheduleTable() {
             select.appendChild(opt);
         });
         
-        select.onchange = (e) => saveTechnicianOverride(weekKey, e.target.value);
+        // Agora altera apenas LOCALMENTE
+        select.onchange = (e) => updateLocalTechnicianOverride(weekKey, e.target.value);
         techCell.appendChild(select);
         row.appendChild(techCell);
         if (scheduleBody) scheduleBody.appendChild(row);
@@ -234,18 +267,14 @@ function renderAtendimentosList() {
     const listContainer = document.getElementById('atendimentos-list');
     if (!listContainer) return;
     listContainer.innerHTML = '';
-
     if (currentAtendimentos.length === 0) {
         listContainer.innerHTML = '<p class="text-gray-500 text-sm italic">Nenhum atendimento lançado neste mês.</p>';
         return;
     }
-
     const sorted = [...currentAtendimentos].sort((a, b) => a.data.localeCompare(b.data));
-
     sorted.forEach(at => {
         const card = document.createElement('div');
         card.className = "bg-white border rounded-lg p-4 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-blue-300 transition-colors";
-        
         card.innerHTML = `
             <div class="flex-grow">
                 <div class="flex items-center gap-2 mb-1">
@@ -267,11 +296,9 @@ function renderAtendimentosList() {
                 </button>
             </div>
         `;
-
         card.querySelector('.btn-edit').onclick = () => fillFormForEdit(at);
         card.querySelector('.btn-pdf').onclick = () => generateAtendimentoPdf(at);
         card.querySelector('.btn-delete').onclick = () => confirmDeletion(at.id);
-
         listContainer.appendChild(card);
     });
 }
@@ -280,7 +307,6 @@ function fillFormForEdit(at) {
     editingAtendimentoId = at.id;
     const form = document.getElementById('atendimento-form');
     if (!form) return;
-
     form.os_numero.value = at.os_numero === "SEM OS" ? "" : at.os_numero;
     form.executado_por.value = at.executado_por;
     form.data.value = at.data;
@@ -294,7 +320,6 @@ function fillFormForEdit(at) {
     form.servico_executado.value = at.servico_executado || "";
     form.nome_solicitante.value = at.nome_solicitante || "";
     form.siape.value = at.siape || "";
-
     const chk = document.getElementById('sem_os_checkbox');
     if (chk) {
         chk.checked = at.os_numero === "SEM OS";
@@ -304,14 +329,12 @@ function fillFormForEdit(at) {
             if(chk.checked) inputNumOS.removeAttribute('required');
         }
     }
-
     const hiddenSig = document.getElementById('signature-data');
     const placeholder = document.getElementById('signature-placeholder');
     if (at.signature) {
         hiddenSig.value = at.signature;
         placeholder.innerHTML = `<img src="${at.signature}" class="signature-thumbnail" style="max-height: 80px; margin: auto;">`;
     }
-
     showModal(document.getElementById('atendimento-modal'));
 }
 
@@ -333,24 +356,31 @@ async function loadAndDisplaySchedule(year, month) {
     const allHolidaysYear = getAllHolidays(year);
     HOLIDAYS_LIST = {};
     const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
+    
     for (const [date, name] of Object.entries(allHolidaysYear)) { 
         if (date.startsWith(monthPrefix)) HOLIDAYS_LIST[date] = name; 
     }
-
+    
     try {
         const configSnap = await getDoc(doc(db, "escalaSobreaviso", monthPrefix));
         if (configSnap.exists()) {
             technicianOverrides = configSnap.data().overrides || {};
             holidayOverrides = configSnap.data().holidayOverrides || {};
-        } else { technicianOverrides = {}; holidayOverrides = {}; }
+        } else { 
+            technicianOverrides = {}; 
+            holidayOverrides = {}; 
+        }
     } catch (e) { console.error("Erro Firebase:", e); }
+    
+    // Calcula o técnico da última semana do mês anterior ANTES de renderizar
+    prevMonthLastWeekTech = await determinePrevMonthLastTech(year, month);
     
     renderScheduleTable();
     displayHolidaysList();
+    updateSummary();
     listenToAtendimentos(year, month);
 }
 
-// --- UTILITÁRIO PARA CÁLCULO DE RESUMO ---
 function calculateSummaryTotals() {
     const overtimeTotals = {};
     TECHNICIANS.forEach(t => overtimeTotals[t] = 0);
@@ -360,7 +390,7 @@ function calculateSummaryTotals() {
             overtimeTotals[at.executado_por] += duration;
         }
     });
-
+    
     const summary = {};
     TECHNICIANS.forEach(tech => summary[tech] = { standbyHours: 0 });
     const weeks = getWeeksInMonth(currentYear, currentMonth);
@@ -368,31 +398,50 @@ function calculateSummaryTotals() {
     weeks.forEach((week, weekIndex) => {
         const currentTechnician = weeklyAssignmentRecord[weekIndex];
         if (!currentTechnician) return;
+        
         week.days.forEach(day => {
             if (!day) return;
             const dateString = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
             const isHoliday = !!(HOLIDAYS_LIST[dateString] || holidayOverrides[dateString]);
             const dayOfWeek = day.getDay();
-            if (dayOfWeek === 0 || dayOfWeek === 6) summary[currentTechnician].standbyHours += STANDBY_HOURS.WEEKEND_HOLIDAY;
-            else if (dayOfWeek === 5) summary[currentTechnician].standbyHours += isHoliday ? STANDBY_HOURS.WEEKEND_HOLIDAY : STANDBY_HOURS.FRIDAY;
-            else if (dayOfWeek >= 2 && dayOfWeek <= 4) summary[currentTechnician].standbyHours += isHoliday ? STANDBY_HOURS.WEEKEND_HOLIDAY : STANDBY_HOURS.WEEKDAY;
+            
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                summary[currentTechnician].standbyHours += STANDBY_HOURS.WEEKEND_HOLIDAY;
+            }
+            else if (dayOfWeek === 5) {
+                summary[currentTechnician].standbyHours += isHoliday ? STANDBY_HOURS.WEEKEND_HOLIDAY : STANDBY_HOURS.FRIDAY;
+            }
+            else if (dayOfWeek >= 2 && dayOfWeek <= 4) {
+                summary[currentTechnician].standbyHours += isHoliday ? STANDBY_HOURS.WEEKEND_HOLIDAY : STANDBY_HOURS.WEEKDAY;
+            }
             else if (dayOfWeek === 1) {
-                const prevTech = weekIndex === 0 ? getBaselineTechnician(new Date(day.getTime() - 86400000)) : weeklyAssignmentRecord[weekIndex - 1];
+                // LOGICA CORRIGIDA AQUI
+                let prevTech;
+                if (weekIndex === 0) {
+                    // Pega o técnico validado do mês anterior
+                    prevTech = prevMonthLastWeekTech; 
+                    
+                    // Fallback de segurança
+                    if (!prevTech) {
+                        prevTech = getBaselineTechnician(new Date(day.getTime() - 86400000));
+                    }
+                } else {
+                    prevTech = weeklyAssignmentRecord[weekIndex - 1];
+                }
+                
                 if(summary[prevTech]) summary[prevTech].standbyHours += STANDBY_HOURS.MONDAY_MORNING;
+                
                 summary[currentTechnician].standbyHours += isHoliday ? (STANDBY_HOURS.MONDAY_NIGHT + STANDBY_HOURS.MONDAY_WORKDAY) : STANDBY_HOURS.MONDAY_NIGHT;
             }
         });
     });
-
     return { summary, overtimeTotals };
 }
 
 function updateSummary() {
     const summaryBody = document.getElementById('summary-body');
     if (!summaryBody) return;
-    
     const { summary, overtimeTotals } = calculateSummaryTotals();
-
     summaryBody.innerHTML = '';
     TECHNICIANS.forEach(tech => {
         const sb = summary[tech].standbyHours;
@@ -412,35 +461,62 @@ function listenToAtendimentos(year, month) {
     }, (err) => console.error("Erro atendimentos:", err));
 }
 
-async function saveTechnicianOverride(weekKey, techName) {
-    const docId = document.getElementById('month-selector')?.value;
-    if (!docId) return;
+// NOVA FUNÇÃO: Atualiza apenas localmente, não envia pro Firebase
+function updateLocalTechnicianOverride(weekKey, techName) {
     technicianOverrides[weekKey] = techName;
-    try {
-        await setDoc(doc(db, "escalaSobreaviso", docId), { overrides: technicianOverrides }, { merge: true });
-        renderScheduleTable();
-        updateSummary();
-    } catch (e) { console.error("Erro ao salvar escala:", e); }
+    renderScheduleTable();
+    updateSummary();
 }
 
-async function toggleHolidayExemption(dateString, isAutoHoliday) {
-    const docId = document.getElementById('month-selector')?.value;
-    if (!docId) return;
-    if (holidayOverrides[dateString]) delete holidayOverrides[dateString];
-    else {
+// MODIFICADA: Atualiza apenas localmente, não envia pro Firebase
+function toggleHolidayExemption(dateString, isAutoHoliday) {
+    if (holidayOverrides[dateString]) {
+        delete holidayOverrides[dateString];
+    } else {
         const name = prompt("Nome do Feriado:", isAutoHoliday ? HOLIDAYS_LIST[dateString] : "Folga");
         if (name) holidayOverrides[dateString] = name; else return;
     }
-    await setDoc(doc(db, "escalaSobreaviso", docId), { holidayOverrides }, { merge: true });
     renderScheduleTable();
     displayHolidaysList();
     updateSummary();
 }
 
+// NOVA FUNÇÃO: Salva tudo no Firebase quando clica no botão "Salvar Escala"
+async function saveScheduleToFirebase() {
+    const docId = document.getElementById('month-selector')?.value;
+    if (!docId) return;
+
+    const btnSave = document.getElementById('btn-save-schedule');
+    const originalText = btnSave ? btnSave.innerHTML : '';
+    
+    if (btnSave) {
+        btnSave.disabled = true;
+        btnSave.innerHTML = "Salvando...";
+    }
+
+    try {
+        await setDoc(doc(db, "escalaSobreaviso", docId), { 
+            overrides: technicianOverrides,
+            holidayOverrides: holidayOverrides
+        }, { merge: true });
+        
+        // Criar um pequeno toast de notificação ou alert discreto
+        alert("Escala salva com sucesso!");
+    } catch (e) { 
+        console.error("Erro ao salvar escala:", e);
+        alert("Erro ao salvar a escala no banco de dados.");
+    } finally {
+        if (btnSave) {
+            btnSave.disabled = false;
+            btnSave.innerHTML = originalText;
+        }
+    }
+}
+
 // --- INICIALIZAÇÃO ---
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Módulo Escala Sobreaviso v5.6 Iniciado.");
+    console.log("Módulo Escala Sobreaviso v6.8 Iniciado.");
     
     const monthSelector = document.getElementById('month-selector');
     const atendimentoModal = document.getElementById('atendimento-modal');
@@ -452,6 +528,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const chkSemOS = document.getElementById('sem_os_checkbox');
     const selectExecutadoPor = document.getElementById('executado_por');
     const btnGenerateReport = document.getElementById('btn-generate-pdf');
+    const btnSaveSchedule = document.getElementById('btn-save-schedule'); // NOVO BOTAO
+
+    // Conectar o botão Salvar
+    if (btnSaveSchedule) {
+        btnSaveSchedule.onclick = saveScheduleToFirebase;
+    }
 
     if (atendimentoForm) atendimentoForm.setAttribute('novalidate', '');
 
@@ -474,56 +556,98 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Ação: Gerar Relatório Mensal PDF (CORREÇÃO DA ESTRUTURA PARA O GERADOR)
     if (btnGenerateReport) {
-        btnGenerateReport.onclick = () => {
-            if (!monthSelector.value) return alert("Selecione um mês primeiro.");
+        btnGenerateReport.onclick = async () => {
+            const currentSelection = monthSelector.value;
+            if (!currentSelection) return alert("Selecione um mês primeiro.");
             
-            const monthYearStr = monthSelector.value;
-            const [year, month] = monthYearStr.split('-').map(Number);
+            const [year, month] = currentSelection.split('-').map(Number);
+            
             const weeks = getWeeksInMonth(year, month);
+            const localAssignmentRecord = [];
+            const scheduleTable = [];
 
-            // 1. Constrói a tabela de escala (Array de Arrays para o AutoTable do gerador)
-            const scheduleBodyData = weeks.map((week, i) => {
-                const row = [`${i + 1}ª Sem.`];
+            weeks.forEach((week, i) => {
+                const row = [];
+                row.push({ content: `${i + 1}ª Sem.`, isHoliday: false });
+                
                 week.days.forEach(day => {
-                    row.push(day ? day.getDate().toString() : "");
+                    if (day) {
+                        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+                        const isHoliday = !!(HOLIDAYS_LIST[dateStr] || holidayOverrides[dateStr]);
+                        row.push({ content: String(day.getDate()), isHoliday: isHoliday });
+                    } else {
+                        row.push({ content: "", isHoliday: false });
+                    }
                 });
-                row.push(weeklyAssignmentRecord[i] || "");
-                return row;
+
+                const weekKey = `week_${i}`;
+                let techName = "";
+                if (technicianOverrides && technicianOverrides[weekKey]) {
+                    techName = technicianOverrides[weekKey];
+                } else {
+                    if (i === 0) {
+                        const firstValidDay = week.days.find(d => d instanceof Date);
+                        techName = getBaselineTechnician(firstValidDay);
+                    } else {
+                        const prevTech = localAssignmentRecord[i - 1];
+                        const prevIdx = TECHNICIANS.indexOf(prevTech);
+                        techName = TECHNICIANS[(prevIdx + 1) % TECHNICIANS.length];
+                    }
+                }
+                localAssignmentRecord[i] = techName;
+                row.push({ content: techName, isHoliday: false });
+                
+                scheduleTable.push(row);
             });
 
-            // 2. Constrói a tabela de resumo (Array de Arrays para o AutoTable do gerador)
+            const combinedHolidays = { ...HOLIDAYS_LIST, ...holidayOverrides };
+            const holidaysArrayList = Object.keys(combinedHolidays).sort().map(dateStr => {
+                const day = dateStr.split('-')[2];
+                return `Dia ${parseInt(day)}: ${combinedHolidays[dateStr]}`;
+            });
+
             const { summary, overtimeTotals } = calculateSummaryTotals();
-            const summaryBodyData = TECHNICIANS.map(tech => {
+            const summaryTable = TECHNICIANS.map(tech => {
                 const sb = summary[tech].standbyHours;
                 const ot = overtimeTotals[tech] || 0;
                 return [tech, formatHours(sb), formatHours(ot), formatHours(sb - ot)];
             });
 
-            // CORREÇÃO: O gerador espera um objeto ÚNICO com as propriedades específicas
-            const reportData = {
-                monthYearStr: monthYearStr, // Nome exato esperado para .includes()
-                year: year,
-                month: month,
-                scheduleBodyData: scheduleBodyData,
-                summaryBodyData: summaryBodyData,
-                currentAtendimentos: currentAtendimentos,
-                holidayOverrides: holidayOverrides,
-                holidaysList: HOLIDAYS_LIST,
-                standbyHoursConfig: STANDBY_HOURS
-            };
+            const attendanceTable = currentAtendimentos
+                .sort((a, b) => a.data.localeCompare(b.data))
+                .map(at => [
+                    formatDateBR(at.data, true).trim(), 
+                    at.os_numero,
+                    at.executado_por,
+                    at.hora_inicio,
+                    at.hora_termino,
+                    formatHours(calculateDurationInHours(at.hora_inicio, at.hora_termino))
+                ]);
 
-            console.log("Gerando relatório mensal com estrutura corrigida...");
-            // Chamada única conforme padrão bem-sucedido anterior
-            generateMonthlyReportPDF(reportData);
+            const fileName = `Relatorio-Sobreaviso-${currentSelection}.pdf`;
+
+            console.log(`Gerando relatório completo para ${currentSelection} (v6.8)...`);
+            try {
+                await generateMonthlyReportPDF(
+                    currentSelection,   
+                    scheduleTable,      
+                    summaryTable,        
+                    attendanceTable,    
+                    holidaysArrayList,  
+                    currentAtendimentos, 
+                    fileName             
+                );
+            } catch (err) {
+                console.error("Erro no motor de PDF:", err);
+                alert("Erro ao processar PDF: " + err.message);
+            }
         };
     }
 
     try {
         const sigConfig = {
-            modal: signatureModal,
-            canvas: document.getElementById('signature-pad'),
+            modal: signatureModal, canvas: document.getElementById('signature-pad'),
             saveButton: document.getElementById('signature-save-button'),
             clearButton: document.getElementById('signature-clear-button'),
             undoButton: document.getElementById('signature-undo-button'),
@@ -531,9 +655,7 @@ document.addEventListener('DOMContentLoaded', () => {
             errorMessage: document.getElementById('signature-error-message'),
             orientationMessage: document.getElementById('orientation-message')
         };
-        if (sigConfig.canvas && sigConfig.modal) {
-            signaturePadManager = new SignaturePadManager(sigConfig);
-        }
+        if (sigConfig.canvas && sigConfig.modal) signaturePadManager = new SignaturePadManager(sigConfig);
     } catch (e) { console.error("Erro SignaturePad:", e); }
 
     if (signaturePlaceholder) {
@@ -550,10 +672,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const btnLaunch = document.getElementById('btn-launch-atendimento');
     if (btnLaunch) btnLaunch.onclick = () => {
-        editingAtendimentoId = null;
-        atendimentoForm.reset();
-        signaturePlaceholder.innerHTML = "Clique para assinar";
-        hiddenSigInput.value = "";
+        editingAtendimentoId = null; atendimentoForm.reset();
+        signaturePlaceholder.innerHTML = "Clique para assinar"; hiddenSigInput.value = "";
         showModal(atendimentoModal);
     };
     
@@ -564,12 +684,9 @@ document.addEventListener('DOMContentLoaded', () => {
         chkSemOS.addEventListener('change', () => {
             inputNumOS.disabled = chkSemOS.checked;
             if (chkSemOS.checked) {
-                inputNumOS.removeAttribute('required');
-                inputNumOS.value = "";
-                inputNumOS.classList.add('bg-gray-100');
+                inputNumOS.removeAttribute('required'); inputNumOS.value = ""; inputNumOS.classList.add('bg-gray-100');
             } else {
-                inputNumOS.setAttribute('required', 'required');
-                inputNumOS.classList.remove('bg-gray-100');
+                inputNumOS.setAttribute('required', 'required'); inputNumOS.classList.remove('bg-gray-100');
             }
         });
     }
@@ -580,33 +697,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(atendimentoForm);
             const data = Object.fromEntries(formData.entries());
             const isSemOS = chkSemOS.checked;
-
-            if (!isSemOS && (!data.os_numero || data.os_numero.trim() === "")) {
-                alert("Informe a OS ou marque SEM OS.");
-                inputNumOS.focus();
-                return;
-            }
+            if (!isSemOS && (!data.os_numero || data.os_numero.trim() === "")) return alert("Informe a OS ou marque SEM OS.");
             if (!data.executado_por) return alert("Selecione o técnico.");
             if (calculateDurationInHours(data.hora_inicio, data.hora_termino) <= 0) return alert("Horário inválido.");
             if (!hiddenSigInput.value) return alert("A assinatura é obrigatória.");
-
             try {
                 const docId = monthSelector.value;
-                const finalData = {
-                    ...data,
-                    os_numero: isSemOS ? "SEM OS" : data.os_numero,
-                    signature: hiddenSigInput.value,
-                    timestamp: new Date()
-                };
-
-                if (editingAtendimentoId) {
-                    await updateDoc(doc(db, "escalaSobreaviso", docId, "atendimentos", editingAtendimentoId), finalData);
-                } else {
-                    await addDoc(collection(db, "escalaSobreaviso", docId, "atendimentos"), finalData);
-                }
-
-                hideModal(atendimentoModal);
-                atendimentoForm.reset();
+                const finalData = { ...data, os_numero: isSemOS ? "SEM OS" : data.os_numero, signature: hiddenSigInput.value, timestamp: new Date() };
+                if (editingAtendimentoId) await updateDoc(doc(db, "escalaSobreaviso", docId, "atendimentos", editingAtendimentoId), finalData);
+                else await addDoc(collection(db, "escalaSobreaviso", docId, "atendimentos"), finalData);
+                hideModal(atendimentoModal); atendimentoForm.reset();
             } catch (err) { alert("Erro ao salvar: " + err.message); }
         };
     }
