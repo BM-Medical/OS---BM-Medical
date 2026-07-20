@@ -1,23 +1,28 @@
 /**
  * pdf-generator-relatexercito.js
  * Módulo especializado para o Contrato 10/2025 (Exército Brasileiro).
- * Padronizado conforme o layout do Contrato 138/2024 (Capão).
+ * Adicionado suporte para múltiplos anos contratuais e meses de renovação.
  */
 
 import { addOrderPageToPdf, imageToDataUrl } from './pdf-generator.js';
 
-const VALOR_SERVICO_FIXO = 2920.00;
 const MARGEM_INFERIOR = 25; 
+
+const MESES_UPPER = [
+    "JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO",
+    "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"
+];
+
+function getMesUpper(mesStr) {
+    const m = parseInt(mesStr) - 1;
+    return (m >= 0 && m < 12) ? MESES_UPPER[m] : mesStr;
+}
 
 /**
  * Helper para converter mês/ano para formato por extenso (ex: Janeiro/2026)
  */
 function formatMesBarra(mesAnoStr) {
     if (!mesAnoStr) return "";
-    const mesesNomes = [
-        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-    ];
     
     let mes, ano;
     const entrada = String(mesAnoStr);
@@ -36,7 +41,9 @@ function formatMesBarra(mesAnoStr) {
 
     const mesIdx = parseInt(mes) - 1;
     if (mesIdx >= 0 && mesIdx < 12) {
-        return `${mesesNomes[mesIdx]}/${ano}`;
+        // Formato Capitalizado (Primeira letra Maiúscula) para tabelas de controle
+        const nomeMesCapitalizado = MESES_UPPER[mesIdx].charAt(0) + MESES_UPPER[mesIdx].slice(1).toLowerCase();
+        return `${nomeMesCapitalizado}/${ano}`;
     }
     return entrada;
 }
@@ -78,20 +85,16 @@ function drawJustifiedTextWithIndent(doc, text, x, y, width, indent, logoDataUrl
     doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(0);
     if (!text) return y;
 
-    // 1. Obtém a primeira linha com o recuo
     const linesFirst = doc.splitTextToSize(text, width - indent);
     const line1 = linesFirst[0];
     
     y = checkPageBreak(doc, y, 7, logoDataUrl);
     
     if (linesFirst.length === 1) {
-        // Se só tem uma linha, não justifica (alinha à esquerda)
         doc.text(line1, x + indent, y);
     } else {
-        // Justifica a primeira linha forçando o jsPDF a entender que há uma "próxima" linha
         doc.text([line1, ""], x + indent, y, { align: "justify", maxWidth: width - indent });
         
-        // 2. Processa o restante do texto
         const restText = text.substring(line1.length).trim();
         if (restText) {
             const linesRest = doc.splitTextToSize(restText, width);
@@ -100,21 +103,67 @@ function drawJustifiedTextWithIndent(doc, text, x, y, width, indent, logoDataUrl
                 y = checkPageBreak(doc, y, 7, logoDataUrl);
                 
                 if (i < linesRest.length - 1) {
-                    // Justifica linhas intermediárias usando o truque do array [linha, ""]
                     doc.text([linesRest[i], ""], x, y, { align: "justify", maxWidth: width });
                 } else {
-                    // Última linha do parágrafo: alinha apenas à esquerda
                     doc.text(linesRest[i], x, y);
                 }
             }
         }
     }
-    
     return y + 5;
 }
 
+// Helpers para desenhar tabelas padronizadas no PDF
+function drawTabelaPecasPlanilha(doc, itens, margin, y, safeWidth, logoDataUrl) {
+    const headers = ["ITEM", "DESCRIÇÃO", "QTD", "VALOR UNIT.", "VALOR TOTAL"];
+    const rows = (itens || []).map((it, idx) => [
+        idx + 1,
+        it.descricao.toUpperCase(),
+        it.qtd,
+        formatMoeda(it.valorUnit),
+        formatMoeda(it.qtd * it.valorUnit)
+    ]);
+    const totalPecas = (itens || []).reduce((acc, it) => acc + (it.qtd * it.valorUnit), 0);
+    rows.push(["TOTAL GERAL", "", "", "", formatMoeda(totalPecas)]);
+
+    return drawTableStyle(doc, headers, rows, margin, y, safeWidth, [12, 83, 15, 30, 30], true, logoDataUrl, [220, 220, 220]);
+}
+
+function drawTabelaPecasRelatorio(doc, itens, margin, y, safeWidth, logoDataUrl) {
+    const pHeaders = ["DESCRIÇÃO", "QTD", "VALOR UNIT.", "VALOR TOTAL"];
+    const pRows = (itens || []).map(it => [it.descricao.toUpperCase(), it.qtd, formatMoeda(it.valorUnit), formatMoeda(it.qtd * it.valorUnit)]);
+    const subtotal = (itens || []).reduce((acc, it) => acc + (it.qtd * it.valorUnit), 0);
+    pRows.push(["TOTAL GERAL", "", "", formatMoeda(subtotal)]);
+    
+    return drawTableStyle(doc, pHeaders, pRows, margin, y, safeWidth, [95, 15, 30, 30], true, logoDataUrl, [220, 220, 220]);
+}
+
+function drawTabelaControle(doc, historico, limiteAnual, anoLabel, margin, y, safeWidth, logoDataUrl) {
+    const cHeaders = ["MÊS DE REFERÊNCIA", "VALOR GASTO EM PEÇAS (MENSAL)", "VALOR SOBRANDO (MENSAL)"];
+    let saldoAtual = limiteAnual;
+    
+    const cRows = (historico || []).map(h => {
+        saldoAtual -= h.gasto;
+        const mesTexto = h.mesAnoTexto || formatMesBarra(h.mesAno);
+        return [mesTexto, formatMoeda(h.gasto), formatMoeda(saldoAtual)];
+    });
+    
+    cRows.push([`VALOR CONTRATUAL DISPONÍVEL (${anoLabel}º ANO)`, "", formatMoeda(saldoAtual)]);
+    return drawTableStyle(doc, cHeaders, cRows, margin, y, safeWidth, [60, 60, 50], true, logoDataUrl, [220, 220, 220]);
+}
+
+function drawTotalGeralDestaque(doc, titulo, valor, margin, y, safeWidth) {
+    doc.setFillColor(189, 213, 237);
+    doc.rect(margin, y, safeWidth, 7, 'FD');
+    doc.setTextColor(0);
+    doc.setFont("helvetica", "bold").setFontSize(10);
+    doc.text(titulo, margin + (safeWidth - 30)/2, y + 5, { align: "center" });
+    doc.text(formatMoeda(valor), margin + safeWidth - 15, y + 5, { align: "center" });
+    return y + 9;
+}
+
 /**
- * Função para gerar apenas a planilha de peças
+ * Função: Gera apenas a planilha de peças
  */
 export async function gerarPlanilhaPecasExercito(dados, btnElement) {
     if (btnElement) {
@@ -131,7 +180,6 @@ export async function gerarPlanilhaPecasExercito(dados, btnElement) {
         const logoDataUrl = await imageToDataUrl('./images/logo.png', 0.9);
         
         let currentY = desenharCabecalhoPadrao(doc, logoDataUrl, pageWidth);
-
         currentY += 10;
 
         doc.setFont("helvetica", "bold").setFontSize(14).setTextColor(0);
@@ -152,21 +200,33 @@ export async function gerarPlanilhaPecasExercito(dados, btnElement) {
         });
         currentY += 4;
 
-        const headers = ["ITEM", "DESCRIÇÃO", "QTD", "VALOR UNIT.", "VALOR TOTAL"];
-        const rows = (dados.itens || []).map((it, idx) => [
-            idx + 1,
-            it.descricao.toUpperCase(),
-            it.qtd,
-            formatMoeda(it.valorUnit),
-            formatMoeda(it.qtd * it.valorUnit)
-        ]);
+        if (dados.transicao) {
+            const pecasAntigas = dados.itens.filter(i => i.contratoAno == dados.transicao.anoAntigo);
+            const pecasNovas = dados.itens.filter(i => i.contratoAno == dados.transicao.anoNovo);
+            
+            doc.setFont("helvetica", "bold").setFontSize(10).setTextColor(0);
+            doc.text(`Peças do ${dados.transicao.anoAntigo}º Ano Contratual (${dados.transicao.strDataAntigo})`, margin, currentY);
+            currentY += 4;
+            currentY = drawTabelaPecasPlanilha(doc, pecasAntigas, margin, currentY, safeWidth, logoDataUrl);
+            currentY += 6;
+            
+            doc.setFont("helvetica", "bold").setFontSize(10).setTextColor(0);
+            doc.text(`Peças do ${dados.transicao.anoNovo}º Ano Contratual (${dados.transicao.strDataNovo})`, margin, currentY);
+            currentY += 4;
+            currentY = drawTabelaPecasPlanilha(doc, pecasNovas, margin, currentY, safeWidth, logoDataUrl);
+            
+            const totalGeral = (dados.itens || []).reduce((acc, it) => acc + (it.qtd * it.valorUnit), 0);
+            currentY += 2;
+            currentY = drawTotalGeralDestaque(doc, "TOTAL GERAL DE PEÇAS NO MÊS", totalGeral, margin, currentY, safeWidth);
 
-        const totalPecas = (dados.itens || []).reduce((acc, it) => acc + (it.qtd * it.valorUnit), 0);
-        rows.push(["TOTAL GERAL", "", "", "", formatMoeda(totalPecas)]);
+        } else {
+            currentY = drawTabelaPecasPlanilha(doc, dados.itens, margin, currentY, safeWidth, logoDataUrl);
+        }
 
-        currentY = drawTableStyle(doc, headers, rows, margin, currentY, safeWidth, [12, 83, 15, 30, 30], true, logoDataUrl, [220, 220, 220]);
+        const mesUpper = getMesUpper(dados.mesRef);
+        const nomeArquivoPlanilha = `COMPRA DE PEÇAS - ${mesUpper}.${dados.anoRef}.pdf`;
+        doc.save(nomeArquivoPlanilha);
 
-        doc.save(`Planilha-Pecas-Exercito-${dados.mesRef}.pdf`);
     } catch (e) {
         console.error(e);
     } finally {
@@ -208,7 +268,12 @@ export async function gerarRelatorioExercitoCompleto(dados, btnElement) {
             }
         }
 
-        doc.save(`Relatorio-Exercito-${dados.mesRef}.pdf`);
+        const mm = String(dados.mesRef).padStart(2, '0');
+        const aa = String(dados.anoRef).slice(-2);
+        const nomeArquivoRelatorio = `Relatório Mensal ${mm}.${aa} - CT N°10.2025 - Exército Brasileiro.pdf`;
+        
+        doc.save(nomeArquivoRelatorio);
+
     } catch (error) {
         console.error(error);
     } finally {
@@ -226,8 +291,6 @@ async function desenharCapaRelatorio(doc, logoDataUrl, dados) {
     const indent = 12;
 
     let y = desenharCabecalhoPadrao(doc, logoDataUrl, pageWidth);
-    
-    // Ajuste solicitado: Baixar um pouco o título
     y += 10;
 
     doc.setFont("helvetica", "bold").setFontSize(16).setTextColor(0);
@@ -260,51 +323,100 @@ async function desenharCapaRelatorio(doc, logoDataUrl, dados) {
     y = drawJustifiedTextWithIndent(doc, dados.textoAtividades, margin, y, safeWidth, indent, logoDataUrl);
     y += 5;
 
-    // 3. Controle de Gastos
+    // 3. Peças
     y = checkPageBreak(doc, y, 15, logoDataUrl);
     doc.setFont("helvetica", "bold").setFontSize(14).text("3. Aquisição de Peças e Controle de Gastos", margin, y);
     y += 8;
-    const introPecas = "Na tabela abaixo, apresentam-se as peças adquiridas e seus respectivos valores para fins de referência.";
+    
+    const introPecas = dados.transicao
+        ? "Nas tabelas abaixo, apresentam-se as peças adquiridas e seus respectivos valores, separadas de acordo com seus respectivos períodos contratuais, para fins de referência."
+        : "Na tabela abaixo, apresentam-se as peças adquiridas e seus respectivos valores para fins de referência.";
     y = drawJustifiedTextWithIndent(doc, introPecas, margin, y, safeWidth, indent, logoDataUrl);
     y += 2;
 
-    const pHeaders = ["DESCRIÇÃO", "QTD", "VALOR UNIT.", "VALOR TOTAL"];
-    const pRows = (dados.itens || []).map(it => [it.descricao.toUpperCase(), it.qtd, formatMoeda(it.valorUnit), formatMoeda(it.qtd * it.valorUnit)]);
     const totalPecasMes = (dados.itens || []).reduce((acc, it) => acc + (it.qtd * it.valorUnit), 0);
-    pRows.push(["TOTAL GERAL", "", "", formatMoeda(totalPecasMes)]);
-    y = drawTableStyle(doc, pHeaders, pRows, margin, y, safeWidth, [95, 15, 30, 30], true, logoDataUrl, [220, 220, 220]);
+
+    if (dados.transicao) {
+        const pecasAntigas = dados.itens.filter(i => i.contratoAno == dados.transicao.anoAntigo);
+        const pecasNovas = dados.itens.filter(i => i.contratoAno == dados.transicao.anoNovo);
+        
+        doc.setFont("helvetica", "bold").setFontSize(10).text(`Peças do ${dados.transicao.anoAntigo}º Ano Contratual (${dados.transicao.strDataAntigo})`, margin, y);
+        y += 4;
+        y = drawTabelaPecasRelatorio(doc, pecasAntigas, margin, y, safeWidth, logoDataUrl);
+        y += 6;
+        
+        doc.setFont("helvetica", "bold").setFontSize(10).text(`Peças do ${dados.transicao.anoNovo}º Ano Contratual (${dados.transicao.strDataNovo})`, margin, y);
+        y += 4;
+        y = drawTabelaPecasRelatorio(doc, pecasNovas, margin, y, safeWidth, logoDataUrl);
+        y += 2;
+        y = drawTotalGeralDestaque(doc, "TOTAL GERAL DE PEÇAS NO MÊS", totalPecasMes, margin, y, safeWidth);
+    } else {
+        y = drawTabelaPecasRelatorio(doc, dados.itens, margin, y, safeWidth, logoDataUrl);
+    }
     
-    // --- QUEBRA DE PÁGINA OBRIGATÓRIA APÓS A TABELA DE PEÇAS ---
+    // --- QUEBRA DE PÁGINA PARA TABELAS DE CONTROLE ---
     doc.addPage();
     y = desenharCabecalhoPadrao(doc, logoDataUrl, pageWidth);
     y += 10; 
 
-    const txtC = "Considerando que o Contrato N°10/2025 prevê o limite anual de R$ 30.000,00 destinado à aquisição de peças, apresenta-se a seguir a tabela de controle mensal de despesas. O objetivo é permitir um acompanhamento progressivo da utilização dos recursos, garantindo maior transparência e prevenindo riscos de desequilíbrio financeiro durante a execução contratual.";
+    const txtC = dados.textoIntroControle || "Considerando o limite anual...";
     y = drawJustifiedTextWithIndent(doc, txtC, margin, y, safeWidth, indent, logoDataUrl);
     y += 2;
 
-    const cHeaders = ["MÊS DE REFERÊNCIA", "VALOR GASTO EM PEÇAS (MENSAL)", "VALOR SOBRANDO (MENSAL)"];
-    const cRows = (dados.historicoControle || []).map(h => [formatMesBarra(h.mesAno), formatMoeda(h.gasto), formatMoeda(h.sobrando)]);
-    const saldoAnual = 30000 - (dados.historicoControle || []).reduce((acc, h) => acc + (h.gasto || 0), 0);
-    cRows.push(["VALOR CONTRATUAL DISPONÍVEL (ANUAL)", "", formatMoeda(saldoAnual)]);
-    
-    y = drawTableStyle(doc, cHeaders, cRows, margin, y, safeWidth, [60, 60, 50], true, logoDataUrl, [220, 220, 220]);
+    if (dados.transicao) {
+        doc.setFont("helvetica", "bold").setFontSize(10).text(`Controle Mensal - ${dados.transicao.anoAntigo}º Ano Contratual`, margin, y);
+        y += 4;
+        y = drawTabelaControle(doc, dados.historicoControle, dados.limiteAnual, dados.transicao.anoAntigo, margin, y, safeWidth, logoDataUrl);
+        y += 8;
+        
+        doc.setFont("helvetica", "bold").setFontSize(10).text(`Controle Mensal - ${dados.transicao.anoNovo}º Ano Contratual`, margin, y);
+        y += 4;
+        y = drawTabelaControle(doc, dados.historicoControleNovo, dados.limiteAnualNovo, dados.transicao.anoNovo, margin, y, safeWidth, logoDataUrl);
+    } else {
+        doc.setFont("helvetica", "bold").setFontSize(10).text(`Controle Mensal - ${dados.anoAtual}º Ano Contratual`, margin, y);
+        y += 4;
+        y = drawTabelaControle(doc, dados.historicoControle, dados.limiteAnual, dados.anoAtual, margin, y, safeWidth, logoDataUrl);
+    }
 
-    y += 10;
-    y = checkPageBreak(doc, y, 15, logoDataUrl);
+    // 4. Faturamento
+    if (dados.transicao) {
+        doc.addPage();
+        y = desenharCabecalhoPadrao(doc, logoDataUrl, pageWidth);
+        y += 10;
+    } else {
+        y += 10;
+        y = checkPageBreak(doc, y, 15, logoDataUrl);
+    }
+    
     doc.setFont("helvetica", "bold").setFontSize(14).text("4. Faturamento", margin, y);
     y += 8;
-    const fRows = [
-        ["1", "Serviço Mensal Manutenção Manutenção Odontoclínica", formatMoeda(VALOR_SERVICO_FIXO)],
-        ["2", "Fornecimento de peças (Total do Mês)", formatMoeda(totalPecasMes)],
-        ["", "TOTAL DO FATURAMENTO", formatMoeda(VALOR_SERVICO_FIXO + totalPecasMes)]
-    ];
-    // Ajustado para fundo cinza no cabeçalho
+    
+    if (dados.textoIntroFaturamento) {
+        y = drawJustifiedTextWithIndent(doc, dados.textoIntroFaturamento, margin, y, safeWidth, indent, logoDataUrl);
+        y += 2;
+    }
+    
+    const fRows = [];
+    let totalFat = 0;
+    let indexFat = 1;
+
+    if (dados.servicosFaturamento && dados.servicosFaturamento.length > 0) {
+        dados.servicosFaturamento.forEach(serv => {
+            fRows.push([String(indexFat++), serv.descricao, formatMoeda(serv.valor)]);
+            totalFat += serv.valor;
+        });
+    }
+
+    fRows.push([String(indexFat), "Fornecimento de peças conforme discriminado no item 3...", formatMoeda(totalPecasMes)]);
+    totalFat += totalPecasMes;
+    
+    fRows.push(["", "TOTAL DO FATURAMENTO", formatMoeda(totalFat)]);
+
     y = drawTableStyle(doc, ["Item", "Descrição", "Valor Executado"], fRows, margin, y, safeWidth, [15, 115, 40], true, logoDataUrl, [220, 220, 220]);
 }
 
 /**
- * Desenha tabelas com lógica de cores e mesclagem de rodapé corrigida
+ * Desenha tabelas com lógica de cores e mesclagem de rodapé
  */
 function drawTableStyle(doc, headers, rows, x, y, width, customWidths = [], highlightLast = false, logoDataUrl, headerBgColor = [37, 99, 235]) {
     const colCount = headers.length;
@@ -314,7 +426,6 @@ function drawTableStyle(doc, headers, rows, x, y, width, customWidths = [], high
 
     y = checkPageBreak(doc, y, headerH + rowH, logoDataUrl);
     
-    // Header
     const isLightHeader = (headerBgColor[0] + headerBgColor[1] + headerBgColor[2]) > 500;
     doc.setFont("helvetica", "bold").setFontSize(8.5);
 
@@ -353,7 +464,6 @@ function drawTableStyle(doc, headers, rows, x, y, width, customWidths = [], high
             doc.setTextColor(0);
         }
 
-        // Estilo da linha (Última linha em negrito e tamanho 10)
         doc.setFont("helvetica", isLast ? "bold" : "normal");
         doc.setFontSize(isLast ? 10 : 8);
         
@@ -361,16 +471,17 @@ function drawTableStyle(doc, headers, rows, x, y, width, customWidths = [], high
 
         const labelText = row[0];
         const isTotalGeral = isLast && labelText === "TOTAL GERAL";
-        const isSaldoAnual = isLast && labelText === "VALOR CONTRATUAL DISPONÍVEL (ANUAL)";
-        const isTotalFaturamento = isLast && row[1] === "TOTAL DO FATURAMENTO"; // Identifica o rótulo na segunda coluna se for faturamento
+        // Atualizado para englobar os textos de rodapé dos múltiplos anos
+        const isSaldoAnual = isLast && labelText.includes("VALOR CONTRATUAL DISPONÍVEL");
+        const isTotalFaturamento = isLast && row[1] === "TOTAL DO FATURAMENTO"; 
 
-        if (isTotalGeral || isSaldoAnual || (isLast && row[1] === "TOTAL DO FATURAMENTO")) {
+        if (isTotalGeral || isSaldoAnual || isTotalFaturamento) {
             let mergeCount = 0;
             let mergeLabel = labelText;
 
             if (isTotalGeral) mergeCount = 3; 
             if (isSaldoAnual) mergeCount = 2;
-            if (isLast && row[1] === "TOTAL DO FATURAMENTO") {
+            if (isTotalFaturamento) {
                 mergeCount = 2;
                 mergeLabel = "TOTAL DO FATURAMENTO";
             }
@@ -403,9 +514,10 @@ function drawTableStyle(doc, headers, rows, x, y, width, customWidths = [], high
                 doc.setTextColor(0);
                 
                 let align = "center";
-                // Alinhamento para colunas de descrição
                 if (row.length === 4 && i === 0 && !isLast) align = "left";
-                else if (row.length === 3 && i === 1 && !isLast) align = "left";
+                else if (row.length === 3 && i === 1 && !isLast) {
+                    if (!String(txt).includes("R$")) align = "left";
+                }
                 else if (row.length === 5 && i === 1 && !isLast) align = "left";
 
                 const textX = align === "left" ? curX + 2 : curX + w / 2;

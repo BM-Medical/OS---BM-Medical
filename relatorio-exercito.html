@@ -63,6 +63,11 @@
             <a href="index.html" class="text-gray-400 hover:text-white transition flex items-center gap-2 text-sm font-medium"><i class="fas fa-arrow-left"></i> Voltar</a>
             <div class="h-6 w-px bg-gray-700 mx-2"></div>
             <h1 class="text-sm font-bold uppercase tracking-wider">Relatório 10/2025</h1>
+            
+            <button id="btn-config-contrato" class="text-gray-400 hover:text-white transition p-2 ml-2" title="Configurações do Contrato">
+                <i class="fas fa-cog"></i>
+            </button>
+
             <div class="flex items-center bg-gray-800 rounded px-3 py-1 border border-gray-600 ml-4">
                 <label class="text-xs text-gray-400 mr-2 uppercase">Mês:</label>
                 <input type="month" id="month-selector" class="bg-transparent border-none text-white focus:ring-0 cursor-pointer text-sm font-bold h-6">
@@ -112,7 +117,7 @@
             <div class="mb-8 text-base pl-2">
                 <div class="mb-0 flex items-baseline"><span class="font-bold text-gray-900 uppercase text-sm mr-2 w-24">Contrato:</span><span class="text-gray-800 font-medium">Termo de Contrato Nº. 10/2025</span></div>
                 <div class="mb-0 flex items-baseline"><span class="font-bold text-gray-900 uppercase text-sm mr-2 w-24">Cliente:</span><span class="text-gray-800 font-medium">9º Batalhão de Infantaria Motorizado</span></div>
-                <div class="mb-0 flex items-baseline"><span class="font-bold text-gray-900 uppercase text-sm mr-2 w-24">Período:</span><span id="periodo-texto" class="text-blue-900 font-bold">Selecione um mês acima...</span></div>
+                <div class="mb-0 flex items-baseline"><span class="font-bold text-gray-900 uppercase text-sm mr-2 w-24">Período:</span><span id="periodo-texto" class="text-blue-900 font-bold">Selecione um mês acima e clique em Sincronizar...</span></div>
             </div>
 
             <div class="mb-8">
@@ -133,41 +138,39 @@
 
             <div class="mb-8">
                 <h2 class="text-lg font-bold uppercase mb-2 border-l-4 border-gray-900 pl-3">3. Aquisição de Peças e Controle de Gastos</h2>
-                <p class="text-sm text-justify mb-4 text-indent-custom leading-relaxed">Na tabela abaixo, apresentam-se as peças adquiridas e seus respectivos valores para fins de referência.</p>
+                <p id="txt-intro-pecas" class="text-sm text-justify mb-4 text-indent-custom leading-relaxed">Na tabela abaixo, apresentam-se as peças adquiridas e seus respectivos valores para fins de referência.</p>
                 
-                <table class="w-full border-collapse border border-gray-900 text-[11px] mb-6">
-                    <thead>
-                        <tr class="bg-gray-100 uppercase font-bold text-center">
-                            <th class="border border-gray-900 p-2">Descrição</th>
-                            <th class="border border-gray-900 p-2 w-16">Qtd</th>
-                            <th class="border border-gray-900 p-2 w-28">Valor Unit.</th>
-                            <th class="border border-gray-900 p-2 w-28">Valor Total</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-pecas-mes">
-                        <tr><td colspan="4" class="p-4 text-center text-gray-400 italic">Sincronize os dados...</td></tr>
-                    </tbody>
-                </table>
+                <div id="relatorio-pecas-container" class="mb-6">
+                    <table class="w-full border-collapse border border-gray-900 text-[11px]">
+                        <thead>
+                            <tr class="bg-gray-100 uppercase font-bold text-center">
+                                <th class="border border-gray-900 p-2">Descrição</th>
+                                <th class="border border-gray-900 p-2 w-16">Qtd</th>
+                                <th class="border border-gray-900 p-2 w-28">Valor Unit.</th>
+                                <th class="border border-gray-900 p-2 w-28">Valor Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-pecas-mes">
+                            <tr><td colspan="4" class="p-4 text-center text-gray-400 italic">Sincronize os dados...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
 
-                <p class="text-sm text-justify mt-6 mb-4 text-indent-custom leading-relaxed">
-                    Considerando que o Contrato N°10/2025 prevê o limite anual de R$ 30.000,00 destinado à aquisição de peças, apresenta-se a seguir a tabela de controle mensal de despesas. O objetivo é permitir um acompanhamento progressivo da utilização dos recursos, garantindo maior transparência e prevenindo riscos de desequilíbrio financeiro durante a execução contratual.
+                <p id="txt-intro-controle" class="text-sm text-justify mt-6 mb-4 text-indent-custom leading-relaxed">
+                    Considerando o limite anual destinado à aquisição de peças, apresenta-se a seguir a tabela de controle mensal de despesas. O objetivo é permitir um acompanhamento progressivo da utilização dos recursos, garantindo maior transparência e prevenindo riscos de desequilíbrio financeiro durante a execução contratual.
                 </p>
 
-                <table class="w-full border-collapse border border-gray-900 text-[11px]">
-                    <thead>
-                        <tr class="bg-gray-100 uppercase font-bold text-center">
-                            <th class="border border-gray-900 p-2">Mês de Referência</th>
-                            <th class="border border-gray-900 p-2">Valor Gasto (Mensal)</th>
-                            <th class="border border-gray-900 p-2">Valor Sobrando (Mensal)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-controle-gastos"></tbody>
+                <table class="w-full border-collapse border border-gray-900 text-[11px] mb-4">
+                    <tbody id="tbody-controle-gastos">
+                        <tr><td class="p-4 text-center text-gray-400 italic border border-gray-900">Sincronize os dados...</td></tr>
+                    </tbody>
                 </table>
             </div>
 
             <!-- 4. FATURAMENTO -->
             <div>
                 <h2 class="text-lg font-bold uppercase mb-4 border-l-4 border-gray-900 pl-3">4. Faturamento</h2>
+                <p id="txt-intro-faturamento" class="text-sm text-justify mb-4 text-indent-custom leading-relaxed hidden"></p>
                 <table class="w-full border-collapse border border-gray-900 text-[11px] mt-2">
                     <thead>
                         <tr class="bg-gray-100 uppercase font-bold text-center">
@@ -200,33 +203,15 @@
         <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
             <div class="bg-blue-600 p-4 text-white flex justify-between items-center">
                 <h2 class="font-bold uppercase tracking-wide"><i class="fas fa-edit mr-2"></i> Gestor de Itens e Valores</h2>
-                <div class="flex gap-2">
+                <div class="flex gap-2" id="add-buttons-container">
                     <button id="btn-reload-os" class="bg-blue-500 hover:bg-blue-400 px-3 py-1 rounded text-xs font-bold uppercase transition"><i class="fas fa-sync mr-1"></i> Importar das OSs</button>
-                    <button id="btn-add-item" class="bg-blue-800 hover:bg-blue-700 px-3 py-1 rounded text-xs font-bold uppercase transition"><i class="fas fa-plus mr-1"></i> Item Extra</button>
+                    <!-- Botões de adição dinâmicos entrarão aqui via JS -->
                     <button id="btn-save-data" class="bg-green-600 hover:bg-green-700 px-4 py-1 rounded text-xs font-bold uppercase transition"><i class="fas fa-save mr-1"></i> Salvar Fechamento</button>
                 </div>
             </div>
             
-            <div class="p-6">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="text-gray-400 uppercase text-[10px] font-bold border-b border-gray-100">
-                            <th class="pb-2 text-left">Descrição do Item</th>
-                            <th class="pb-2 text-center w-20">Qtd</th>
-                            <th class="pb-2 text-center w-40">Valor Unitário (R$)</th>
-                            <th class="pb-2 text-center w-40">Total</th>
-                            <th class="pb-2 text-right w-12"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-editor-items"></tbody>
-                    <tfoot>
-                        <tr class="border-t-2 border-gray-100 font-bold">
-                            <td colspan="3" class="pt-4 text-right uppercase text-gray-500 text-xs">Total do Mês:</td>
-                            <td class="pt-4 text-center text-blue-600 text-lg" id="total-pecas-display">R$ 0,00</td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
-                </table>
+            <div class="p-6" id="editor-tables-container">
+                <!-- Tabelas de edição injetadas via JS -->
             </div>
         </div>
 
@@ -234,8 +219,8 @@
             <h3 class="font-bold text-gray-700 uppercase text-xs mb-4 border-b pb-2"><i class="fas fa-chart-line mr-2"></i> Resumo de Controle Anual</h3>
             <div class="grid grid-cols-3 gap-4">
                 <div class="bg-gray-50 p-4 rounded-lg">
-                    <p class="text-[10px] text-gray-400 uppercase font-bold mb-1">Limite Anual Contratado</p>
-                    <p class="text-xl font-black text-gray-800">R$ 30.000,00</p>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold mb-1" id="lbl-limite-anual">Limite Anual Contratado (Ano Atual)</p>
+                    <p class="text-xl font-black text-gray-800" id="limite-anual-display">R$ 0,00</p>
                 </div>
                 <div class="bg-blue-50 p-4 rounded-lg">
                     <p class="text-[10px] text-blue-400 uppercase font-bold mb-1">Gasto Acumulado (Anterior)</p>
@@ -243,8 +228,55 @@
                 </div>
                 <div class="bg-green-50 p-4 rounded-lg">
                     <p class="text-[10px] text-green-400 uppercase font-bold mb-1">Saldo Contratual Restante</p>
-                    <p class="text-xl font-black text-green-800" id="saldo-final-display">R$ 30.000,00</p>
+                    <p class="text-xl font-black text-green-800" id="saldo-final-display">R$ 0,00</p>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CONFIGURAÇÃO DE CONTRATO -->
+    <div id="modal-config-contrato" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center no-print">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col">
+            <div class="bg-gray-900 p-4 text-white flex justify-between items-center rounded-t-xl">
+                <h2 class="font-bold uppercase tracking-wide"><i class="fas fa-file-signature mr-2"></i> Configurações de Vigência Contratual</h2>
+                <button id="btn-close-config" class="text-gray-400 hover:text-white transition">
+                    <i class="fas fa-times text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 flex-grow">
+                <p class="text-sm text-gray-600 mb-6">Defina os períodos de vigência do contrato. O sistema utilizará estas datas para calcular automaticamente os valores proporcionais (pro-rata) de mão de obra e separar o controle de teto de peças durante as renovações.</p>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-700 uppercase text-[10px] font-bold">
+                                <th class="border border-gray-200 p-2 text-center w-16">Ano</th>
+                                <th class="border border-gray-200 p-2 text-center">Data Início</th>
+                                <th class="border border-gray-200 p-2 text-center">Data Fim</th>
+                                <th class="border border-gray-200 p-2 text-center">Valor Mão de Obra (Mensal)</th>
+                                <th class="border border-gray-200 p-2 text-center">Teto Peças (Anual)</th>
+                                <th class="border border-gray-200 p-2 text-center w-12">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-config-vigencias">
+                            <!-- Linhas inseridas via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-4 flex justify-end">
+                    <button id="btn-add-vigencia" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-xs font-bold uppercase transition flex items-center gap-1 shadow-sm">
+                        <i class="fas fa-plus"></i> Adicionar Vigência
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 p-4 border-t border-gray-200 flex justify-end gap-3 rounded-b-xl">
+                <button id="btn-cancel-config" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-4 py-2 rounded text-sm font-bold uppercase transition shadow-sm">Cancelar</button>
+                <button id="btn-save-config" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-bold uppercase transition shadow-sm flex items-center gap-2">
+                    <i class="fas fa-save"></i> Salvar Configurações
+                </button>
             </div>
         </div>
     </div>
